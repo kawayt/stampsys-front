@@ -1,19 +1,13 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import './App.css'
+import StampForm from './components/StampForm'
 
 function App() {
-    const [count, setCount] = useState(0);
-
     return (
-        <>
-            <h1 className="text-3xl font-bold underline">Vite + React</h1>
-            <div className="m-4">
-                <Button onClick={() => setCount((count) => count + 1)}>
-                    count is {count}
-                </Button>
-            </div>
-        </>
-    );
+        <div className="App">
+            <h1>スタンプシステム</h1>
+            <StampForm userId={1} roomId={1} />
+        </div>
+    )
 }
 
-export default App;
+export default App
