@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { sendStamp } from '../api/stampApi';
+import { sendStamp } from '../api/StampSendApi.js';
 
 function StampPanel({ userId, roomId }) {
     const [loading, setLoading] = useState(false);
