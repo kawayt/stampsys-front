@@ -2,6 +2,7 @@ import './App.css'
 import React, { useEffect, useState } from "react";
 import StampForm from './components/StampForm'
 import UserList from './components/UserList'
+import LoggedOut from './components/LoggedOut'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 
 
@@ -17,6 +18,7 @@ function App() {
     const [loading, setLoading] = useState(true);
     const [appData, setAppData] = useState(null); // { attributes, users, user } を想定
     const [error, setError] = useState(null);
+    const [loggingOut, setLoggingOut] = useState(false);
 
     useEffect(() => {
         // マウント時にログイン状態をチェック
@@ -50,90 +52,101 @@ function App() {
     };
 
     const handleLogout = () => {
-        // シンプルな例: サーバ側に /logout がある前提
-        fetch(`${API_BASE_URL}/logout`, {
-            method: "POST",
-            credentials: "include",
-        })
-            .then(() => {
-                setAppData(null);
-            })
-            .catch((e) => {
-                console.error(e);
-                alert("ログアウトに失敗しました");
-            });
+        if (loggingOut) return;
+        setLoggingOut(true);
+        // 変更点: /logout-confirm に遷移して、サーバーが自動POSTしてくれる
+        window.location.href = `${API_BASE_URL}/logout-confirm`;
     };
 
-    if (loading) {
-        return <div>読み込み中...</div>;
-    }
-
-    // 未ログイン時: ログインボタンだけ出すページ
-    if (!appData) {
-        return (
-            <div style={styles.container}>
-                <h1>StampSys</h1>
-                <p>Microsoft アカウントでログインしてダッシュボードにアクセスしてください。</p>
-                {error && <p style={{ color: "red" }}>{error}</p>}
-                <button style={styles.loginButton} onClick={handleLogin}>
-                    Microsoft 365 でログイン
-                </button>
-            </div>
-        );
-    }
-
-    // ログイン後ページ（ここにルーティングを追加）
+    // ルーティングを常に有効にしておき、/logged-out を直接レンダリングできるようにする
     return (
         <BrowserRouter>
-            <div style={styles.container}>
-                <header style={styles.header}>
-                    <div>
-                        <h1>ダッシュボード</h1>
-                        <p>
-                            ログイン中:{" "}
-                            {appData.user?.userName ||
-                                appData.attributes?.name ||
-                                appData.attributes?.displayName ||
-                                "名無し"}
-                        </p>
-                    </div>
-                    <button style={styles.logoutButton} onClick={handleLogout}>
-                        ログアウト
-                    </button>
-                </header>
+            <Routes>
+                <Route path="/logged-out" element={<LoggedOut />} />
 
-                {/* ナビゲーション */}
-                <nav style={{ marginBottom: "16px", display: "flex", gap: "12px" }}>
-                    <Link to="/stamp-send">スタンプ送信</Link>
-                    <Link to="/users">ユーザー一覧</Link>
-                </nav>
+                {/* その他は従来の挙動を維持 */}
+                <Route path="/*" element={
+                    (() => {
+                        if (loading) {
+                            return <div>読み込み中...</div>;
+                        }
 
-                <main style={styles.main}>
-                    <section style={styles.section}>
-                        <h2>ログインユーザー情報</h2>
-                        <pre style={styles.pre}>
-                            {JSON.stringify(appData.user || appData.attributes, null, 2)}
-                        </pre>
-                    </section>
+                        // 未ログイン時: ログインボタンだけ出すページ
+                        if (!appData) {
+                            return (
+                                <div style={styles.container}>
+                                    <h1>StampSys</h1>
+                                    <p>Microsoft アカウントでログインしてダッシュボードにアクセスしてください。</p>
+                                    {error && <p style={{ color: "red" }}>{error}</p>}
+                                    <button style={styles.loginButton} onClick={handleLogin}>
+                                        Microsoft 365 でログイン
+                                    </button>
+                                </div>
+                            );
+                        }
 
-                    <div className="App">
-                        {/* ルーティングでページを切り替え */}
-                        <Routes>
-                            {/* スタンプ送信用のページ */}
-                            <Route
-                                path="/stamp-send"
-                                element={<StampForm userId={1} roomId={1} />}
-                            />
+                        // ログイン後ページ（ここにルーティングを追加）
+                        return (
+                            <div style={styles.container}>
+                                <header style={styles.header}>
+                                    <div>
+                                        <h1>ダッシュボード</h1>
+                                        <p>
+                                            ログイン中:{" "}
+                                            {appData.user?.userName ||
+                                                appData.attributes?.name ||
+                                                appData.attributes?.displayName ||
+                                                "名無し"}
+                                        </p>
+                                    </div>
+                                    <button
+                                        style={styles.logoutButton}
+                                        onClick={handleLogout}
+                                        disabled={loggingOut}
+                                    >
+                                        {loggingOut ? "ログアウト中..." : "ログアウト"}
+                                    </button>
+                                </header>
 
-                            {/* ユーザー一覧ページ */}
-                            <Route
-                                path="/users"
-                                element={<UserList />}
-                            />
-                        </Routes>
-                    </div>
-                </main>
-            </div>
+                                {/* ナビゲーション */}
+                                <nav style={{ marginBottom: "16px", display: "flex", gap: "12px" }}>
+                                    <Link to="/stamp-send">スタンプ送信</Link>
+                                    <Link to="/users">ユーザー一覧</Link>
+                                </nav>
+
+                                <main style={styles.main}>
+                                    <section style={styles.section}>
+                                        <h2>ログインユーザー情報</h2>
+                                        <pre style={styles.pre}>
+                                            {JSON.stringify(appData.user || appData.attributes, null, 2)}
+                                        </pre>
+                                    </section>
+
+                                    <div className="App">
+                                        {/* ルーティングでページを切り替え */}
+                                        <Routes>
+                                            {/* スタンプ送信用のページ */}
+                                            <Route
+                                                path="stamp-send"
+                                                element={<StampForm userId={1} roomId={1} />}
+                                            />
+
+                                            {/* ユーザー一覧ページ */}
+                                            <Route
+                                                path="users"
+                                                element={<UserList />}
+                                            />
+
+                                            {/* ルート直叩き時はダッシュボードを表示 */}
+                                            <Route path="" element={<div />} />
+                                        </Routes>
+                                    </div>
+                                </main>
+                            </div>
+                        );
+                    })()
+                } />
+            </Routes>
         </BrowserRouter>
     );
 }
