@@ -17,6 +17,7 @@ function App() {
     const [loading, setLoading] = useState(true);
     const [appData, setAppData] = useState(null); // { attributes, users, user } を想定
     const [error, setError] = useState(null);
+    const [loggingOut, setLoggingOut] = useState(false);
 
     useEffect(() => {
         // マウント時にログイン状態をチェック
@@ -49,19 +50,40 @@ function App() {
         window.location.href = LOGIN_URL;
     };
 
-    const handleLogout = () => {
-        // シンプルな例: サーバ側に /logout がある前提
-        fetch(`${API_BASE_URL}/logout`, {
-            method: "POST",
-            credentials: "include",
-        })
-            .then(() => {
-                setAppData(null);
-            })
-            .catch((e) => {
-                console.error(e);
-                alert("ログアウトに失敗しました");
+    const handleLogout = async () => {
+        if (loggingOut) return; // 二重実行を防止
+        
+        setLoggingOut(true);
+        setError(null);
+        
+        try {
+            // サーバー側のセッションを破棄
+            const response = await fetch(`${API_BASE_URL}/logout`, {
+                method: "POST",
+                credentials: "include", // セッションCookieを含める
             });
+            
+            if (!response.ok) {
+                throw new Error(`ログアウトに失敗しました (HTTP ${response.status})`);
+            }
+            
+            // クライアント側の状態をクリア
+            setAppData(null);
+            setError(null);
+            
+            // ログイン画面に戻る（状態をクリアした後に表示される）
+            console.log("ログアウトしました");
+            
+        } catch (e) {
+            console.error("ログアウトエラー:", e);
+            setError(`ログアウトに失敗しました: ${e.message}`);
+            
+            // エラーが発生してもクライアント側の状態はクリアして
+            // ユーザーをログイン画面に戻す
+            setAppData(null);
+        } finally {
+            setLoggingOut(false);
+        }
     };
 
     if (loading) {
@@ -97,8 +119,16 @@ function App() {
                                 "名無し"}
                         </p>
                     </div>
-                    <button style={styles.logoutButton} onClick={handleLogout}>
-                        ログアウト
+                    <button 
+                        style={{
+                            ...styles.logoutButton,
+                            opacity: loggingOut ? 0.5 : 1,
+                            cursor: loggingOut ? "not-allowed" : "pointer",
+                        }} 
+                        onClick={handleLogout}
+                        disabled={loggingOut}
+                    >
+                        {loggingOut ? "ログアウト中..." : "ログアウト"}
                     </button>
                 </header>
 
