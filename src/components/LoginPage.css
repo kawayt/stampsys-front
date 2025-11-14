@@ -1,0 +1,61 @@
+/* シンプルな中央カードスタイル */
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg,#f7f9fb 0%, #ffffff 100%);
+    padding: 40px;
+    box-sizing: border-box;
+}
+
+.login-card {
+    width: 720px;
+    max-width: 92%;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(20,20,30,0.06);
+    padding: 48px;
+    text-align: center;
+}
+
+.brand-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+}
+
+.brand h1 {
+    margin: 6px 0 4px;
+    font-size: 20px;
+    color: #333;
+}
+
+.subtitle {
+    margin: 0 0 28px;
+    color: #666;
+}
+
+.microsoft-btn {
+    background: linear-gradient(180deg,#f6a623,#f2991e);
+    color: white;
+    border: none;
+    padding: 14px 26px;
+    border-radius: 30px;
+    font-size: 16px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 6px 18px rgba(242,153,30,0.18);
+}
+
+.microsoft-btn:hover {
+    transform: translateY(-2px);
+    transition: transform 120ms ease;
+}
+
+.note {
+    margin-top: 20px;
+    color: #9aa0a6;
+    font-size: 13px;
+}
