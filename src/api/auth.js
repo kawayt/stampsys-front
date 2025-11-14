@@ -1,8 +1,5 @@
-// src/api/auth.js
 const API_BASE_URL = "http://localhost:8080";
 
-// Spring Security の OAuth2 クライアント設定で registrationId を "azure" としている想定
-// application.yml 例: spring.security.oauth2.client.registration.azure ...
 const LOGIN_URL = `${API_BASE_URL}/oauth2/authorization/microsoft`;
 
 const APP_API_URL = `${API_BASE_URL}/api/app`;
@@ -13,19 +10,15 @@ const APP_API_URL = `${API_BASE_URL}/api/app`;
  */
 export async function fetchAppData() {
     const res = await fetch(APP_API_URL, {
-        credentials: "include", // セッション/Cookie を使うなら必須
-        redirect: "manual",     // サーバの 302 リダイレクトを追いかけない
+        credentials: "include",
+        redirect: "manual",
     });
 
-    // Spring Security が未ログイン時に /oauth2/authorization/... へ 302 を返す場合、
-    // CORS の仕様上 status は 0, type は "opaqueredirect" になる。
-    // その場合は「未ログイン」とみなして null を返す。
     if (res.type === "opaqueredirect" || res.status === 0) {
         return null;
     }
 
     if (res.status === 401) {
-        // 未ログイン
         return null;
     }
 
@@ -46,12 +39,11 @@ export function loginWithMicrosoft() {
 
 /**
  * ログアウト処理
+ * - fetch ではなくブラウザ遷移として /logout にアクセスさせる
+ *   （サーバー側が 302 で Microsoft にリダイレクトしても CORS エラーにならない）
  */
-export async function logout() {
-    await fetch(`${API_BASE_URL}/logout`, {
-        method: "POST",
-        credentials: "include",
-    });
+export function logout() {
+    window.location.href = `${API_BASE_URL}/logout`;
 }
 
 export { API_BASE_URL, LOGIN_URL, APP_API_URL };
