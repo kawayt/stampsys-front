@@ -37,12 +37,18 @@ function saveHiddenIds(ids) {
     localStorage.setItem('hiddenUserIds', JSON.stringify(ids));
 }
 
+const ROLE_ORDER = ['ADMIN', 'TEACHER', 'STUDENT'];
+
 function UserList() {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [hiddenIds, setHiddenIds] = useState(loadHiddenIds());
+
+    // 新規: フィルタとソートの状態
+    const [roleFilter, setRoleFilter] = useState('ALL'); // 'ALL' | 'ADMIN' | 'TEACHER' | 'STUDENT'
+    const [roleSort, setRoleSort] = useState('NONE'); // 'NONE' | 'ASC' | 'DESC'
 
     // ユーザー一覧を取得
     const fetchUsers = async (query = '') => {
@@ -152,7 +158,31 @@ function UserList() {
         });
     };
 
-    const visibleUsers = users.filter(u => !hiddenIds.includes(u.userId));
+    // 新規: フィルタ・ソート適用済みの表示用配列を作る
+    const processedUsers = React.useMemo(() => {
+        // 1) クライアント非表示分を除く
+        let list = users.filter(u => !hiddenIds.includes(u.userId));
+
+        // 2) ロールフィルタ
+        if (roleFilter && roleFilter !== 'ALL') {
+            list = list.filter(u => u.role === roleFilter);
+        }
+
+        // 3) 検索は既にサーバー側クエリか client-side search not applied here
+        // （現状はサーバーへ検索クエリを送る方式のため、ここでは追加の名前検索は行わない）
+
+        // 4) ロールによるソート（独自順序: ADMIN > TEACHER > STUDENT）
+        if (roleSort !== 'NONE') {
+            list = [...list].sort((a, b) => {
+                const ia = ROLE_ORDER.indexOf(a.role || '');
+                const ib = ROLE_ORDER.indexOf(b.role || '');
+                const diff = (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+                return roleSort === 'ASC' ? diff : -diff;
+            });
+        }
+
+        return list;
+    }, [users, hiddenIds, roleFilter, roleSort]);
 
     if (loading) {
         return (
@@ -211,6 +241,40 @@ function UserList() {
                         >
                             リセット
                         </Button>
+
+                        {/* 新規: ロールで絞り込み */}
+                        <div className="ml-4 flex items-center gap-2">
+                            <label htmlFor="role-filter" style={{ fontSize: 13 }}>ロール絞込</label>
+                            <Select
+                                value={roleFilter}
+                                onValueChange={(v) => setRoleFilter(v)}
+                            >
+                                <SelectTrigger id="role-filter" className="w-[160px]">
+                                    <SelectValue placeholder="すべて" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">すべて</SelectItem>
+                                    <SelectItem value="ADMIN">ADMIN</SelectItem>
+                                    <SelectItem value="TEACHER">TEACHER</SelectItem>
+                                    <SelectItem value="STUDENT">STUDENT</SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            <label htmlFor="role-sort" style={{ fontSize: 13 }}>並び替え</label>
+                            <Select
+                                value={roleSort}
+                                onValueChange={(v) => setRoleSort(v)}
+                            >
+                                <SelectTrigger id="role-sort" className="w-[160px]">
+                                    <SelectValue placeholder="並び替え" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="NONE">なし</SelectItem>
+                                    <SelectItem value="ASC">ロール昇順 (ADMIN→STUDENT)</SelectItem>
+                                    <SelectItem value="DESC">ロール降順 (STUDENT→ADMIN)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </form>
 
                     {/* ユーザー一覧テーブル */}
@@ -226,14 +290,14 @@ function UserList() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {visibleUsers.length === 0 ? (
+                            {processedUsers.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={6} className="no-data text-center">
                                         ユーザーが見つかりません
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                visibleUsers.map((user) => (
+                                processedUsers.map((user) => (
                                     <TableRow key={user.userId}>
                                         <TableCell>{user.userId}</TableCell>
                                         <TableCell>{user.userName}</TableCell>
@@ -266,12 +330,12 @@ function UserList() {
                                                 >
                                                     削除
                                                 </Button>
-                                                {/*<Button*/}
-                                                {/*    variant="outline"*/}
-                                                {/*    onClick={() => handleHideToggle(user.userId)}*/}
-                                                {/*>*/}
-                                                {/*    非表示*/}
-                                                {/*</Button>*/}
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={() => handleHideToggle(user.userId)}
+                                                >
+                                                    非表示
+                                                </Button>
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -281,26 +345,26 @@ function UserList() {
                     </Table>
 
                     <div className="user-count mt-4 text-right">
-                        表示: {visibleUsers.length} / 全体: {users.length} 人
+                        表示: {processedUsers.length} / 全体: {users.length} 人
                     </div>
 
                     {/* 非表示ユーザーの管理 */}
-                    {/*{hiddenIds.length > 0 && (*/}
-                    {/*    <div className="hidden-section mt-6">*/}
-                    {/*        <h4 className="mb-2">非表示中のユーザー（クライアント側）</h4>*/}
-                    {/*        <div className="flex gap-2 flex-wrap items-center mb-2">*/}
-                    {/*            {hiddenIds.map((id) => (*/}
-                    {/*                <div key={id} className="px-3 py-1 border rounded flex items-center gap-2">*/}
-                    {/*                    <span>{id}</span>*/}
-                    {/*                    <Button size="sm" onClick={() => handleHideToggle(id)}>復元</Button>*/}
-                    {/*                </div>*/}
-                    {/*            ))}*/}
-                    {/*        </div>*/}
-                    {/*        <div>*/}
-                    {/*            <Button variant="ghost" onClick={() => setHiddenIds([])}>すべて復元</Button>*/}
-                    {/*        </div>*/}
-                    {/*    </div>*/}
-                    {/*)}*/}
+                    {hiddenIds.length > 0 && (
+                        <div className="hidden-section mt-6">
+                            <h4 className="mb-2">非表示中のユーザー（クライアント側）</h4>
+                            <div className="flex gap-2 flex-wrap items-center mb-2">
+                                {hiddenIds.map((id) => (
+                                    <div key={id} className="px-3 py-1 border rounded flex items-center gap-2">
+                                        <span>{id}</span>
+                                        <Button size="sm" onClick={() => handleHideToggle(id)}>復元</Button>
+                                    </div>
+                                ))}
+                            </div>
+                            <div>
+                                <Button variant="ghost" onClick={() => setHiddenIds([])}>すべて復元</Button>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>
