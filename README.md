@@ -1,12 +1,12 @@
 # 授業スタンプシステム フロントエンド
 
-## テスト環境
-- Node.js 24.11.0
-- npm 11.6.1
-- Vite 7.2.2
+## システム要件
+- Node.js
 
-## 実行
+## 起動
+1. [バックエンド](https://github.com/kawayt/stampsys-back) を起動します
+2. 依存関係をインストールし、ローカルサーバーを起動します
 ```bash
-npm i
+npm install
 npm run dev
 ```
