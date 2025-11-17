@@ -16,9 +16,7 @@ import {
     logout,
 } from './api/auth.js';
 import { Button } from "@/components/ui/button";
-// Card は使わないので削除しました
 
-// ... existing code ...
 function App() {
     const [loading, setLoading] = useState(true);
     const [appData, setAppData] = useState(null); // { attributes, users, user } を想定
@@ -79,7 +77,6 @@ function App() {
         </BrowserRouter>
     );
 }
-// ... existing code ...
 
 /**
  * ログイン後ダッシュボード部分
