@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import StampForm from './components/StampForm'
 import UserList from './components/UserList'
 import LoginPage from './components/LoginPage';
+import { ClassList } from './components/ClassList';
 import {
     BrowserRouter,
     Routes,
@@ -81,13 +82,11 @@ function Dashboard({ appData, onLogout }) {
         <div style={styles.container}>
             <header style={styles.header}>
                 <div>
-                    <h1>ダッシュボード</h1>
                     <p>
-                        ログイン中:{" "}
-                        {appData.user?.userName ||
-                            appData.attributes?.name ||
-                            appData.attributes?.displayName ||
-                            "名無し"}
+                        {appData.user?.userName || appData.attributes?.name || appData.attributes?.displayName || "名無し"}
+                    </p>
+                    <p>
+                        {appData.user?.role}
                     </p>
                 </div>
                 <button style={styles.logoutButton} onClick={onLogout}>
@@ -97,21 +96,18 @@ function Dashboard({ appData, onLogout }) {
 
             {/* ナビゲーション */}
             <nav style={{ marginBottom: "16px", display: "flex", gap: "12px" }}>
+                <Link to="/">クラス一覧</Link>
                 <Link to="/stamp-send">スタンプ送信</Link>
                 <Link to="/users">ユーザー一覧</Link>
             </nav>
 
             <main style={styles.main}>
-                <section style={styles.section}>
-                    <h2>ログインユーザー情報</h2>
-                    <pre style={styles.pre}>
-            {JSON.stringify(appData.user || appData.attributes, null, 2)}
-          </pre>
-                </section>
-
                 <div className="App">
                     {/* ルーティングでページを切り替え */}
                     <Routes>
+                        {/* ルート: クラス一覧 */}
+                        <Route path="/" element={<ClassList />} />
+
                         {/* スタンプ送信用のページ */}
                         <Route
                             path="/stamp-send"
@@ -121,10 +117,10 @@ function Dashboard({ appData, onLogout }) {
                         {/* ユーザー一覧ページ */}
                         <Route path="/users" element={<UserList />} />
 
-                        {/* ダッシュボードのデフォルト -> スタンプ送信へ */}
+                        {/* デフォルトはクラス一覧へ */}
                         <Route
                             path="*"
-                            element={<Navigate to="/stamp-send" replace />}
+                            element={<Navigate to="/" replace />}
                         />
                     </Routes>
                 </div>
