@@ -1,4 +1,3 @@
-import './App.css'
 import React, { useEffect, useState } from "react";
 import StampForm from './components/StampForm'
 import UserList from './components/UserList'
@@ -16,7 +15,10 @@ import {
     loginWithMicrosoft,
     logout,
 } from './api/auth.js';
+import { Button } from "@/components/ui/button";
+// Card は使わないので削除しました
 
+// ... existing code ...
 function App() {
     const [loading, setLoading] = useState(true);
     const [appData, setAppData] = useState(null); // { attributes, users, user } を想定
@@ -46,7 +48,11 @@ function App() {
     };
 
     if (loading) {
-        return <div>読み込み中...</div>;
+        return (
+            <div className="min-h-screen flex items-center justify-center text-sm text-slate-600">
+                読み込み中...
+            </div>
+        );
     }
 
     return (
@@ -73,37 +79,49 @@ function App() {
         </BrowserRouter>
     );
 }
+// ... existing code ...
 
 /**
- * ログイン後ダッシュボード部分を分離
+ * ログイン後ダッシュボード部分
  */
 function Dashboard({ appData, onLogout }) {
+    const displayName =
+        appData.user?.userName ||
+        appData.attributes?.name ||
+        appData.attributes?.displayName ||
+        "名無し";
+
     return (
-        <div style={styles.container}>
-            <header style={styles.header}>
-                <div>
-                    <p>
-                        {appData.user?.userName || appData.attributes?.name || appData.attributes?.displayName || "名無し"}
-                    </p>
-                    <p>
-                        {appData.user?.role}
-                    </p>
+        <div className="min-h-screen bg-slate-50">
+            <header className="border-b bg-white">
+                <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+                    <div>
+                        <p className="text-sm font-semibold text-slate-800">
+                            {displayName}
+                        </p>
+                        <p className="text-xs text-slate-500">{appData.user?.role}</p>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onLogout}
+                        className="text-xs"
+                    >
+                        ログアウト
+                    </Button>
                 </div>
-                <button style={styles.logoutButton} onClick={onLogout}>
-                    ログアウト
-                </button>
             </header>
 
-            {/* ナビゲーション */}
-            <nav style={{ marginBottom: "16px", display: "flex", gap: "12px" }}>
-                <Link to="/">クラス一覧</Link>
-                <Link to="/stamp-send">スタンプ送信</Link>
-                <Link to="/users">ユーザー一覧</Link>
-            </nav>
+            <main className="mx-auto max-w-5xl px-4 py-4 space-y-4">
+                {/* ナビゲーション（シンプルなタブ風） */}
+                <nav className="flex items-center gap-2 text-sm">
+                    <NavItem to="/">クラス一覧</NavItem>
+                    <NavItem to="/stamp-send">スタンプ送信</NavItem>
+                    <NavItem to="/users">ユーザー一覧</NavItem>
+                </nav>
 
-            <main style={styles.main}>
-                <div className="App">
-                    {/* ルーティングでページを切り替え */}
+                {/* メインカードは削除し、直接ルーティング内容を表示 */}
+                <section className="mt-2">
                     <Routes>
                         {/* ルート: クラス一覧 */}
                         <Route path="/" element={<ClassList />} />
@@ -118,59 +136,24 @@ function Dashboard({ appData, onLogout }) {
                         <Route path="/users" element={<UserList />} />
 
                         {/* デフォルトはクラス一覧へ */}
-                        <Route
-                            path="*"
-                            element={<Navigate to="/" replace />}
-                        />
+                        <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
-                </div>
+                </section>
             </main>
         </div>
     );
 }
 
-const styles = {
-    container: {
-        maxWidth: "960px",
-        margin: "0 auto",
-        padding: "24px",
-        fontFamily: "system-ui, sans-serif",
-    },
-    header: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "24px",
-    },
-    main: {
-        gridTemplateColumns: "1fr 1fr",
-        gap: "24px",
-    },
-    section: {
-        borderRadius: "8px",
-        padding: "16px",
-    },
-    loginButton: {
-        padding: "10px 20px",
-        fontSize: "16px",
-        cursor: "pointer",
-    },
-    logoutButton: {
-        padding: "8px 16px",
-        fontSize: "14px",
-        cursor: "pointer",
-    },
-    pre: {
-        backgroundColor: "#f5f5f5",
-        padding: "8px",
-        borderRadius: "4px",
-        fontSize: "12px",
-        overflowX: "auto",
-    },
-    table: {
-        width: "100%",
-        borderCollapse: "collapse",
-    },
-};
+// シンプルなナビアイテム（shadcn + Tailwind）
+function NavItem({ to, children }) {
+    return (
+        <Link
+            to={to}
+            className="rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+        >
+            {children}
+        </Link>
+    );
+}
 
 export default App
