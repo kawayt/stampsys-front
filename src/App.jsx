@@ -3,6 +3,7 @@ import StampForm from './components/StampForm'
 import UserList from './components/UserList'
 import LoginPage from './components/LoginPage';
 import { ClassList } from './components/ClassList';
+import StampList from './components/StampList';
 import {
     BrowserRouter,
     Routes,
@@ -115,6 +116,7 @@ function Dashboard({ appData, onLogout }) {
                     <NavItem to="/">クラス一覧</NavItem>
                     <NavItem to="/stamp-send">スタンプ送信</NavItem>
                     <NavItem to="/users">ユーザー一覧</NavItem>
+                    <NavItem to="/stamps">スタンプ一覧</NavItem>
                 </nav>
 
                 {/* メインカードは削除し、直接ルーティング内容を表示 */}
@@ -131,6 +133,9 @@ function Dashboard({ appData, onLogout }) {
 
                         {/* ユーザー一覧ページ */}
                         <Route path="/users" element={<UserList />} />
+
+                        {/* スタンプ一覧ページ */}
+                        <Route path="/stamps" element={<StampList />} />
 
                         {/* デフォルトはクラス一覧へ */}
                         <Route path="*" element={<Navigate to="/" replace />} />
