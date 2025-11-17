@@ -9,16 +9,5 @@ export async function getUsers() {
     return res.json();
 }
 
-export async function deleteUser(id) {
-    // もしバックエンドに DELETE /users/:id がなければ、この関数はエラーになります。
-    const res = await fetch(`${API_BASE}/users/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-    });
-    if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Delete failed: ${res.status} ${text}`);
-    }
-    return true;
-}
+// 削除（DELETE）APIは廃止したためこの関数は削除しました。
+// 非表示（実質削除）は PUT /api/users/:id/hidden を直接呼ぶ実装にしました。

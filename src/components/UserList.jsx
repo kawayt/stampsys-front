@@ -25,18 +25,6 @@ import {
 } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
-function loadHiddenIds() {
-    try {
-        const raw = localStorage.getItem('hiddenUserIds');
-        return raw ? JSON.parse(raw) : [];
-    } catch {
-        return [];
-    }
-}
-function saveHiddenIds(ids) {
-    localStorage.setItem('hiddenUserIds', JSON.stringify(ids));
-}
-
 const ROLE_ORDER = ['ADMIN', 'TEACHER', 'STUDENT'];
 
 function UserList() {
@@ -44,9 +32,11 @@ function UserList() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [hiddenIds, setHiddenIds] = useState(loadHiddenIds());
 
-    // 新規: フィルタとソートの状態
+    // カウント表示用
+    const [counts, setCounts] = useState({ admin: 0, teacher: 0, student: 0, total: 0 });
+
+    // フィルタとソートの状態
     const [roleFilter, setRoleFilter] = useState('ALL'); // 'ALL' | 'ADMIN' | 'TEACHER' | 'STUDENT'
     const [roleSort, setRoleSort] = useState('NONE'); // 'NONE' | 'ASC' | 'DESC'
 
@@ -73,20 +63,36 @@ function UserList() {
         }
     };
 
+    // カウント取得
+    const fetchCounts = async () => {
+        try {
+            const res = await fetch('/api/users/counts');
+            if (!res.ok) throw new Error('ユーザー数の取得に失敗しました');
+            const d = await res.json();
+            setCounts({
+                admin: d.admin || 0,
+                teacher: d.teacher || 0,
+                student: d.student || 0,
+                total: d.total || 0,
+            });
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
     // 初回読み込み
     useEffect(() => {
-        fetchUsers();
+        (async () => {
+            await fetchUsers();
+            await fetchCounts();
+        })();
     }, []);
-
-    // hiddenIds を localStorage に保存
-    useEffect(() => {
-        saveHiddenIds(hiddenIds);
-    }, [hiddenIds]);
 
     // 検索実行
     const handleSearch = (e) => {
         e.preventDefault();
         fetchUsers(searchQuery);
+        fetchCounts();
     };
 
     // ロール変更
@@ -108,81 +114,88 @@ function UserList() {
             const updatedUser = await response.json();
 
             // ユーザーリストを更新
-            setUsers(users.map(user =>
-                user.userId === userId ? updatedUser : user
-            ));
+            setUsers(prev =>
+                prev.map(user =>
+                    user.userId === userId ? updatedUser : user
+                )
+            );
+
+            // カウントも更新
+            await fetchCounts();
 
             alert('ロールを変更しました');
         } catch (err) {
             alert(err.message);
             // エラー時は再フェッチして状態を復元
             fetchUsers(searchQuery);
+            fetchCounts();
         }
     };
 
-    // サーバー削除を試行。失敗したらクライアント側非表示にする選択を提示。
-    const handleDelete = async (userId) => {
-        if (!window.confirm('本当にこのユーザーを削除しますか？（元に戻せません）')) return;
+    // 非表示フラグ切り替え（サーバー連動）
+    const handleHideToggle = async (userId) => {
+        const target = users.find(u => u.userId === userId);
+        if (!target) return;
+
+        const newHidden = !target.hidden;
+
+        if (newHidden) {
+            const ok = window.confirm('このユーザーを削除（非表示）しますか？（データは残りますが一覧からは除外されます。再表示可能です。）');
+            if (!ok) return;
+        } else {
+            const ok = window.confirm('このユーザーを一覧に再表示しますか？');
+            if (!ok) return;
+        }
 
         try {
-            const res = await fetch(`/api/users/${userId}`, {
-                method: 'DELETE',
+            const res = await fetch(`/api/users/${userId}/hidden`, {
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hidden: newHidden }),
             });
 
             if (!res.ok) {
                 const text = await res.text().catch(() => '');
-                throw new Error(text || '削除に失敗しました');
+                throw new Error(text || '非表示状態の更新に失敗しました');
             }
 
-            // 成功したら一覧から削除
-            setUsers(prev => prev.filter(u => u.userId !== userId));
-            // hiddenIds に残っていれば消す
-            setHiddenIds(prev => prev.filter(id => id !== userId));
-            alert('ユーザーを削除しました');
+            const updatedUser = await res.json();
+
+            setUsers(prev =>
+                prev.map(u => (u.userId === userId ? updatedUser : u))
+            );
+
+            // カウントも更新
+            await fetchCounts();
         } catch (err) {
             console.error(err);
-            const doHide = window.confirm('サーバー側の削除に失敗しました。クライアント上で非表示にしますか？（復元可能）');
-            if (doHide) {
-                setHiddenIds(prev => prev.includes(userId) ? prev : [...prev, userId]);
-            } else {
-                alert('削除に失敗しました: ' + (err.message || err));
-            }
+            alert(err.message || err);
         }
     };
 
-    const handleHideToggle = (userId) => {
-        setHiddenIds(prev => {
-            const exists = prev.includes(userId);
-            return exists ? prev.filter(id => id !== userId) : [...prev, userId];
-        });
-    };
-
-    // 新規: フィルタ・ソート適用済みの表示用配列を作る
+    // フィルタ・ソート適用済みの表示用配列を作る
     const processedUsers = React.useMemo(() => {
-        // 1) クライアント非表示分を除く
-        let list = users.filter(u => !hiddenIds.includes(u.userId));
+        // 1) hidden=false のユーザーのみ表示
+        let list = users.filter(u => !u.hidden);
 
         // 2) ロールフィルタ
         if (roleFilter && roleFilter !== 'ALL') {
             list = list.filter(u => u.role === roleFilter);
         }
 
-        // 3) 検索は既にサーバー側クエリか client-side search not applied here
-        // （現状はサーバーへ検索クエリを送る方式のため、ここでは追加の名前検索は行わない）
-
-        // 4) ロールによるソート（独自順序: ADMIN > TEACHER > STUDENT）
+        // 3) ロールによるソート（独自順序: ADMIN > TEACHER > STUDENT）
         if (roleSort !== 'NONE') {
             list = [...list].sort((a, b) => {
                 const ia = ROLE_ORDER.indexOf(a.role || '');
                 const ib = ROLE_ORDER.indexOf(b.role || '');
-                const diff = (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-                return roleSort === 'ASC' ? diff : -diff;
+                const aIndex = ia === -1 ? 99 : ia;
+                const bIndex = ib === -1 ? 99 : ib;
+                return roleSort === 'ASC' ? aIndex - bIndex : bIndex - aIndex;
             });
         }
 
         return list;
-    }, [users, hiddenIds, roleFilter, roleSort]);
+    }, [users, roleFilter, roleSort]);
 
     if (loading) {
         return (
@@ -215,6 +228,14 @@ function UserList() {
                 </CardHeader>
 
                 <CardContent>
+                    {/* カウント表示 */}
+                    <div className="mb-4 flex gap-4 items-center text-sm">
+                        <div>管理者: <strong>{counts.admin}</strong></div>
+                        <div>教員: <strong>{counts.teacher}</strong></div>
+                        <div>学生: <strong>{counts.student}</strong></div>
+                        <div>合計: <strong>{counts.total}</strong></div>
+                    </div>
+
                     {/* 検索フォーム */}
                     <form
                         onSubmit={handleSearch}
@@ -236,13 +257,14 @@ function UserList() {
                             onClick={() => {
                                 setSearchQuery('');
                                 fetchUsers();
+                                fetchCounts();
                             }}
                             className="reset-button"
                         >
                             リセット
                         </Button>
 
-                        {/* 新規: ロールで絞り込み */}
+                        {/* ロールで絞り込み */}
                         <div className="ml-4 flex items-center gap-2">
                             <label htmlFor="role-filter" style={{ fontSize: 13 }}>ロール絞込</label>
                             <Select
@@ -324,17 +346,12 @@ function UserList() {
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex gap-2">
+                                                {/* 削除（実際は hidden=true）: ボタンは赤（destructive）表示に */}
                                                 <Button
                                                     variant="destructive"
-                                                    onClick={() => handleDelete(user.userId)}
-                                                >
-                                                    削除
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
                                                     onClick={() => handleHideToggle(user.userId)}
                                                 >
-                                                    非表示
+                                                    {user.hidden ? '表示' : '削除'}
                                                 </Button>
                                             </div>
                                         </TableCell>
@@ -345,26 +362,8 @@ function UserList() {
                     </Table>
 
                     <div className="user-count mt-4 text-right">
-                        表示: {processedUsers.length} / 全体: {users.length} 人
+                        表示: {processedUsers.length} / 全体: {counts.total} 人
                     </div>
-
-                    {/* 非表示ユーザーの管理 */}
-                    {hiddenIds.length > 0 && (
-                        <div className="hidden-section mt-6">
-                            <h4 className="mb-2">非表示中のユーザー（クライアント側）</h4>
-                            <div className="flex gap-2 flex-wrap items-center mb-2">
-                                {hiddenIds.map((id) => (
-                                    <div key={id} className="px-3 py-1 border rounded flex items-center gap-2">
-                                        <span>{id}</span>
-                                        <Button size="sm" onClick={() => handleHideToggle(id)}>復元</Button>
-                                    </div>
-                                ))}
-                            </div>
-                            <div>
-                                <Button variant="ghost" onClick={() => setHiddenIds([])}>すべて復元</Button>
-                            </div>
-                        </div>
-                    )}
                 </CardContent>
             </Card>
         </div>
