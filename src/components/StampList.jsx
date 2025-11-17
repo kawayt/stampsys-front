@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-function App() {
+function StampList() {
     const [stamps, setStamps] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -8,10 +8,12 @@ function App() {
     useEffect(() => {
         const fetchStamps = async () => {
             try {
-                const response = await fetch("http://localhost:8080/api/stamp-management");
+                const response = await fetch("/api/stamp-management");
+
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
+
                 const data = await response.json();
                 setStamps(data);
             } catch (err) {
@@ -35,11 +37,10 @@ function App() {
                 <thead>
                 <tr>
                     <th>ID</th>
-                    {/* StampManagementEntity のフィールド名に合わせてください */}
+                    {/* StampManagementEntity のフィールド名に合わせる */}
                     <th>ラベル</th>
                     <th>カラー</th>
                     <th>アイコン</th>
-                    {/* 必要に応じてカラム追加 */}
                 </tr>
                 </thead>
                 <tbody>
@@ -57,4 +58,4 @@ function App() {
     );
 }
 
-export default App;
+export default StampList;
