@@ -40,6 +40,76 @@ function UserList() {
     const [roleFilter, setRoleFilter] = useState('ALL'); // 'ALL' | 'ADMIN' | 'TEACHER' | 'STUDENT'
     const [roleSort, setRoleSort] = useState('NONE'); // 'NONE' | 'ASC' | 'DESC'
 
+    // 非表示ユーザー表示用
+    const [hiddenVisible, setHiddenVisible] = useState(false);
+    const [hiddenLoading, setHiddenLoading] = useState(false);
+    const [hiddenUsers, setHiddenUsers] = useState([]);
+    const [hiddenError, setHiddenError] = useState(null);
+
+    // 現在ログイン中ユーザーのロール（'ADMIN' / 'TEACHER' / 'STUDENT' / null）
+    const [currentUserRole, setCurrentUserRole] = useState(null);
+
+    // 汎用 fetch ヘルパー: cookie/session を送るために credentials: 'include' を常に付ける
+    const fetchWithCreds = (url, options = {}) => {
+        const opts = {
+            credentials: 'include',
+            headers: {
+                Accept: 'application/json',
+                ...options.headers,
+            },
+            ...options,
+        };
+        return fetch(url, opts);
+    };
+
+    // レスポンスの内容を安全にパース（JSON でなければテキストを返す）
+    const parseResponseBody = async (res) => {
+        const text = await res.text();
+        try {
+            return JSON.parse(text);
+        } catch {
+            return text;
+        }
+    };
+
+    // 権限エラーなどを扱うユーティリティ
+    const handleApiError = async (res) => {
+        if (res.status === 403) {
+            // 明示的に権限エラーを通知
+            throw new Error('操作の権限がありません（管理者でログインしているか確認してください）');
+        }
+        const body = await parseResponseBody(res);
+        if (body && typeof body === 'object' && body.message) {
+            throw new Error(body.message);
+        }
+        if (typeof body === 'string' && body.length > 0) {
+            throw new Error(body);
+        }
+        throw new Error('サーバーエラーが発生しました');
+    };
+
+    // 現在ログイン中ユーザー情報を取得してロールをセット
+    const fetchCurrentUserRole = async () => {
+        try {
+            const res = await fetchWithCreds('/api/app');
+            if (!res.ok) {
+                // /api/app は認証が必要なので 401/403 が返る場合は無視して null にする
+                return setCurrentUserRole(null);
+            }
+            const d = await res.json();
+            // AppController の AppResponse に current user が入っている想定
+            const currentUser = d && d.user ? d.user : null;
+            if (currentUser && currentUser.role) {
+                setCurrentUserRole(currentUser.role);
+            } else {
+                setCurrentUserRole(null);
+            }
+        } catch (err) {
+            console.warn('fetchCurrentUserRole error:', err);
+            setCurrentUserRole(null);
+        }
+    };
+
     // ユーザー一覧を取得
     const fetchUsers = async (query = '') => {
         try {
@@ -48,9 +118,9 @@ function UserList() {
                 ? `/api/users?q=${encodeURIComponent(query)}`
                 : '/api/users';
 
-            const response = await fetch(url);
+            const response = await fetchWithCreds(url);
             if (!response.ok) {
-                throw new Error('ユーザー一覧の取得に失敗しました');
+                await handleApiError(response);
             }
 
             const data = await response.json();
@@ -66,8 +136,10 @@ function UserList() {
     // カウント取得
     const fetchCounts = async () => {
         try {
-            const res = await fetch('/api/users/counts');
-            if (!res.ok) throw new Error('ユーザー数の取得に失敗しました');
+            const res = await fetchWithCreds('/api/users/counts');
+            if (!res.ok) {
+                await handleApiError(res);
+            }
             const d = await res.json();
             setCounts({
                 admin: d.admin || 0,
@@ -76,13 +148,36 @@ function UserList() {
                 total: d.total || 0,
             });
         } catch (err) {
-            console.error(err);
+            console.error('fetchCounts error:', err);
+        }
+    };
+
+    // 非表示ユーザー一覧取得
+    const fetchHiddenUsers = async (query = '') => {
+        try {
+            setHiddenLoading(true);
+            const url = query
+                ? `/api/users/hidden?q=${encodeURIComponent(query)}`
+                : '/api/users/hidden';
+            const res = await fetchWithCreds(url);
+            if (!res.ok) {
+                await handleApiError(res);
+            }
+            const d = await res.json();
+            setHiddenUsers(Array.isArray(d) ? d : []);
+            setHiddenError(null);
+        } catch (err) {
+            console.error('fetchHiddenUsers error:', err);
+            setHiddenError(err.message || 'エラーが発生しました');
+        } finally {
+            setHiddenLoading(false);
         }
     };
 
     // 初回読み込み
     useEffect(() => {
         (async () => {
+            await fetchCurrentUserRole();
             await fetchUsers();
             await fetchCounts();
         })();
@@ -95,10 +190,14 @@ function UserList() {
         fetchCounts();
     };
 
-    // ロール変更
+    // ロール変更 (管理者のみ見える/有効)
     const handleRoleChange = async (userId, newRole) => {
+        if (currentUserRole !== 'ADMIN') {
+            alert('権限がありません');
+            return;
+        }
         try {
-            const response = await fetch(`/api/users/${userId}/role`, {
+            const response = await fetchWithCreds(`/api/users/${userId}/role`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -107,8 +206,7 @@ function UserList() {
             });
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || 'ロールの変更に失敗しました');
+                await handleApiError(response);
             }
 
             const updatedUser = await response.json();
@@ -134,7 +232,13 @@ function UserList() {
 
     // 非表示フラグ切り替え（サーバー連動）
     const handleHideToggle = async (userId) => {
-        const target = users.find(u => u.userId === userId);
+        // 権限チェック（フロント側）
+        if (currentUserRole !== 'ADMIN') {
+            alert('この操作は管理者のみ可能です');
+            return;
+        }
+
+        const target = users.find(u => u.userId === userId) || hiddenUsers.find(u => u.userId === userId);
         if (!target) return;
 
         const newHidden = !target.hidden;
@@ -148,28 +252,76 @@ function UserList() {
         }
 
         try {
-            const res = await fetch(`/api/users/${userId}/hidden`, {
+            const res = await fetchWithCreds(`/api/users/${userId}/hidden`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ hidden: newHidden }),
             });
 
             if (!res.ok) {
-                const text = await res.text().catch(() => '');
-                throw new Error(text || '非表示状態の更新に失敗しました');
+                await handleApiError(res);
             }
 
             const updatedUser = await res.json();
 
+            // users と hiddenUsers の両方を更新/除外して整合を保つ
             setUsers(prev =>
-                prev.map(u => (u.userId === userId ? updatedUser : u))
+                prev
+                    .map(u => (u.userId === userId ? updatedUser : u))
+                    .filter(u => !u.hidden) // 非表示は親リストから除外
             );
+
+            setHiddenUsers(prev => {
+                // 更新ユーザーが非表示なら hiddenUsers に入れ、表示なら除外
+                if (updatedUser.hidden) {
+                    const exists = prev.some(u => u.userId === updatedUser.userId);
+                    if (exists) {
+                        return prev.map(u => (u.userId === updatedUser.userId ? updatedUser : u));
+                    }
+                    return [...prev, updatedUser];
+                } else {
+                    return prev.filter(u => u.userId !== updatedUser.userId);
+                }
+            });
 
             // カウントも更新
             await fetchCounts();
         } catch (err) {
             console.error(err);
             alert(err.message || err);
+        }
+    };
+
+    // 非表示一覧から復元（hidden=false）
+    const restoreHiddenUser = async (userId) => {
+        if (currentUserRole !== 'ADMIN') {
+            alert('この操作は管理者のみ可能です');
+            return;
+        }
+
+        if (!window.confirm('このユーザーを一覧に再表示しますか？')) return;
+
+        try {
+            const res = await fetchWithCreds(`/api/users/${userId}/hidden`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hidden: false }),
+            });
+            if (!res.ok) {
+                await handleApiError(res);
+            }
+            await res.json();
+// hiddenUsers から除外
+            setHiddenUsers(prev => prev.filter(u => u.userId !== userId));
+
+            // メインの一覧を再取得して反映（より確実に整合させる）
+            await fetchUsers(searchQuery);
+            await fetchCounts();
+
+            alert('ユーザーを表示状態に戻しました');
+        } catch (err) {
+            console.error(err);
+            alert(err.message || '復元に失敗しました');
         }
     };
 
@@ -197,6 +349,7 @@ function UserList() {
         return list;
     }, [users, roleFilter, roleSort]);
 
+    const isAdmin = currentUserRole === 'ADMIN';
     if (loading) {
         return (
             <div className="user-list-container">
@@ -235,6 +388,65 @@ function UserList() {
                         <div>学生: <strong>{counts.student}</strong></div>
                         <div>合計: <strong>{counts.total}</strong></div>
                     </div>
+
+                    {/* --- 非表示ユーザー表示ボタン（並び替えエリアの上） --- */}
+                    {isAdmin && (
+                        <div className="mb-4">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    if (!hiddenVisible) {
+                                        fetchHiddenUsers();
+                                    }
+                                    setHiddenVisible(prev => !prev);
+                                }}
+                            >
+                                {hiddenVisible ? '非表示ユーザーを閉じる' : '非表示ユーザーを表示'}
+                            </Button>
+                        </div>
+                    )}
+
+                    {/* 非表示ユーザー一覧パネル */}
+                    {hiddenVisible && isAdmin && (
+                        <div style={{ border: '1px solid #e6e6e6', padding: 12, borderRadius: 6, marginBottom: 12 }}>
+                            {hiddenLoading && <div>読み込み中...</div>}
+                            {hiddenError && <div style={{ color: 'red' }}>{hiddenError}</div>}
+                            {!hiddenLoading && !hiddenError && (
+                                <>
+                                    {hiddenUsers.length === 0 ? (
+                                        <div>非表示ユーザーは存在しません。</div>
+                                    ) : (
+                                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                            <thead>
+                                            <tr>
+                                                <th style={{ textAlign: 'left', padding: '6px' }}>ID</th>
+                                                <th style={{ textAlign: 'left', padding: '6px' }}>名前</th>
+                                                <th style={{ textAlign: 'left', padding: '6px' }}>メール</th>
+                                                <th style={{ textAlign: 'left', padding: '6px' }}>役割</th>
+                                                <th style={{ textAlign: 'left', padding: '6px' }}>作成日</th>
+                                                <th style={{ padding: '6px' }}>操作</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            {hiddenUsers.map(u => (
+                                                <tr key={u.userId} style={{ borderTop: '1px solid #eee' }}>
+                                                    <td style={{ padding: '6px' }}>{u.userId}</td>
+                                                    <td style={{ padding: '6px' }}>{u.userName}</td>
+                                                    <td style={{ padding: '6px' }}>{u.email}</td>
+                                                    <td style={{ padding: '6px' }}>{u.role}</td>
+                                                    <td style={{ padding: '6px' }}>{u.createdAt ? new Date(u.createdAt).toLocaleString('ja-JP') : ''}</td>
+                                                    <td style={{ padding: '6px' }}>
+                                                        <Button onClick={() => restoreHiddenUser(u.userId)}>復元</Button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    )}
 
                     {/* 検索フォーム */}
                     <form
@@ -276,9 +488,9 @@ function UserList() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="ALL">すべて</SelectItem>
-                                    <SelectItem value="ADMIN">ADMIN</SelectItem>
-                                    <SelectItem value="TEACHER">TEACHER</SelectItem>
-                                    <SelectItem value="STUDENT">STUDENT</SelectItem>
+                                    <SelectItem value="ADMIN">管理者</SelectItem>
+                                    <SelectItem value="TEACHER">教員</SelectItem>
+                                    <SelectItem value="STUDENT">学生</SelectItem>
                                 </SelectContent>
                             </Select>
 
@@ -292,8 +504,8 @@ function UserList() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="NONE">なし</SelectItem>
-                                    <SelectItem value="ASC">ロール昇順 (ADMIN→STUDENT)</SelectItem>
-                                    <SelectItem value="DESC">ロール降順 (STUDENT→ADMIN)</SelectItem>
+                                    <SelectItem value="ASC">管理者→教員→学生</SelectItem>
+                                    <SelectItem value="DESC">学生→教員→管理者</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -325,34 +537,40 @@ function UserList() {
                                         <TableCell>{user.userName}</TableCell>
                                         <TableCell>{user.email}</TableCell>
                                         <TableCell>
-                                            <Select
-                                                value={user.role}
-                                                onValueChange={(value) =>
-                                                    handleRoleChange(user.userId, value)
-                                                }
-                                            >
-                                                <SelectTrigger className="w-[140px] role-select">
-                                                    <SelectValue placeholder="ロールを選択" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="ADMIN">ADMIN</SelectItem>
-                                                    <SelectItem value="TEACHER">TEACHER</SelectItem>
-                                                    <SelectItem value="STUDENT">STUDENT</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            {isAdmin ? (
+                                                <Select
+                                                    value={user.role}
+                                                    onValueChange={(value) =>
+                                                        handleRoleChange(user.userId, value)
+                                                    }
+                                                >
+                                                    <SelectTrigger className="w-[140px] role-select">
+                                                        <SelectValue placeholder="ロールを選択" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="ADMIN">管理者</SelectItem>
+                                                        <SelectItem value="TEACHER">教員</SelectItem>
+                                                        <SelectItem value="STUDENT">学生</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            ) : (
+                                                <span>{user.role}</span>
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             {new Date(user.createdAt).toLocaleString('ja-JP')}
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex gap-2">
-                                                {/* 削除（実際は hidden=true）: ボタンは赤（destructive）表示に */}
-                                                <Button
-                                                    variant="destructive"
-                                                    onClick={() => handleHideToggle(user.userId)}
-                                                >
-                                                    {user.hidden ? '表示' : '削除'}
-                                                </Button>
+                                                {/* 削除（実際は hidden=true）: 管理者のみ表示 */}
+                                                {isAdmin ? (
+                                                    <Button
+                                                        variant="destructive"
+                                                        onClick={() => handleHideToggle(user.userId)}
+                                                    >
+                                                        {user.hidden ? '表示' : '削除'}
+                                                    </Button>
+                                                ) : null}
                                             </div>
                                         </TableCell>
                                     </TableRow>
