@@ -27,29 +27,47 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const ROLE_ORDER = ['ADMIN', 'TEACHER', 'STUDENT'];
 
+// 役割を日本語ラベルに変換するユーティリティ
+const roleLabel = (role) => {
+    if (!role) return '';
+    switch (String(role).toUpperCase()) {
+        case 'ADMIN': return '管理者';
+        case 'TEACHER': return '教員';
+        case 'STUDENT': return '学生';
+        default: return role;
+    }
+};
+
 function UserList() {
+    // データ
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
 
-    // カウント表示用
+    // ページネーション
+    const [currentPage, setCurrentPage] = useState(0);
+    const [pageSize, setPageSize] = useState(20);
+    const [totalPages, setTotalPages] = useState(0);
+    const [totalElements, setTotalElements] = useState(0);
+
+    // カウント表示
     const [counts, setCounts] = useState({ admin: 0, teacher: 0, student: 0, total: 0 });
 
-    // フィルタとソートの状態
-    const [roleFilter, setRoleFilter] = useState('ALL'); // 'ALL' | 'ADMIN' | 'TEACHER' | 'STUDENT'
-    const [roleSort, setRoleSort] = useState('NONE'); // 'NONE' | 'ASC' | 'DESC'
+    // フィルタとソート
+    const [roleFilter, setRoleFilter] = useState('ALL');
+    const [roleSort, setRoleSort] = useState('NONE');
 
-    // 非表示ユーザー表示用
+    // 非表示ユーザーパネル
     const [hiddenVisible, setHiddenVisible] = useState(false);
     const [hiddenLoading, setHiddenLoading] = useState(false);
     const [hiddenUsers, setHiddenUsers] = useState([]);
     const [hiddenError, setHiddenError] = useState(null);
 
-    // 現在ログイン中ユーザーのロール（'ADMIN' / 'TEACHER' / 'STUDENT' / null）
+    // 現在ログイン中ユーザーのロール
     const [currentUserRole, setCurrentUserRole] = useState(null);
 
-    // 汎用 fetch ヘルパー: cookie/session を送るために credentials: 'include' を常に付ける
+    // 汎用 fetch (cookie を送る)
     const fetchWithCreds = (url, options = {}) => {
         const opts = {
             credentials: 'include',
@@ -62,69 +80,68 @@ function UserList() {
         return fetch(url, opts);
     };
 
-    // レスポンスの内容を安全にパース（JSON でなければテキストを返す）
     const parseResponseBody = async (res) => {
         const text = await res.text();
-        try {
-            return JSON.parse(text);
-        } catch {
-            return text;
-        }
+        try { return JSON.parse(text); } catch { return text; }
     };
 
-    // 権限エラーなどを扱うユーティリティ
     const handleApiError = async (res) => {
-        if (res.status === 403) {
-            // 明示的に権限エラーを通知
-            throw new Error('操作の権限がありません（管理者でログインしているか確認してください）');
-        }
+        if (res.status === 403) throw new Error('操作の権限がありません（管理者でログインしているか確認してください）');
         const body = await parseResponseBody(res);
-        if (body && typeof body === 'object' && body.message) {
-            throw new Error(body.message);
-        }
-        if (typeof body === 'string' && body.length > 0) {
-            throw new Error(body);
-        }
+        if (body && typeof body === 'object' && body.message) throw new Error(body.message);
+        if (typeof body === 'string' && body.length > 0) throw new Error(body);
         throw new Error('サーバーエラーが発生しました');
     };
 
-    // 現在ログイン中ユーザー情報を取得してロールをセット
+    // 現在のログインユーザー情報を取得して role をセット
     const fetchCurrentUserRole = async () => {
         try {
             const res = await fetchWithCreds('/api/app');
             if (!res.ok) {
-                // /api/app は認証が必要なので 401/403 が返る場合は無視して null にする
-                return setCurrentUserRole(null);
+                setCurrentUserRole(null);
+                return;
             }
             const d = await res.json();
-            // AppController の AppResponse に current user が入っている想定
             const currentUser = d && d.user ? d.user : null;
-            if (currentUser && currentUser.role) {
-                setCurrentUserRole(currentUser.role);
-            } else {
-                setCurrentUserRole(null);
-            }
+            if (currentUser && currentUser.role) setCurrentUserRole(currentUser.role);
+            else setCurrentUserRole(null);
         } catch (err) {
             console.warn('fetchCurrentUserRole error:', err);
             setCurrentUserRole(null);
         }
     };
 
-    // ユーザー一覧を取得
-    const fetchUsers = async (query = '') => {
+    // ページ指定でユーザーを取得する (サーバー側ページ対応)
+    const fetchUsers = async (page = 0, size = pageSize, query = '') => {
         try {
             setLoading(true);
-            const url = query
-                ? `/api/users?q=${encodeURIComponent(query)}`
-                : '/api/users';
+            let url = `/api/users?page=${page}&size=${size}`;
+            if (query && query.trim() !== '') url += `&q=${encodeURIComponent(query)}`;
 
-            const response = await fetchWithCreds(url);
-            if (!response.ok) {
-                await handleApiError(response);
+            const res = await fetchWithCreds(url);
+            if (!res.ok) await handleApiError(res);
+            const data = await res.json();
+
+            // Spring Data Page の JSON を想定: content, totalElements, totalPages, number, size
+            if (data && Array.isArray(data.content)) {
+                setUsers(Array.isArray(data.content) ? data.content : []);
+                setTotalElements(data.totalElements || 0);
+                setTotalPages(data.totalPages || 0);
+                setCurrentPage(data.number || 0);
+                setPageSize(data.size || size);
+            } else if (Array.isArray(data)) {
+                // 互換性: 古い配列応答に対応
+                setUsers(data);
+                setTotalElements(data.length);
+                setTotalPages(1);
+                setCurrentPage(0);
+                setPageSize(size);
+            } else {
+                setUsers([]);
+                setTotalElements(0);
+                setTotalPages(0);
+                setCurrentPage(0);
             }
-
-            const data = await response.json();
-            setUsers(Array.isArray(data) ? data : []);
             setError(null);
         } catch (err) {
             setError(err.message);
@@ -137,9 +154,7 @@ function UserList() {
     const fetchCounts = async () => {
         try {
             const res = await fetchWithCreds('/api/users/counts');
-            if (!res.ok) {
-                await handleApiError(res);
-            }
+            if (!res.ok) await handleApiError(res);
             const d = await res.json();
             setCounts({
                 admin: d.admin || 0,
@@ -152,17 +167,13 @@ function UserList() {
         }
     };
 
-    // 非表示ユーザー一覧取得
+    // 非表示ユーザー一覧取得（管理者のみ）
     const fetchHiddenUsers = async (query = '') => {
         try {
             setHiddenLoading(true);
-            const url = query
-                ? `/api/users/hidden?q=${encodeURIComponent(query)}`
-                : '/api/users/hidden';
+            const url = query ? `/api/users/hidden?q=${encodeURIComponent(query)}` : '/api/users/hidden';
             const res = await fetchWithCreds(url);
-            if (!res.ok) {
-                await handleApiError(res);
-            }
+            if (!res.ok) await handleApiError(res);
             const d = await res.json();
             setHiddenUsers(Array.isArray(d) ? d : []);
             setHiddenError(null);
@@ -178,113 +189,61 @@ function UserList() {
     useEffect(() => {
         (async () => {
             await fetchCurrentUserRole();
-            await fetchUsers();
+            await fetchUsers(0, pageSize);
             await fetchCounts();
         })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // 検索実行
+    // 検索 (先頭ページへ)
     const handleSearch = (e) => {
         e.preventDefault();
-        fetchUsers(searchQuery);
+        fetchUsers(0, pageSize, searchQuery);
         fetchCounts();
     };
 
-    // ロール変更 (管理者のみ見える/有効)
+    // ロール変更 (管理者のみ)
     const handleRoleChange = async (userId, newRole) => {
-        if (currentUserRole !== 'ADMIN') {
-            alert('権限がありません');
-            return;
-        }
+        if (currentUserRole !== 'ADMIN') { alert('権限がありません'); return; }
         try {
-            const response = await fetchWithCreds(`/api/users/${userId}/role`, {
+            const res = await fetchWithCreds(`/api/users/${userId}/role`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ role: newRole }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role: newRole })
             });
-
-            if (!response.ok) {
-                await handleApiError(response);
-            }
-
-            const updatedUser = await response.json();
-
-            // ユーザーリストを更新
-            setUsers(prev =>
-                prev.map(user =>
-                    user.userId === userId ? updatedUser : user
-                )
-            );
-
-            // カウントも更新
+            if (!res.ok) { await handleApiError(res); }
+            await res.json();
+            // 現在ページを再読み込み
+            await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
-
             alert('ロールを変更しました');
         } catch (err) {
-            alert(err.message);
-            // エラー時は再フェッチして状態を復元
-            fetchUsers(searchQuery);
-            fetchCounts();
+            alert(err.message || err);
+            await fetchUsers(currentPage, pageSize, searchQuery);
+            await fetchCounts();
         }
     };
 
-    // 非表示フラグ切り替え（サーバー連動）
+    // 非表示切替 (管理者のみ)
     const handleHideToggle = async (userId) => {
-        // 権限チェック（フロント側）
-        if (currentUserRole !== 'ADMIN') {
-            alert('この操作は管理者のみ可能です');
-            return;
-        }
-
+        if (currentUserRole !== 'ADMIN') { alert('この操作は管理者のみ可能です'); return; }
         const target = users.find(u => u.userId === userId) || hiddenUsers.find(u => u.userId === userId);
         if (!target) return;
-
         const newHidden = !target.hidden;
-
         if (newHidden) {
-            const ok = window.confirm('このユーザーを削除（非表示）しますか？（データは残りますが一覧からは除外されます。再表示可能です。）');
-            if (!ok) return;
+            if (!window.confirm('このユーザーを削除（非表示）しますか？')) return;
         } else {
-            const ok = window.confirm('このユーザーを一覧に再表示しますか？');
-            if (!ok) return;
+            if (!window.confirm('このユーザーを一覧に再表示しますか？')) return;
         }
-
         try {
             const res = await fetchWithCreds(`/api/users/${userId}/hidden`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ hidden: newHidden }),
+                body: JSON.stringify({ hidden: newHidden })
             });
-
-            if (!res.ok) {
-                await handleApiError(res);
-            }
-
-            const updatedUser = await res.json();
-
-            // users と hiddenUsers の両方を更新/除外して整合を保つ
-            setUsers(prev =>
-                prev
-                    .map(u => (u.userId === userId ? updatedUser : u))
-                    .filter(u => !u.hidden) // 非表示は親リストから除外
-            );
-
-            setHiddenUsers(prev => {
-                // 更新ユーザーが非表示なら hiddenUsers に入れ、表示なら除外
-                if (updatedUser.hidden) {
-                    const exists = prev.some(u => u.userId === updatedUser.userId);
-                    if (exists) {
-                        return prev.map(u => (u.userId === updatedUser.userId ? updatedUser : u));
-                    }
-                    return [...prev, updatedUser];
-                } else {
-                    return prev.filter(u => u.userId !== updatedUser.userId);
-                }
-            });
-
-            // カウントも更新
+            if (!res.ok) await handleApiError(res);
+            await res.json();
+            await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
         } catch (err) {
             console.error(err);
@@ -292,32 +251,21 @@ function UserList() {
         }
     };
 
-    // 非表示一覧から復元（hidden=false）
+    // 非表示一覧から復元
     const restoreHiddenUser = async (userId) => {
-        if (currentUserRole !== 'ADMIN') {
-            alert('この操作は管理者のみ可能です');
-            return;
-        }
-
+        if (currentUserRole !== 'ADMIN') { alert('この操作は管理者のみ可能です'); return; }
         if (!window.confirm('このユーザーを一覧に再表示しますか？')) return;
-
         try {
             const res = await fetchWithCreds(`/api/users/${userId}/hidden`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ hidden: false }),
+                body: JSON.stringify({ hidden: false })
             });
-            if (!res.ok) {
-                await handleApiError(res);
-            }
+            if (!res.ok) await handleApiError(res);
             await res.json();
-// hiddenUsers から除外
             setHiddenUsers(prev => prev.filter(u => u.userId !== userId));
-
-            // メインの一覧を再取得して反映（より確実に整合させる）
-            await fetchUsers(searchQuery);
+            await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
-
             alert('ユーザーを表示状態に戻しました');
         } catch (err) {
             console.error(err);
@@ -325,17 +273,20 @@ function UserList() {
         }
     };
 
-    // フィルタ・ソート適用済みの表示用配列を作る
+    // ページ移動
+    const goToPage = (page) => {
+        if (page < 0 || (totalPages > 0 && page >= totalPages)) return;
+        fetchUsers(page, pageSize, searchQuery);
+    };
+
+    // クライアント側の追加フィルタ/ソート（ページ内で適用）
     const processedUsers = React.useMemo(() => {
-        // 1) hidden=false のユーザーのみ表示
         let list = users.filter(u => !u.hidden);
 
-        // 2) ロールフィルタ
         if (roleFilter && roleFilter !== 'ALL') {
             list = list.filter(u => u.role === roleFilter);
         }
 
-        // 3) ロールによるソート（独自順序: ADMIN > TEACHER > STUDENT）
         if (roleSort !== 'NONE') {
             list = [...list].sort((a, b) => {
                 const ia = ROLE_ORDER.indexOf(a.role || '');
@@ -350,6 +301,7 @@ function UserList() {
     }, [users, roleFilter, roleSort]);
 
     const isAdmin = currentUserRole === 'ADMIN';
+
     if (loading) {
         return (
             <div className="user-list-container">
@@ -373,6 +325,36 @@ function UserList() {
         );
     }
 
+    // ページ番号表示用 (最大表示数を制限して表示)
+    const renderPageButtons = () => {
+        if (totalPages <= 1) return null;
+        const buttons = [];
+        const windowSize = 5; // 表示するボタン数 (現在ページの前後)
+        const half = Math.floor(windowSize / 2);
+        let start = Math.max(0, currentPage - half);
+        let end = Math.min(totalPages - 1, currentPage + half);
+        // adjust when near edges
+        if (currentPage - start < half) {
+            end = Math.min(totalPages - 1, end + (half - (currentPage - start)));
+        }
+        if (end - currentPage < half) {
+            start = Math.max(0, start - (half - (end - currentPage)));
+        }
+
+        for (let i = start; i <= end; i++) {
+            buttons.push(
+                <Button
+                    key={i}
+                    variant={i === currentPage ? undefined : 'outline'}
+                    onClick={() => goToPage(i)}
+                >
+                    {i + 1}
+                </Button>
+            );
+        }
+        return buttons;
+    };
+
     return (
         <div className="user-list-container">
             <Card>
@@ -386,21 +368,13 @@ function UserList() {
                         <div>管理者: <strong>{counts.admin}</strong></div>
                         <div>教員: <strong>{counts.teacher}</strong></div>
                         <div>学生: <strong>{counts.student}</strong></div>
-                        <div>合計: <strong>{counts.total}</strong></div>
+                        <div>合計: <strong>{totalElements}</strong></div>
                     </div>
 
-                    {/* --- 非表示ユーザー表示ボタン（並び替えエリアの上） --- */}
+                    {/* 非表示ユーザー表示ボタン */}
                     {isAdmin && (
                         <div className="mb-4">
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    if (!hiddenVisible) {
-                                        fetchHiddenUsers();
-                                    }
-                                    setHiddenVisible(prev => !prev);
-                                }}
-                            >
+                            <Button variant="outline" onClick={() => { if (!hiddenVisible) fetchHiddenUsers(); setHiddenVisible(prev => !prev); }}>
                                 {hiddenVisible ? '非表示ユーザーを閉じる' : '非表示ユーザーを表示'}
                             </Button>
                         </div>
@@ -433,7 +407,7 @@ function UserList() {
                                                     <td style={{ padding: '6px' }}>{u.userId}</td>
                                                     <td style={{ padding: '6px' }}>{u.userName}</td>
                                                     <td style={{ padding: '6px' }}>{u.email}</td>
-                                                    <td style={{ padding: '6px' }}>{u.role}</td>
+                                                    <td style={{ padding: '6px' }}>{roleLabel(u.role)}</td>
                                                     <td style={{ padding: '6px' }}>{u.createdAt ? new Date(u.createdAt).toLocaleString('ja-JP') : ''}</td>
                                                     <td style={{ padding: '6px' }}>
                                                         <Button onClick={() => restoreHiddenUser(u.userId)}>復元</Button>
@@ -449,10 +423,7 @@ function UserList() {
                     )}
 
                     {/* 検索フォーム */}
-                    <form
-                        onSubmit={handleSearch}
-                        className="search-form flex flex-wrap gap-2 items-center mb-4"
-                    >
+                    <form onSubmit={handleSearch} className="search-form flex flex-wrap gap-2 items-center mb-4">
                         <Input
                             type="text"
                             placeholder="名前またはメールアドレスで検索"
@@ -460,29 +431,12 @@ function UserList() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="search-input max-w-xs"
                         />
-                        <Button type="submit" className="search-button">
-                            検索
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                                setSearchQuery('');
-                                fetchUsers();
-                                fetchCounts();
-                            }}
-                            className="reset-button"
-                        >
-                            リセット
-                        </Button>
+                        <Button type="submit" className="search-button">検索</Button>
+                        <Button type="button" variant="outline" onClick={() => { setSearchQuery(''); fetchUsers(0, pageSize); fetchCounts(); }} className="reset-button">リセット</Button>
 
-                        {/* ロールで絞り込み */}
                         <div className="ml-4 flex items-center gap-2">
                             <label htmlFor="role-filter" style={{ fontSize: 13 }}>ロール絞込</label>
-                            <Select
-                                value={roleFilter}
-                                onValueChange={(v) => setRoleFilter(v)}
-                            >
+                            <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v)}>
                                 <SelectTrigger id="role-filter" className="w-[160px]">
                                     <SelectValue placeholder="すべて" />
                                 </SelectTrigger>
@@ -495,10 +449,7 @@ function UserList() {
                             </Select>
 
                             <label htmlFor="role-sort" style={{ fontSize: 13 }}>並び替え</label>
-                            <Select
-                                value={roleSort}
-                                onValueChange={(v) => setRoleSort(v)}
-                            >
+                            <Select value={roleSort} onValueChange={(v) => setRoleSort(v)}>
                                 <SelectTrigger id="role-sort" className="w-[160px]">
                                     <SelectValue placeholder="並び替え" />
                                 </SelectTrigger>
@@ -554,7 +505,7 @@ function UserList() {
                                                     </SelectContent>
                                                 </Select>
                                             ) : (
-                                                <span>{user.role}</span>
+                                                <span>{roleLabel(user.role)}</span>
                                             )}
                                         </TableCell>
                                         <TableCell>
@@ -579,8 +530,36 @@ function UserList() {
                         </TableBody>
                     </Table>
 
+                    {/* ページネーション */}
+                    <div className="mt-4 flex items-center justify-center gap-3">
+                        <Button onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 0}>前へ</Button>
+                        <div className="flex items-center gap-2">
+                            {renderPageButtons()}
+                        </div>
+                        <Button onClick={() => goToPage(currentPage + 1)} disabled={totalPages === 0 || currentPage >= totalPages - 1}>次へ</Button>
+
+                        {/* ページサイズ選択 */}
+                        <div className="ml-4 flex items-center gap-2">
+                            <label style={{ fontSize: 13 }}>表示数</label>
+                            <Select value={String(pageSize)} onValueChange={(v) => {
+                                const newSize = parseInt(v, 10);
+                                setPageSize(newSize);
+                                fetchUsers(0, newSize, searchQuery);
+                            }}>
+                                <SelectTrigger className="w-[90px]">
+                                    <SelectValue placeholder={`${pageSize}件`} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="20">20</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
                     <div className="user-count mt-4 text-right">
-                        表示: {processedUsers.length} / 全体: {counts.total} 人
+                        表示: {processedUsers.length} / 全体: {totalElements} 人
                     </div>
                 </CardContent>
             </Card>
