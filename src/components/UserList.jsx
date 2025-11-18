@@ -25,9 +25,19 @@ import {
 } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
+import {
+    Dialog,
+    DialogTrigger,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from '@/components/ui/dialog';
+
 const ROLE_ORDER = ['ADMIN', 'TEACHER', 'STUDENT'];
 
-// 役割を日本語ラベルに変換するユーティリティ
+// 役割ラベル変換（簡易）
 const roleLabel = (role) => {
     if (!role) return '';
     switch (String(role).toUpperCase()) {
@@ -51,23 +61,26 @@ function UserList() {
     const [totalPages, setTotalPages] = useState(0);
     const [totalElements, setTotalElements] = useState(0);
 
-    // カウント表示
+    // カウント
     const [counts, setCounts] = useState({ admin: 0, teacher: 0, student: 0, total: 0 });
 
     // フィルタとソート
     const [roleFilter, setRoleFilter] = useState('ALL');
     const [roleSort, setRoleSort] = useState('NONE');
 
-    // 非表示ユーザーパネル
-    const [hiddenVisible, setHiddenVisible] = useState(false);
+    // 非表示ユーザー関連
+    // const [hiddenVisible, setHiddenVisible] = useState(false);
     const [hiddenLoading, setHiddenLoading] = useState(false);
     const [hiddenUsers, setHiddenUsers] = useState([]);
     const [hiddenError, setHiddenError] = useState(null);
 
-    // 現在ログイン中ユーザーのロール
+    // ダイアログ制御（非表示ユーザー）
+    const [openHiddenDialog, setOpenHiddenDialog] = useState(false);
+
+    // 現在ログイン中ユーザーの role
     const [currentUserRole, setCurrentUserRole] = useState(null);
 
-    // 汎用 fetch (cookie を送る)
+    // fetch with credentials helper
     const fetchWithCreds = (url, options = {}) => {
         const opts = {
             credentials: 'include',
@@ -111,7 +124,7 @@ function UserList() {
         }
     };
 
-    // ページ指定でユーザーを取得する (サーバー側ページ対応)
+    // ユーザー一覧取得
     const fetchUsers = async (page = 0, size = pageSize, query = '') => {
         try {
             setLoading(true);
@@ -122,7 +135,7 @@ function UserList() {
             if (!res.ok) await handleApiError(res);
             const data = await res.json();
 
-            // Spring Data Page の JSON を想定: content, totalElements, totalPages, number, size
+            // Spring Data Page を想定
             if (data && Array.isArray(data.content)) {
                 setUsers(Array.isArray(data.content) ? data.content : []);
                 setTotalElements(data.totalElements || 0);
@@ -130,7 +143,6 @@ function UserList() {
                 setCurrentPage(data.number || 0);
                 setPageSize(data.size || size);
             } else if (Array.isArray(data)) {
-                // 互換性: 古い配列応答に対応
                 setUsers(data);
                 setTotalElements(data.length);
                 setTotalPages(1);
@@ -167,7 +179,7 @@ function UserList() {
         }
     };
 
-    // 非表示ユーザー一覧取得（管理者のみ）
+    // 非表示ユーザー取得（管理者のみ）
     const fetchHiddenUsers = async (query = '') => {
         try {
             setHiddenLoading(true);
@@ -185,7 +197,7 @@ function UserList() {
         }
     };
 
-    // 初回読み込み
+    // 初回ロード
     useEffect(() => {
         (async () => {
             await fetchCurrentUserRole();
@@ -195,14 +207,22 @@ function UserList() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // 検索 (先頭ページへ)
+    // ダイアログが開かれたら非表示ユーザーを取得する
+    useEffect(() => {
+        if (openHiddenDialog) {
+            fetchHiddenUsers();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [openHiddenDialog]);
+
+    // 検索フォーム
     const handleSearch = (e) => {
         e.preventDefault();
         fetchUsers(0, pageSize, searchQuery);
         fetchCounts();
     };
 
-    // ロール変更 (管理者のみ)
+    // ロール変更（管理者のみ）
     const handleRoleChange = async (userId, newRole) => {
         if (currentUserRole !== 'ADMIN') { alert('権限がありません'); return; }
         try {
@@ -213,7 +233,6 @@ function UserList() {
             });
             if (!res.ok) { await handleApiError(res); }
             await res.json();
-            // 現在ページを再読み込み
             await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
             alert('ロールを変更しました');
@@ -224,7 +243,7 @@ function UserList() {
         }
     };
 
-    // 非表示切替 (管理者のみ)
+    // 非表示切替（管理者のみ）
     const handleHideToggle = async (userId) => {
         if (currentUserRole !== 'ADMIN') { alert('この操作は管理者のみ可能です'); return; }
         const target = users.find(u => u.userId === userId) || hiddenUsers.find(u => u.userId === userId);
@@ -233,7 +252,7 @@ function UserList() {
         if (newHidden) {
             if (!window.confirm('このユーザーを削除（非表示）しますか？')) return;
         } else {
-            if (!window.confirm('このユーザーを一覧に再表示しますか？')) return;
+            if (!window.confirm('このユーザーを一括に再表示しますか？')) return;
         }
         try {
             const res = await fetchWithCreds(`/api/users/${userId}/hidden`, {
@@ -251,10 +270,10 @@ function UserList() {
         }
     };
 
-    // 非表示一覧から復元
+    // 非表示からの復元（管理者のみ）
     const restoreHiddenUser = async (userId) => {
         if (currentUserRole !== 'ADMIN') { alert('この操作は管理者のみ可能です'); return; }
-        if (!window.confirm('このユーザーを一覧に再表示しますか？')) return;
+        if (!window.confirm('このユーザーを一括に再表示しますか？')) return;
         try {
             const res = await fetchWithCreds(`/api/users/${userId}/hidden`, {
                 method: 'PUT',
@@ -279,7 +298,7 @@ function UserList() {
         fetchUsers(page, pageSize, searchQuery);
     };
 
-    // クライアント側の追加フィルタ/ソート（ページ内で適用）
+    // テーブル表示用にフィルタ／ソートを適用
     const processedUsers = React.useMemo(() => {
         let list = users.filter(u => !u.hidden);
 
@@ -325,15 +344,14 @@ function UserList() {
         );
     }
 
-    // ページ番号表示用 (最大表示数を制限して表示)
+    // ページ番号ボタン表示
     const renderPageButtons = () => {
         if (totalPages <= 1) return null;
         const buttons = [];
-        const windowSize = 5; // 表示するボタン数 (現在ページの前後)
+        const windowSize = 5;
         const half = Math.floor(windowSize / 2);
         let start = Math.max(0, currentPage - half);
         let end = Math.min(totalPages - 1, currentPage + half);
-        // adjust when near edges
         if (currentPage - start < half) {
             end = Math.min(totalPages - 1, end + (half - (currentPage - start)));
         }
@@ -371,54 +389,92 @@ function UserList() {
                         <div>合計: <strong>{totalElements}</strong></div>
                     </div>
 
-                    {/* 非表示ユーザー表示ボタン */}
+                    {/* 非表示ユーザーはダイアログで表示（管理者のみ） */}
                     {isAdmin && (
                         <div className="mb-4">
-                            <Button variant="outline" onClick={() => { if (!hiddenVisible) fetchHiddenUsers(); setHiddenVisible(prev => !prev); }}>
-                                {hiddenVisible ? '非表示ユーザーを閉じる' : '非表示ユーザーを表示'}
-                            </Button>
-                        </div>
-                    )}
+                            <Dialog open={openHiddenDialog} onOpenChange={setOpenHiddenDialog}>
+                                <DialogTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                            // Dialog の open を true にして取得（useEffect でも取得するため重複しても OK）
+                                            setOpenHiddenDialog(true);
+                                            // 直接呼ぶことで即時取得したい場合
+                                            fetchHiddenUsers();
+                                        }}
+                                    >
+                                        非表示ユーザーを表示
+                                    </Button>
+                                </DialogTrigger>
 
-                    {/* 非表示ユーザー一覧パネル */}
-                    {hiddenVisible && isAdmin && (
-                        <div style={{ border: '1px solid #e6e6e6', padding: 12, borderRadius: 6, marginBottom: 12 }}>
-                            {hiddenLoading && <div>読み込み中...</div>}
-                            {hiddenError && <div style={{ color: 'red' }}>{hiddenError}</div>}
-                            {!hiddenLoading && !hiddenError && (
-                                <>
-                                    {hiddenUsers.length === 0 ? (
-                                        <div>非表示ユーザーは存在しません。</div>
-                                    ) : (
-                                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                            <thead>
-                                            <tr>
-                                                <th style={{ textAlign: 'left', padding: '6px' }}>ID</th>
-                                                <th style={{ textAlign: 'left', padding: '6px' }}>名前</th>
-                                                <th style={{ textAlign: 'left', padding: '6px' }}>メール</th>
-                                                <th style={{ textAlign: 'left', padding: '6px' }}>役割</th>
-                                                <th style={{ textAlign: 'left', padding: '6px' }}>作成日</th>
-                                                <th style={{ padding: '6px' }}>操作</th>
-                                            </tr>
-                                            </thead>
-                                            <tbody>
-                                            {hiddenUsers.map(u => (
-                                                <tr key={u.userId} style={{ borderTop: '1px solid #eee' }}>
-                                                    <td style={{ padding: '6px' }}>{u.userId}</td>
-                                                    <td style={{ padding: '6px' }}>{u.userName}</td>
-                                                    <td style={{ padding: '6px' }}>{u.email}</td>
-                                                    <td style={{ padding: '6px' }}>{roleLabel(u.role)}</td>
-                                                    <td style={{ padding: '6px' }}>{u.createdAt ? new Date(u.createdAt).toLocaleString('ja-JP') : ''}</td>
-                                                    <td style={{ padding: '6px' }}>
-                                                        <Button onClick={() => restoreHiddenUser(u.userId)}>復元</Button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                            </tbody>
-                                        </table>
-                                    )}
-                                </>
-                            )}
+                                <DialogContent className="sm:max-w-3xl">
+                                    <DialogHeader>
+                                        <DialogTitle>非表示ユーザー</DialogTitle>
+                                        <DialogDescription className="text-xs">
+                                            非表示になっているユーザーの一覧です。復元したいユーザーを選択してください。
+                                        </DialogDescription>
+                                    </DialogHeader>
+
+                                    <div className="mt-2">
+                                        {hiddenLoading && (
+                                            <div className="py-4 text-sm text-slate-500">読み込み中...</div>
+                                        )}
+
+                                        {hiddenError && (
+                                            <div className="py-2 text-sm text-red-600">{hiddenError}</div>
+                                        )}
+
+                                        {!hiddenLoading && !hiddenError && (
+                                            <>
+                                                {hiddenUsers.length === 0 ? (
+                                                    <div className="text-sm text-slate-500">
+                                                        非表示ユーザーは存在しません。
+                                                    </div>
+                                                ) : (
+                                                    <div className="overflow-auto max-h-[60vh]">
+                                                        <table className="w-full border-collapse">
+                                                            <thead>
+                                                            <tr className="text-left text-xs text-slate-600">
+                                                                <th className="py-2 px-3">ID</th>
+                                                                <th className="py-2 px-3">名前</th>
+                                                                <th className="py-2 px-3">メール</th>
+                                                                <th className="py-2 px-3">役割</th>
+                                                                <th className="py-2 px-3">作成日時</th>
+                                                                <th className="py-2 px-3">操作</th>
+                                                            </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                            {hiddenUsers.map(u => (
+                                                                <tr key={u.userId} className="border-t">
+                                                                    <td className="py-2 px-3 align-top">{u.userId}</td>
+                                                                    <td className="py-2 px-3 align-top">{u.userName}</td>
+                                                                    <td className="py-2 px-3 align-top">{u.email}</td>
+                                                                    <td className="py-2 px-3 align-top">{roleLabel(u.role)}</td>
+                                                                    <td className="py-2 px-3 align-top">
+                                                                        {u.createdAt ? new Date(u.createdAt).toLocaleString('ja-JP') : ''}
+                                                                    </td>
+                                                                    <td className="py-2 px-3 align-top">
+                                                                        <Button size="sm" onClick={() => restoreHiddenUser(u.userId)}>
+                                                                            復元
+                                                                        </Button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+
+                                    <DialogFooter className="flex justify-end gap-2 mt-4">
+                                        <Button variant="outline" onClick={() => setOpenHiddenDialog(false)}>
+                                            閉じる
+                                        </Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         </div>
                     )}
 
@@ -432,7 +488,9 @@ function UserList() {
                             className="search-input max-w-xs"
                         />
                         <Button type="submit" className="search-button">検索</Button>
-                        <Button type="button" variant="outline" onClick={() => { setSearchQuery(''); fetchUsers(0, pageSize); fetchCounts(); }} className="reset-button">リセット</Button>
+                        <Button type="button" variant="outline" onClick={() => { setSearchQuery(''); fetchUsers(0, pageSize); fetchCounts(); }} className="reset-button">
+                            リセット
+                        </Button>
 
                         <div className="ml-4 flex items-center gap-2">
                             <label htmlFor="role-filter" style={{ fontSize: 13 }}>ロール絞込</label>
@@ -462,7 +520,7 @@ function UserList() {
                         </div>
                     </form>
 
-                    {/* ユーザー一覧テーブル */}
+                    {/* 一覧テーブル */}
                     <Table className="user-table">
                         <TableHeader>
                             <TableRow>
@@ -477,9 +535,7 @@ function UserList() {
                         <TableBody>
                             {processedUsers.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="no-data text-center">
-                                        ユーザーが見つかりません
-                                    </TableCell>
+                                    <TableCell colSpan={6} className="no-data text-center">ユーザーが見つかりません</TableCell>
                                 </TableRow>
                             ) : (
                                 processedUsers.map((user) => (
@@ -508,17 +564,11 @@ function UserList() {
                                                 <span>{roleLabel(user.role)}</span>
                                             )}
                                         </TableCell>
-                                        <TableCell>
-                                            {new Date(user.createdAt).toLocaleString('ja-JP')}
-                                        </TableCell>
+                                        <TableCell>{new Date(user.createdAt).toLocaleString('ja-JP')}</TableCell>
                                         <TableCell>
                                             <div className="flex gap-2">
-                                                {/* 削除（実際は hidden=true）: 管理者のみ表示 */}
                                                 {isAdmin ? (
-                                                    <Button
-                                                        variant="destructive"
-                                                        onClick={() => handleHideToggle(user.userId)}
-                                                    >
+                                                    <Button variant="destructive" onClick={() => handleHideToggle(user.userId)}>
                                                         {user.hidden ? '表示' : '削除'}
                                                     </Button>
                                                 ) : null}
@@ -538,7 +588,6 @@ function UserList() {
                         </div>
                         <Button onClick={() => goToPage(currentPage + 1)} disabled={totalPages === 0 || currentPage >= totalPages - 1}>次へ</Button>
 
-                        {/* ページサイズ選択 */}
                         <div className="ml-4 flex items-center gap-2">
                             <label style={{ fontSize: 13 }}>表示数</label>
                             <Select value={String(pageSize)} onValueChange={(v) => {
@@ -558,9 +607,7 @@ function UserList() {
                         </div>
                     </div>
 
-                    <div className="user-count mt-4 text-right">
-                        表示: {processedUsers.length} / 全体: {totalElements} 人
-                    </div>
+                    <div className="user-count mt-4 text-right">表示: {processedUsers.length} / 全体: {totalElements} 人</div>
                 </CardContent>
             </Card>
         </div>
