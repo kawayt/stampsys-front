@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import {
 import { Label } from "@/components/ui/label";
 
 export function ClassList() {
+    const navigate = useNavigate();
     const [classes, setClasses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -208,6 +210,7 @@ export function ClassList() {
                                 <Button
                                     variant="ghost"
                                     className="text-xs font-medium text-orange-500 hover:text-orange-600 hover:bg-orange-50 px-0"
+                                    onClick={() => navigate(`/classes/${c.classId}/rooms`)}
                                 >
                                     授業に参加 →
                                 </Button>

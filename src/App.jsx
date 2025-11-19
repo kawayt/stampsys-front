@@ -4,6 +4,7 @@ import UserList from './components/UserList'
 import LoginPage from './components/LoginPage';
 import { ClassList } from './components/ClassList';
 import StampList from './components/StampList';
+import { RoomList } from "@/components/RoomList";
 import {
     BrowserRouter,
     Routes,
@@ -119,11 +120,11 @@ function Dashboard({ appData, onLogout }) {
                     <NavItem to="/stamps">スタンプ一覧</NavItem>
                 </nav>
 
-                {/* メインカードは削除し、直接ルーティング内容を表示 */}
+                {/* ルーティング */}
                 <section className="mt-2">
                     <Routes>
                         {/* ルート: クラス一覧 */}
-                        <Route path="/" element={<ClassList />} />
+                        <Route path="/classes" element={<ClassList />} />
 
                         {/* スタンプ送信用のページ */}
                         <Route
@@ -137,8 +138,11 @@ function Dashboard({ appData, onLogout }) {
                         {/* スタンプ一覧ページ */}
                         <Route path="/stamps" element={<StampList />} />
 
+                        {/* ルーム一覧ページ */}
+                        <Route path="/classes/:classId/rooms" element={<RoomList />} />
+
                         {/* デフォルトはクラス一覧へ */}
-                        <Route path="*" element={<Navigate to="/" replace />} />
+                        <Route path="*" element={<Navigate to="classes" replace />} />
                     </Routes>
                 </section>
             </main>
