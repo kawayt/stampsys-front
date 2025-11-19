@@ -646,9 +646,6 @@ function UserList() {
                                                             <thead>
                                                             <tr className="text-left text-xs text-slate-600">
                                                                 <th scope="col" className="py-2 px-3">
-                                                                    ID
-                                                                </th>
-                                                                <th scope="col" className="py-2 px-3">
                                                                     名前
                                                                 </th>
                                                                 <th scope="col" className="py-2 px-3">
@@ -682,9 +679,6 @@ function UserList() {
                                                                         className="border-t"
                                                                         tabIndex={0}
                                                                     >
-                                                                        <td className="py-2 px-3 align-top">
-                                                                            {uid}
-                                                                        </td>
                                                                         <td className="py-2 px-3 align-top">
                                                                             {name}
                                                                         </td>
@@ -782,7 +776,6 @@ function UserList() {
                         <Table className="user-table" aria-label="ユーザー一覧テーブル">
                             <TableHeader>
                                 <TableRow>
-                                    {isAdmin && <TableHead>ID</TableHead>}
                                     <TableHead>ユーザー名</TableHead>
                                     <TableHead>メールアドレス</TableHead>
                                     <TableHead>権限</TableHead>
@@ -809,7 +802,6 @@ function UserList() {
                                         const created = user?.createdAt ?? user?.created_at ?? '';
                                         return (
                                             <TableRow key={uid} tabIndex={0}>
-                                                {isAdmin && <TableCell>{uid}</TableCell>}
                                                 <TableCell>{name}</TableCell>
                                                 <TableCell>{user?.email ?? ''}</TableCell>
                                                 <TableCell>
