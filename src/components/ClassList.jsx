@@ -210,7 +210,7 @@ export function ClassList() {
                                 <Button
                                     variant="ghost"
                                     className="text-xs font-medium text-orange-500 hover:text-orange-600 hover:bg-orange-50 px-0"
-                                    onClick={() => navigate(`/classes/${c.classId}/rooms`)}
+                                    onClick={() => navigate(`/classes/${c.classId}`)}
                                 >
                                     授業に参加 →
                                 </Button>

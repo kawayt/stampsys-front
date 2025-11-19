@@ -5,6 +5,7 @@ import LoginPage from './components/LoginPage';
 import { ClassList } from './components/ClassList';
 import StampList from './components/StampList';
 import { RoomList } from "@/components/RoomList";
+import { RoomDetail } from "@/components/RoomDetail";
 import {
     BrowserRouter,
     Routes,
@@ -18,6 +19,7 @@ import {
     logout,
 } from './api/auth.js';
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner"; // ← 追加
 
 function App() {
     const [loading, setLoading] = useState(true);
@@ -49,8 +51,9 @@ function App() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center text-sm text-slate-600">
-                読み込み中...
+            <div className="min-h-screen flex flex-col items-center justify-center gap-2 text-sm text-slate-600">
+                <Spinner className="h-5 w-5" />
+                <span>読み込み中...</span>
             </div>
         );
     }
@@ -115,7 +118,6 @@ function Dashboard({ appData, onLogout }) {
                 {/* ナビゲーション（シンプルなタブ風） */}
                 <nav className="flex items-center gap-2 text-sm">
                     <NavItem to="/">クラス一覧</NavItem>
-                    <NavItem to="/stamp-send">スタンプ送信</NavItem>
                     <NavItem to="/users">ユーザー一覧</NavItem>
                     <NavItem to="/stamps">スタンプ一覧</NavItem>
                 </nav>
@@ -126,12 +128,6 @@ function Dashboard({ appData, onLogout }) {
                         {/* ルート: クラス一覧 */}
                         <Route path="/classes" element={<ClassList />} />
 
-                        {/* スタンプ送信用のページ */}
-                        <Route
-                            path="/stamp-send"
-                            element={<StampForm userId={1} roomId={1} />}
-                        />
-
                         {/* ユーザー一覧ページ */}
                         <Route path="/users" element={<UserList />} />
 
@@ -139,7 +135,10 @@ function Dashboard({ appData, onLogout }) {
                         <Route path="/stamps" element={<StampList />} />
 
                         {/* ルーム一覧ページ */}
-                        <Route path="/classes/:classId/rooms" element={<RoomList />} />
+                        <Route path="/classes/:classId" element={<RoomList />} />
+
+                        {/* ルーム詳細ページ */}
+                        <Route path="/rooms/:roomId" element={<RoomDetail userId={appData.user?.userId}/>}/>
 
                         {/* デフォルトはクラス一覧へ */}
                         <Route path="*" element={<Navigate to="classes" replace />} />

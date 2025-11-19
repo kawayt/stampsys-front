@@ -120,7 +120,13 @@ export function RoomList() {
                                                 ? "text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white px-4"
                                                 : "text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 px-4"
                                         }
-                                        // 必要に応じて onClick に遷移処理を追加してください
+                                        disabled={!r.active}
+                                        onClick={() => {
+                                            if (r.active) {
+                                                // ★ active なルームだけ詳細ページに遷移
+                                                navigate(`/rooms/${r.roomId}`);
+                                            }
+                                        }}
                                     >
                                         {r.active ? "入室" : "履歴"}
                                     </Button>
@@ -131,8 +137,8 @@ export function RoomList() {
                                                 : "text-slate-300 text-lg"
                                         }
                                     >
-                                        →
-                                    </span>
+                    →
+                  </span>
                                 </div>
                             </CardContent>
                         </Card>
