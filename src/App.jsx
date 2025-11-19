@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import StampForm from './components/StampForm'
 import UserList from './components/UserList'
 import LoginPage from './components/LoginPage';
 import { ClassList } from './components/ClassList';
@@ -12,6 +11,8 @@ import {
     Route,
     Link,
     Navigate,
+    useLocation,
+    useNavigate,
 } from 'react-router-dom'
 import {
     fetchAppData,
@@ -19,7 +20,8 @@ import {
     logout,
 } from './api/auth.js';
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner"; // ← 追加
+import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function App() {
     const [loading, setLoading] = useState(true);
@@ -93,6 +95,23 @@ function Dashboard({ appData, onLogout }) {
         appData.attributes?.displayName ||
         "名無し";
 
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    // 現在のパスからタブの value を決定
+    const currentTab =
+        location.pathname.startsWith("/users")
+            ? "users"
+            : location.pathname.startsWith("/stamps")
+                ? "stamps"
+                : "classes";
+
+    const handleTabChange = (value) => {
+        if (value === "classes") navigate("/classes");
+        if (value === "users") navigate("/users");
+        if (value === "stamps") navigate("/stamps");
+    };
+
     return (
         <div className="min-h-screen bg-slate-50">
             <header className="border-b bg-white">
@@ -115,12 +134,24 @@ function Dashboard({ appData, onLogout }) {
             </header>
 
             <main className="mx-auto max-w-5xl px-4 py-4 space-y-4">
-                {/* ナビゲーション（シンプルなタブ風） */}
-                <nav className="flex items-center gap-2 text-sm">
-                    <NavItem to="/">クラス一覧</NavItem>
-                    <NavItem to="/users">ユーザー一覧</NavItem>
-                    <NavItem to="/stamps">スタンプ一覧</NavItem>
-                </nav>
+                {/* ナビゲーション */}
+                <Tabs
+                    value={currentTab}
+                    onValueChange={handleTabChange}
+                    className="w-full"
+                >
+                    <TabsList className="inline-flex h-9 items-center justify-start gap-1 rounded-lg bg-slate-100 p-1 text-xs">
+                        <TabsTrigger value="classes" className="px-3 py-1.5">
+                            クラス一覧
+                        </TabsTrigger>
+                        <TabsTrigger value="users" className="px-3 py-1.5">
+                            ユーザー一覧
+                        </TabsTrigger>
+                        <TabsTrigger value="stamps" className="px-3 py-1.5">
+                            スタンプ一覧
+                        </TabsTrigger>
+                    </TabsList>
+                </Tabs>
 
                 {/* ルーティング */}
                 <section className="mt-2">
@@ -138,9 +169,9 @@ function Dashboard({ appData, onLogout }) {
                         <Route path="/classes/:classId" element={<RoomList />} />
 
                         {/* ルーム詳細ページ */}
-                        <Route path="/rooms/:roomId" element={<RoomDetail userId={appData.user?.userId}/>}/>
+                        <Route path="/rooms/:roomId" element={<RoomDetail userId={appData.user?.userId} />}/>
 
-                        {/* デフォルトはクラス一覧へ */}
+                        {/* デフォルトはクラス一覧 */}
                         <Route path="*" element={<Navigate to="classes" replace />} />
                     </Routes>
                 </section>
