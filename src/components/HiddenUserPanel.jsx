@@ -1,13 +1,9 @@
 import React, { useState } from 'react';
+import { getHiddenUsers, restoreHiddenUser } from '../api/user';
 
 /**
  * 非表示ユーザー一覧を取得して表示し、復元（hidden=false）できるパネル。
- * ページ上部の並び替えエリアの上などに配置してください。
- *
- * - 管理者のみがアクセスできる想定です（サーバ側で @PreAuthorize を設定済み）。
- * - API:
- *   GET  /api/users/hidden       -> 非表示ユーザー一覧
- *   PUT  /api/users/{id}/hidden  -> { hidden: false } で復元
+ * - 管理者のみがアクセスできる想定です（サーバ側での権限制御は別途）。
  */
 
 export default function HiddenUsersPanel({ onRestored }) {
@@ -16,48 +12,39 @@ export default function HiddenUsersPanel({ onRestored }) {
     const [users, setUsers] = useState([]);
     const [error, setError] = useState(null);
 
-    const fetchHidden = async () => {
+    const fetchHidden = async (query = '') => {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch('/api/users/hidden', {
-                method: 'GET',
-                credentials: 'include',
-                headers: { 'Accept': 'application/json' }
-            });
-            if (!res.ok) throw new Error('非表示ユーザー一覧の取得に失敗しました');
-            const data = await res.json();
-            setUsers(data || []);
+            const data = await getHiddenUsers(query);
+            setUsers(Array.isArray(data) ? data : []);
             setVisible(true);
         } catch (e) {
-            console.error(e);
+            console.error('fetchHidden error:', e);
             setError(e.message || 'エラー');
         } finally {
             setLoading(false);
         }
     };
 
-    const restoreUser = async (userId) => {
+    const restoreUser = async (rawUser) => {
+        const userId = rawUser?.userId ?? rawUser?.id ?? rawUser?.user_id;
+        if (!userId) {
+            alert('ユーザーIDが取得できませんでした');
+            return;
+        }
         if (!window.confirm('このユーザーを表示状態に戻しますか？')) return;
         try {
-            const res = await fetch(`/api/users/${userId}/hidden`, {
-                method: 'PUT',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ hidden: false })
-            });
-            if (!res.ok) {
-                const text = await res.text();
-                throw new Error(text || '復元に失敗しました');
-            }
-            const updated = await res.json();
+            const updated = await restoreHiddenUser(userId);
             // リストから除外
-            setUsers(prev => prev.filter(u => u.userId !== userId));
-            // 呼び出し元に通知（メインの一覧を再取得させる等）
+            setUsers(prev => prev.filter(u => {
+                const uid = u?.userId ?? u?.id ?? u?.user_id;
+                return uid !== userId;
+            }));
             if (onRestored) onRestored(updated);
             alert('ユーザーを表示状態に戻しました');
         } catch (e) {
-            console.error(e);
+            console.error('restoreUser error:', e);
             alert('復元に失敗しました: ' + (e.message || ''));
         }
     };
@@ -82,37 +69,44 @@ export default function HiddenUsersPanel({ onRestored }) {
             {loading && <div>読み込み中...</div>}
             {error && <div style={{ color: 'red' }}>{error}</div>}
 
-            {visible && (
-                <div style={{ border: '1px solid #ddd', padding: '0.75rem', borderRadius: 6 }}>
+            {visible && !loading && !error && (
+                <>
                     {users.length === 0 ? (
-                        <div>非表示ユーザーは存在しません。</div>
+                        <div className="text-sm text-slate-500">非表示ユーザーは存在しません。</div>
                     ) : (
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <thead>
-                            <tr>
-                                <th style={{ textAlign: 'left', padding: '6px' }}>名前</th>
-                                <th style={{ textAlign: 'left', padding: '6px' }}>メール</th>
-                                <th style={{ textAlign: 'left', padding: '6px' }}>役割</th>
-                                <th style={{ textAlign: 'left', padding: '6px' }}>作成日</th>
-                                <th style={{ padding: '6px' }}>操作</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {users.map(u => (
-                                <tr key={u.userId} style={{ borderTop: '1px solid #eee' }}>
-                                    <td style={{ padding: '6px' }}>{u.userName}</td>
-                                    <td style={{ padding: '6px' }}>{u.email}</td>
-                                    <td style={{ padding: '6px' }}>{u.role}</td>
-                                    <td style={{ padding: '6px' }}>{u.createdAt ? new Date(u.createdAt).toLocaleString() : ''}</td>
-                                    <td style={{ padding: '6px' }}>
-                                        <button onClick={() => restoreUser(u.userId)}>復元</button>
-                                    </td>
+                        <div className="overflow-auto max-h-[60vh]">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                <tr className="text-left text-xs text-slate-600">
+                                    <th className="py-2 px-3">ID</th>
+                                    <th className="py-2 px-3">名前</th>
+                                    <th className="py-2 px-3">メール</th>
+                                    <th className="py-2 px-3">権限</th>
+                                    <th className="py-2 px-3">作成日時</th>
+                                    <th className="py-2 px-3">操作</th>
                                 </tr>
-                            ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                {users.map(u => {
+                                    const uid = u?.userId ?? u?.id ?? u?.user_id;
+                                    return (
+                                        <tr key={uid ?? Math.random()} className="border-t">
+                                            <td className="py-2 px-3">{uid}</td>
+                                            <td className="py-2 px-3">{u?.name ?? u?.fullName ?? ''}</td>
+                                            <td className="py-2 px-3">{u?.email ?? ''}</td>
+                                            <td className="py-2 px-3">{u?.role ?? ''}</td>
+                                            <td className="py-2 px-3">{u?.createdAt ?? u?.created_at ?? ''}</td>
+                                            <td className="py-2 px-3">
+                                                <button onClick={() => restoreUser(u)}>復元</button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
-                </div>
+                </>
             )}
         </div>
     );
