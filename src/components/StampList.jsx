@@ -33,6 +33,11 @@ function StampList() {
     const [addLoading, setAddLoading] = useState(false);
     const [openAddDialog, setOpenAddDialog] = useState(false);
 
+    // 削除ダイアログ用
+    const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+    const [deleteTargetStamp, setDeleteTargetStamp] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+
     // 初回ロードで一覧取得
     useEffect(() => {
         fetchStamps();
@@ -108,13 +113,10 @@ function StampList() {
         }
     };
 
-    // スタンプ削除
+    // スタンプ削除（API コール本体）
     const handleDeleteStamp = async (stampId) => {
-        if (!window.confirm("このスタンプを削除しますか？")) {
-            return;
-        }
-
         setError(null);
+        setDeleteLoading(true);
 
         try {
             const response = await fetch(`/api/stamp-management/${stampId}`, {
@@ -125,11 +127,15 @@ function StampList() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            // 再取得でもよいが、ここではローカル state を更新
+            // ローカル state を更新
             setStamps((prev) => prev.filter((s) => s.stampId !== stampId));
+            setOpenDeleteDialog(false);
+            setDeleteTargetStamp(null);
         } catch (err) {
             console.error(err);
             setError("スタンプの削除に失敗しました");
+        } finally {
+            setDeleteLoading(false);
         }
     };
 
@@ -270,6 +276,56 @@ function StampList() {
                             </form>
                         </DialogContent>
                     </Dialog>
+
+                    {/* 削除確認ダイアログ */}
+                    <Dialog open={openDeleteDialog} onOpenChange={(open) => {
+                        setOpenDeleteDialog(open);
+                        if (!open) {
+                            setDeleteTargetStamp(null);
+                        }
+                    }}>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>このスタンプを削除しますか？</DialogTitle>
+                                <DialogDescription className="text-xs">
+                                    {deleteTargetStamp && (
+                                        <>
+                                            「{deleteTargetStamp.stampName}」を削除します。
+                                            この操作は取り消せません。
+                                        </>
+                                    )}
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <DialogFooter className="flex justify-end gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="text-xs"
+                                    onClick={() => {
+                                        setOpenDeleteDialog(false);
+                                        setDeleteTargetStamp(null);
+                                    }}
+                                    disabled={deleteLoading}
+                                >
+                                    キャンセル
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    className="text-xs font-medium"
+                                    onClick={() => {
+                                        if (deleteTargetStamp) {
+                                            handleDeleteStamp(deleteTargetStamp.stampId);
+                                        }
+                                    }}
+                                    disabled={deleteLoading}
+                                >
+                                    {deleteLoading ? "削除中..." : "削除"}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </CardHeader>
 
                 <CardContent className="pt-4">
@@ -311,7 +367,10 @@ function StampList() {
                                         {/* 削除ボタン */}
                                         <button
                                             type="button"
-                                            onClick={() => handleDeleteStamp(stamp.stampId)}
+                                            onClick={() => {
+                                                setDeleteTargetStamp(stamp);
+                                                setOpenDeleteDialog(true);
+                                            }}
                                             className="absolute right-2 top-2 rounded-full bg-white/80 px-2 text-[10px] text-red-500 border border-red-100 hover:bg-red-50"
                                         >
                                             削除
