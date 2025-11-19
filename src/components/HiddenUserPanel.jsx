@@ -62,7 +62,7 @@ export default function HiddenUsersPanel({ onRestored }) {
                     }}
                     disabled={loading}
                 >
-                    {visible ? '非表示ユーザーを閉じる' : '非表示ユーザーを表示'}
+                    {visible ? '削除済みユーザー一覧を閉じる' : '削除済みユーザー一覧を表示'}
                 </button>
             </div>
 
