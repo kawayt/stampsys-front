@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition.js";
 import { sendStamp } from "../api/StampSendApi.js";
+import { ArrowLeft } from "lucide-react";
 
 export function RoomDetail({ userId }) {
     const { roomId } = useParams();
@@ -85,8 +86,10 @@ export function RoomDetail({ userId }) {
                         variant="outline"
                         size="sm"
                         onClick={() => navigate(-1)}
+                        className="inline-flex items-center gap-1"
                     >
-                        戻る
+                        <ArrowLeft className="h-4 w-4" />
+                        <span>戻る</span>
                     </Button>
                 </div>
             </div>
@@ -95,25 +98,27 @@ export function RoomDetail({ userId }) {
 
     return (
         <section className="py-4 space-y-4">
+            {/* 戻るボタン */}
+            <div className="mb-2">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="inline-flex items-center gap-1 px-0 text-xs text-slate-600 hover:text-slate-800"
+                    onClick={() => navigate(-1)}
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    <span>ルーム一覧へ戻る</span>
+                </Button>
+            </div>
+
             <div className="flex items-center justify-between">
                 <div>
-                    {/* classId 表示を削除 */}
                     <h2 className="text-lg font-semibold text-slate-800">
                         ルーム詳細（ルームID: {roomId}）
                     </h2>
                     <p className="mt-1 text-xs text-slate-500">
                         このルームに紐づくスタンプ一覧を表示しています。
                     </p>
-                </div>
-                <div className="flex gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                        onClick={() => navigate(-1)}
-                    >
-                        戻る
-                    </Button>
                 </div>
             </div>
 
