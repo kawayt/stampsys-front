@@ -30,6 +30,12 @@ export function RoomList() {
     const [createSuccess, setCreateSuccess] = useState(null);
     const [openCreateDialog, setOpenCreateDialog] = useState(false);
 
+    // ルーム終了用 state
+    const [openCloseDialog, setOpenCloseDialog] = useState(false);
+    const [selectedRoom, setSelectedRoom] = useState(null); // { roomId, roomName }
+    const [closeProcessing, setCloseProcessing] = useState(false);
+    const [closeError, setCloseError] = useState(null);
+
     const fetchRooms = async () => {
         setLoading(true);
         setError(null);
@@ -90,6 +96,56 @@ export function RoomList() {
             setCreateError(err.message ?? "ルーム作成時にエラーが発生しました");
         } finally {
             setCreating(false);
+        }
+    };
+
+    // ルーム終了ダイアログを開く（対象ルームをセット）
+    const openCloseRoomDialog = (room) => {
+        setSelectedRoom(room);
+        setCloseError(null);
+        setOpenCloseDialog(true);
+    };
+
+    // 確認ダイアログで「終了」を押したときの処理
+    const handleConfirmClose = async () => {
+        if (!selectedRoom || !selectedRoom.roomId) return;
+        setCloseProcessing(true);
+        setCloseError(null);
+
+        try {
+            const res = await fetch(`/api/rooms/${encodeURIComponent(selectedRoom.roomId)}/close`, {
+                method: "PATCH",
+            });
+
+            if (res.status === 204) {
+                // 成功: ローカル state を更新して active = false にする
+                setRooms((prev) =>
+                    prev.map((r) => (r.roomId === selectedRoom.roomId ? { ...r, active: false } : r))
+                );
+                setOpenCloseDialog(false);
+                setSelectedRoom(null);
+            } else {
+                // エラーレスポンスを可能な限りパースして表示
+                let message = `ルームの終了に失敗しました: ${res.status}`;
+                try {
+                    const contentType = res.headers.get("content-type") || "";
+                    if (contentType.includes("application/json")) {
+                        const body = await res.json();
+                        message = (body && (body.error || body.message || JSON.stringify(body))) || message;
+                    } else {
+                        const txt = await res.text();
+                        if (txt) message = txt;
+                    }
+                } catch {
+                    // ignore parse errors
+                }
+                setCloseError(message);
+            }
+        } catch (err) {
+            console.error(err);
+            setCloseError(err.message ?? "通信エラーが発生しました");
+        } finally {
+            setCloseProcessing(false);
         }
     };
 
@@ -271,23 +327,40 @@ export function RoomList() {
 
                                 {/* 右側：ボタン／矢印 */}
                                 <div className="flex items-center gap-3">
-                                    <Button
-                                        size="sm"
-                                        className={
-                                            r.active
-                                                ? "text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white px-4"
-                                                : "text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 px-4"
-                                        }
-                                        disabled={!r.active}
-                                        onClick={() => {
-                                            if (r.active) {
-                                                // ★ active なルームだけ詳細ページに遷移
-                                                navigate(`/rooms/${r.roomId}`);
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            size="sm"
+                                            className={
+                                                r.active
+                                                    ? "text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white px-4"
+                                                    : "text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 px-4"
                                             }
-                                        }}
-                                    >
-                                        {r.active ? "入室" : "履歴"}
-                                    </Button>
+                                            disabled={!r.active}
+                                            onClick={() => {
+                                                if (r.active) {
+                                                    // ★ active なルームだけ詳細ページに遷移
+                                                    navigate(`/rooms/${r.roomId}`);
+                                                }
+                                            }}
+                                        >
+                                            {r.active ? "入室" : "履歴"}
+                                        </Button>
+
+                                    {/* 追加: 終了ボタン（active のときのみ表示） */}
+                                    {r.active && (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-xs font-medium"
+                                            onClick={() =>
+                                                openCloseRoomDialog({ roomId: r.roomId, roomName: r.roomName })
+                                            }
+                                        >
+                                            終了
+                                        </Button>
+                                    )}
+                                </div>
+
                                     <span
                                         className={
                                             r.active
@@ -303,6 +376,59 @@ export function RoomList() {
                     ))}
                 </div>
             )}
+
+            {/* ルーム終了確認ダイアログ（共通） */}
+            <Dialog
+                open={openCloseDialog}
+                onOpenChange={(open) => {
+                    setOpenCloseDialog(open);
+                    if (!open) {
+                        setSelectedRoom(null);
+                        setCloseError(null);
+                        setCloseProcessing(false);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>ルームを終了しますか？</DialogTitle>
+                        <DialogDescription className="text-xs">
+                            {selectedRoom
+                                ? `「${selectedRoom.roomName}」を終了します。よろしいですか？`
+                                : "終了するルームを確認してください。"}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {closeError && (
+                        <p className="text-sm text-red-600 mb-2">{closeError}</p>
+                    )}
+
+                    <DialogFooter className="flex justify-end gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="text-xs"
+                            onClick={() => {
+                                setOpenCloseDialog(false);
+                                setSelectedRoom(null);
+                                setCloseError(null);
+                            }}
+                            disabled={closeProcessing}
+                        >
+                            戻る
+                        </Button>
+                        <Button
+                            type="button"
+                            className="text-xs font-medium"
+                            onClick={handleConfirmClose}
+                            disabled={closeProcessing}
+                        >
+                            {closeProcessing ? "終了中..." : "終了する"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </section>
     );
 }
