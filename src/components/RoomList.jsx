@@ -2,6 +2,18 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+    Dialog,
+    DialogTrigger,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft } from "lucide-react";
 
 export function RoomList() {
     const { classId } = useParams();
@@ -10,6 +22,13 @@ export function RoomList() {
     const [rooms, setRooms] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // ルーム作成用 state
+    const [creating, setCreating] = useState(false);
+    const [createRoomName, setCreateRoomName] = useState("");
+    const [createError, setCreateError] = useState(null);
+    const [createSuccess, setCreateSuccess] = useState(null);
+    const [openCreateDialog, setOpenCreateDialog] = useState(false);
 
     const fetchRooms = async () => {
         setLoading(true);
@@ -29,8 +48,54 @@ export function RoomList() {
         }
     };
 
+    // ルーム作成関数
+    const handleCreateRoom = async (e) => {
+        e.preventDefault();
+        setCreateError(null);
+        setCreateSuccess(null);
+
+        if (!createRoomName.trim()) {
+            setCreateError("ルーム名を入力してください");
+            return;
+        }
+
+        setCreating(true);
+        try {
+            const res = await fetch("/api/rooms", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    classId: Number(classId),
+                    roomName: createRoomName.trim(), // RoomForm のフィールド名に合わせて変更してください
+                }),
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                // バリデーションエラーなどは文字列で返ってくる想定
+                throw new Error(text || `ルーム作成に失敗しました: ${res.status}`);
+            }
+
+            await res.json(); // created room を使わなくても一応 parse
+
+            setCreateSuccess("ルームを作成しました");
+            setCreateRoomName("");
+            setOpenCreateDialog(false);
+            // 一覧を更新
+            await fetchRooms();
+        } catch (err) {
+            console.error(err);
+            setCreateError(err.message ?? "ルーム作成時にエラーが発生しました");
+        } finally {
+            setCreating(false);
+        }
+    };
+
     useEffect(() => {
         fetchRooms();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [classId]);
 
     if (loading) {
@@ -42,8 +107,14 @@ export function RoomList() {
             <div className="py-8 text-sm text-red-600">
                 エラー: {error}
                 <div className="mt-4">
-                    <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
-                        戻る
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(-1)}
+                        className="inline-flex items-center gap-1"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        <span>戻る</span>
                     </Button>
                 </div>
             </div>
@@ -52,16 +123,103 @@ export function RoomList() {
 
     return (
         <section className="py-4">
-            <div className="mb-6 flex items-center justify-between gap-4">
-                <h2 className="text-lg font-semibold text-slate-800">ルーム一覧（クラスID: {classId}）</h2>
+            {/* 戻るボタン */}
+            <div className="mb-2">
                 <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="text-xs"
+                    className="inline-flex items-center gap-1 px-0 text-xs text-slate-600 hover:text-slate-800"
                     onClick={() => navigate(-1)}
                 >
-                    クラス一覧へ戻る
+                    <ArrowLeft className="h-4 w-4" />
+                    <span>クラス一覧へ戻る</span>
                 </Button>
+            </div>
+
+            <div className="mb-6 flex items-center justify-between gap-4">
+                <h2 className="text-lg font-semibold text-slate-800">
+                    ルーム一覧（クラスID: {classId}）
+                </h2>
+
+                <div className="flex items-center gap-2">
+                    {/* ルーム新規作成ダイアログ */}
+                    <Dialog
+                        open={openCreateDialog}
+                        onOpenChange={(open) => {
+                            setOpenCreateDialog(open);
+                            if (!open) {
+                                setCreateError(null);
+                                setCreateSuccess(null);
+                            }
+                        }}
+                    >
+                        <DialogTrigger asChild>
+                            <Button className="text-xs font-medium">
+                                ルームを作成
+                            </Button>
+                        </DialogTrigger>
+
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>新しいルームを作成</DialogTitle>
+                                <DialogDescription className="text-xs">
+                                    授業で使用するルームを登録します。ルーム名は後から変更できます。
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <form onSubmit={handleCreateRoom} className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label
+                                        htmlFor="new-room-name"
+                                        className="text-xs font-medium text-slate-700"
+                                    >
+                                        ルーム名
+                                    </Label>
+                                    <Input
+                                        id="new-room-name"
+                                        type="text"
+                                        placeholder="例: 1限目 / 2限目"
+                                        value={createRoomName}
+                                        onChange={(e) => setCreateRoomName(e.target.value)}
+                                        className="text-sm"
+                                    />
+                                    {createError && (
+                                        <p className="text-[11px] text-red-600">
+                                            {createError}
+                                        </p>
+                                    )}
+                                    {createSuccess && (
+                                        <p className="text-[11px] text-emerald-600">
+                                            {createSuccess}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <DialogFooter className="flex justify-end gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="text-xs"
+                                        onClick={() => {
+                                            setOpenCreateDialog(false);
+                                            setCreateError(null);
+                                            setCreateSuccess(null);
+                                        }}
+                                    >
+                                        キャンセル
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={creating}
+                                        className="text-xs font-medium"
+                                    >
+                                        {creating ? "作成中..." : "作成"}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
 
             {(!rooms || rooms.length === 0) ? (
@@ -137,8 +295,8 @@ export function RoomList() {
                                                 : "text-slate-300 text-lg"
                                         }
                                     >
-                    →
-                  </span>
+                                        →
+                                    </span>
                                 </div>
                             </CardContent>
                         </Card>
