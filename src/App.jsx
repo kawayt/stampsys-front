@@ -142,13 +142,13 @@ function Dashboard({ appData, onLogout }) {
                 >
                     <TabsList className="inline-flex h-9 items-center justify-start gap-1 rounded-lg bg-slate-100 p-1 text-xs">
                         <TabsTrigger value="classes" className="px-3 py-1.5">
-                            クラス一覧
+                            クラス
                         </TabsTrigger>
                         <TabsTrigger value="users" className="px-3 py-1.5">
-                            ユーザー一覧
+                            ユーザー
                         </TabsTrigger>
                         <TabsTrigger value="stamps" className="px-3 py-1.5">
-                            スタンプ一覧
+                            スタンプ
                         </TabsTrigger>
                     </TabsList>
                 </Tabs>
@@ -169,7 +169,7 @@ function Dashboard({ appData, onLogout }) {
                         <Route path="/classes/:classId" element={<RoomList />} />
 
                         {/* ルーム詳細ページ */}
-                        <Route path="/rooms/:roomId" element={<RoomDetail userId={appData.user?.userId} />}/>
+                        <Route path="/rooms/:roomId" element={<RoomDetail userId={appData.user?.userId} role={appData.user?.role} />}/>
 
                         {/* デフォルトはクラス一覧 */}
                         <Route path="*" element={<Navigate to="classes" replace />} />
