@@ -388,15 +388,6 @@ export function RoomList() {
                                                     <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-500 border border-red-100">
                                                         終了
                                                     </span>
-                                                    {/* 終了ラベルの右側に削除ボタンを表示 */}
-                                                    <Button
-                                                        size="sm"
-                                                        variant="destructive"
-                                                        className="text-xs font-medium ml-2"
-                                                        onClick={() => openHideRoomDialog({ roomId: r.roomId, roomName: r.roomName })}
-                                                    >
-                                                        削除
-                                                    </Button>
                                                 </>
                                             )}
                                         </div>
@@ -432,18 +423,27 @@ export function RoomList() {
                                         </Button>
 
                                         {/* 追加: 終了ボタン（active のときのみ表示） */}
-                                        {r.active && (
+                                        {r.active ?
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="text-xs font-medium"
+                                                className="text-xs font-medium px-4"
                                                 onClick={() =>
                                                     openCloseRoomDialog({ roomId: r.roomId, roomName: r.roomName })
                                                 }
                                             >
                                                 終了
                                             </Button>
-                                        )}
+                                            :
+                                            <Button
+                                                size="sm"
+                                                variant="destructive"
+                                                className="text-xs font-medium px-4"
+                                                onClick={() => openHideRoomDialog({ roomId: r.roomId, roomName: r.roomName })}
+                                            >
+                                                削除
+                                            </Button>
+                                        }
                                     </div>
 
                                     <span
