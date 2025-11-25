@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import SetupPage from './components/SetupPage'; // 追加: /setup 用ページ（トップレベルで公開）
 
 function App() {
     const [loading, setLoading] = useState(true);
@@ -64,13 +65,16 @@ function App() {
     return (
         <BrowserRouter>
             <Routes>
-                {/* ログインページ: /login のみで表示 */}
+                {/* 公開: /setup はログイン不要でアクセス可能（トップレベル） */}
+                <Route path="/setup" element={<SetupPage />} />
+
+                {/* ログインページ: /login */}
                 <Route
                     path="/login"
                     element={<LoginPage onLogin={handleLogin} error={error} />}
                 />
 
-                {/* それ以外はダッシュボード or ログインページへリダイレクト */}
+                {/* それ以外はダッシュボード（認証が必要）またはログインへ */}
                 <Route
                     path="/*"
                     element={
@@ -151,6 +155,7 @@ function Dashboard({ appData, onLogout }) {
                         <TabsTrigger value="stamps" className="px-3 py-1.5">
                             スタンプ
                         </TabsTrigger>
+                        {/* /setup のリンクはここに表示しません */}
                     </TabsList>
                 </Tabs>
 
@@ -183,7 +188,6 @@ function Dashboard({ appData, onLogout }) {
         </div>
     );
 }
-
 // シンプルなナビアイテム（shadcn + Tailwind）
 function NavItem({ to, children }) {
     return (

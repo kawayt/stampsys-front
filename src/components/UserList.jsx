@@ -1,30 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-// shadcn/ui components
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
-    Table,
-    TableHeader,
-    TableRow,
-    TableHead,
-    TableBody,
-    TableCell,
+    Table, TableHeader, TableRow, TableHead, TableBody, TableCell,
 } from '@/components/ui/table';
 import {
-    Select,
-    SelectTrigger,
-    SelectValue,
-    SelectContent,
-    SelectItem,
+    Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from '@/components/ui/select';
 import {
-    Card,
-    CardHeader,
-    CardTitle,
-    CardContent,
+    Card, CardHeader, CardTitle, CardContent,
 } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-
 import {
     Dialog,
     DialogTrigger,
@@ -39,71 +25,41 @@ import { restoreHiddenUser } from '@/api/user.js';
 const ROLE_ORDER = ['ADMIN', 'TEACHER', 'STUDENT'];
 const CARD_ROLES = ['ADMIN', 'TEACHER', 'STUDENT'];
 
-// 役割ラベル変換（簡易）
 const roleLabel = (role) => {
     if (!role) return '';
     switch (String(role).toUpperCase()) {
-        case 'ADMIN':
-            return '管理者';
-        case 'TEACHER':
-            return '教員';
-        case 'STUDENT':
-            return '学生';
-        default:
-            return role;
+        case 'ADMIN': return '管理者';
+        case 'TEACHER': return '教員';
+        case 'STUDENT': return '学生';
+        default: return role;
     }
 };
 
-// RoleIcon — inline SVGs (no external dependency)
 function RoleIcon({ role, className = 'h-4 w-4', ariaHidden = true }) {
     const r = (role || '').toUpperCase();
     if (r === 'ADMIN') {
         return (
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={className + ' text-red-600'}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden={ariaHidden}
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" className={className + ' text-red-600'} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden={ariaHidden}>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 2l8 4v6c0 5-3.9 9.4-8 10-4.1-.6-8-5-8-10V6l8-4z" />
             </svg>
         );
     }
     if (r === 'TEACHER') {
         return (
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={className + ' text-blue-600'}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden={ariaHidden}
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" className={className + ' text-blue-600'} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden={ariaHidden}>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 14l9-5-9-5-9 5 9 5z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 14v7" />
             </svg>
         );
     }
-    // default STUDENT
     return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className={className + ' text-green-600'}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            aria-hidden={ariaHidden}
-        >
+        <svg xmlns="http://www.w3.org/2000/svg" className={className + ' text-green-600'} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden={ariaHidden}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A9 9 0 0112 15a9 9 0 016.879 2.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
     );
 }
 
-// カウントカードコンポーネント（クリックで絞り込み）
 function CountCard({ title, count, colorClass = 'bg-gray-50', icon, active = false, onClick, innerRef = null }) {
-    // icon may be a function returning JSX or JSX element
     const iconNode = typeof icon === 'function' ? icon(false) : icon;
     return (
         <button
@@ -120,12 +76,9 @@ function CountCard({ title, count, colorClass = 'bg-gray-50', icon, active = fal
                 </div>
                 <div className="flex flex-col text-left">
                     <div className={`text-xs ${active ? 'font-semibold' : 'text-slate-500'}`}>
-                        {title}
-                        {active && <span className="sr-only">、選択中</span>}
+                        {title}{active && <span className="sr-only">、選択中</span>}
                     </div>
-                    <div className="mt-1 text-2xl font-semibold text-slate-800">
-                        {count}人
-                    </div>
+                    <div className="mt-1 text-2xl font-semibold text-slate-800">{count}人</div>
                 </div>
             </div>
         </button>
@@ -139,13 +92,8 @@ function renderPageButtons(currentPage, totalPages, goToPage) {
     const half = Math.floor(windowSize / 2);
     let start = Math.max(0, currentPage - half);
     let end = Math.min(totalPages - 1, currentPage + half);
-    if (currentPage - start < half) {
-        end = Math.min(totalPages - 1, end + (half - (currentPage - start)));
-    }
-    if (end - currentPage < half) {
-        start = Math.max(0, start - (half - (end - currentPage)));
-    }
-
+    if (currentPage - start < half) end = Math.min(totalPages - 1, end + (half - (currentPage - start)));
+    if (end - currentPage < half) start = Math.max(0, start - (half - (end - currentPage)));
     for (let i = start; i <= end; i++) {
         buttons.push(
             <Button key={i} variant={i === currentPage ? undefined : 'outline'} onClick={() => goToPage(i)} aria-label={`ページ ${i + 1} を表示`}>
@@ -161,42 +109,44 @@ function UserList() {
     const [loading, setLoading] = useState(true);
     const [, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
-
     const [currentPage, setCurrentPage] = useState(0);
     const [pageSize, setPageSize] = useState(20);
     const [totalPages, setTotalPages] = useState(0);
     const [totalElements, setTotalElements] = useState(0);
-
     const [counts, setCounts] = useState({ admin: 0, teacher: 0, student: 0, total: 0 });
-
     const [roleFilter, setRoleFilter] = useState('ALL');
     const [roleSort] = useState('NONE');
 
     const [hiddenLoading, setHiddenLoading] = useState(false);
     const [hiddenUsers, setHiddenUsers] = useState([]);
     const [hiddenError, setHiddenError] = useState(null);
-
     const [openHiddenDialog, setOpenHiddenDialog] = useState(false);
     const [currentUserRole, setCurrentUserRole] = useState(null);
 
     const cardRefs = useRef([]);
-
-    // --- NEW: restoring state for restore button (prevents double click) ---
     const [restoringId, setRestoringId] = useState(null);
 
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+    // 復元確認ダイアログ
+    const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+    const [restoreDialogUser, setRestoreDialogUser] = useState(null);
+    const [restoreError, setRestoreError] = useState(null);
 
+    // 非表示/再表示確認ダイアログ用状態
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [deleteTargetUser, setDeleteTargetUser] = useState(null);
+    const [hideToggleLoading, setHideToggleLoading] = useState(false);
+    const [hideToggleError, setHideToggleError] = useState(null);
+
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
     const fetchWithCreds = (url, options = {}) => {
         const resolvedUrl = (typeof url === 'string' && url.startsWith('/api') && API_BASE) ? `${API_BASE}${url}` : url;
         const opts = { credentials: 'include', headers: { Accept: 'application/json', ...options.headers }, ...options };
         return fetch(resolvedUrl, opts);
     };
-
     const parseResponseBody = async (res) => {
         const text = await res.text();
         try { return JSON.parse(text); } catch { return text; }
     };
-
     const handleApiError = async (res) => {
         if (res.status === 403) throw new Error('操作の権限がありません（管理者でログインしているか確認してください）');
         const body = await parseResponseBody(res);
@@ -205,7 +155,6 @@ function UserList() {
         throw new Error('サーバーエラーが発生しました');
     };
 
-    // keyboard nav for cards
     const focusCard = (index) => {
         const el = cardRefs.current && cardRefs.current[index];
         if (el && typeof el.focus === 'function') el.focus();
@@ -235,8 +184,7 @@ function UserList() {
             const role = d?.user?.role ?? null;
             setCurrentUserRole(role || null);
             return role;
-        } catch (err) {
-            console.warn('fetchCurrentUserRole error:', err);
+        } catch {
             setCurrentUserRole(null);
             return null;
         }
@@ -270,7 +218,6 @@ function UserList() {
                 setCurrentPage(0);
             }
         } catch (err) {
-            console.error('fetchUsers error:', err);
             setError(err.message || String(err));
         } finally {
             setLoading(false);
@@ -283,11 +230,7 @@ function UserList() {
             if (!res.ok) await handleApiError(res);
             const d = await res.json();
             setCounts({ admin: d.admin || 0, teacher: d.teacher || 0, student: d.student || 0, total: d.total || 0 });
-            return d;
-        } catch (err) {
-            console.error('fetchCounts error:', err);
-            return null;
-        }
+        } catch { /* empty */ }
     };
 
     const fetchHiddenUsers = async (query = '') => {
@@ -304,11 +247,9 @@ function UserList() {
             else if (body && Array.isArray(body.content)) usersArray = body.content;
             else if (body && Array.isArray(body.data)) usersArray = body.data;
             else if (body && Array.isArray(body.users)) usersArray = body.users;
-            else usersArray = [];
             setHiddenUsers(usersArray);
             setHiddenError(null);
         } catch (err) {
-            console.error('fetchHiddenUsers error:', err);
             setHiddenError(err.message || 'エラーが発生しました');
         } finally {
             setHiddenLoading(false);
@@ -318,7 +259,6 @@ function UserList() {
     useEffect(() => {
         cardRefs.current = cardRefs.current.slice(0, CARD_ROLES.length);
     }, []);
-
     useEffect(() => {
         (async () => {
             setLoading(true);
@@ -329,7 +269,6 @@ function UserList() {
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
     useEffect(() => {
         (async () => {
             if (currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT') return;
@@ -363,96 +302,88 @@ function UserList() {
         }
     };
 
-    const handleHideToggle = async (userId) => {
-        if (currentUserRole !== 'ADMIN') { alert('この操作は管理者のみ可能です'); return; }
-        const target = users.find(u => (u.userId ?? u.id ?? u.user_id) === userId) || hiddenUsers.find(u => (u.userId ?? u.id ?? u.user_id) === userId);
-        if (!target) return;
-        const newHidden = !target.hidden;
-        if (newHidden) {
-            if (!window.confirm('このユーザーを削除（非表示）しますか？')) return;
-        } else {
-            if (!window.confirm('このユーザーを一括に再表示しますか？')) return;
+    const openHideToggleDialog = (user) => {
+        setDeleteTargetUser(user);
+        setHideToggleError(null);
+        setDeleteDialogOpen(true);
+    };
+
+    const performHideToggle = async () => {
+        if (!deleteTargetUser) return;
+        if (currentUserRole !== 'ADMIN') {
+            setHideToggleError('管理者権限が必要です');
+            return;
         }
+        const userId = deleteTargetUser.userId ?? deleteTargetUser.id ?? deleteTargetUser.user_id;
+        if (userId == null) {
+            setHideToggleError('ユーザーIDが取得できません');
+            return;
+        }
+        setHideToggleLoading(true);
         try {
+            const newHidden = !deleteTargetUser.hidden;
             const res = await fetchWithCreds(`/api/users/${userId}/hidden`, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hidden: newHidden })
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hidden: newHidden })
             });
             if (!res.ok) await handleApiError(res);
             await res.json().catch(() => null);
             await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
+            setDeleteDialogOpen(false);
+            setDeleteTargetUser(null);
         } catch (err) {
-            console.error(err);
-            alert(err.message || err);
+            setHideToggleError(err.message || String(err));
+        } finally {
+            setHideToggleLoading(false);
         }
     };
 
-    // --- UPDATED: more robust restore with parsing and button disabling ---
-    const restoreHiddenUserLocal = async (rawIdOrUser) => {
-        // normalize id to string early
-        const rawId = (typeof rawIdOrUser === 'string' || typeof rawIdOrUser === 'number')
-            ? rawIdOrUser
-            : (rawIdOrUser?.userId ?? rawIdOrUser?.id ?? rawIdOrUser?.user_id);
-
+    // 復元実行
+    const performRestore = async () => {
+        if (!restoreDialogUser) return;
+        setRestoreError(null);
+        const rawId = restoreDialogUser?.userId ?? restoreDialogUser?.id ?? restoreDialogUser?.user_id;
         if (!rawId) {
-            alert('ユーザーIDが取得できませんでした');
+            setRestoreError('ユーザーIDが取得できませんでした');
             return;
         }
-
-        const userIdStr = String(rawId);
-
-        // If id is our local placeholder like 'hidden-0', do not send to server
-        if (/^hidden-\d+$/i.test(userIdStr)) {
-            alert('このユーザーはサーバー上で復元できないローカル項目です（ID が不正です）。サーバーのデータを確認してください。');
+        const idStr = String(rawId);
+        if (/^hidden-\d+$/i.test(idStr)) {
+            setRestoreError('ローカルプレースホルダーのため復元できません');
             return;
         }
-
         if (currentUserRole !== 'ADMIN') {
-            alert('この操作は管理者のみ可能です');
+            setRestoreError('管理者権限が必要です');
             return;
         }
-
-        if (!window.confirm('このユーザーを表示状態に戻しますか？')) return;
-
-        // set as string to compare reliably with uid strings in UI
-        setRestoringId(userIdStr);
+        setRestoringId(idStr);
         try {
-            // Prefer external API helper if present
             if (typeof restoreHiddenUser === 'function') {
-                // If helper exists, pass normalized id string or number depending on implementation
                 await restoreHiddenUser(rawId);
             } else {
-                // Log request details to console for debugging
-                console.debug('[restoreHiddenUserLocal] sending PUT', `/api/users/${userIdStr}/hidden`, { hidden: false });
-
-                const res = await fetchWithCreds(`/api/users/${userIdStr}/hidden`, {
-                    method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hidden: false })
+                const res = await fetchWithCreds(`/api/users/${idStr}/hidden`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hidden: false }),
                 });
-
                 if (!res.ok) {
                     const parsed = await parseResponseBody(res);
                     const msg =
                         (parsed && typeof parsed === 'object' && parsed.message) ? parsed.message :
                             (typeof parsed === 'string' ? parsed : JSON.stringify(parsed));
-                    // include status for easier debugging
-                    throw new Error(`HTTP ${res.status}: ${msg}`);
+                    throw new Error(msg || '復元に失敗しました');
                 }
-                // consume body if any
                 await res.json().catch(() => null);
             }
-
-            // remove from hidden list optimistically
-            setHiddenUsers(prev => prev.filter(u => {
-                const uid = u?.userId ?? u?.id ?? u?.user_id;
-                return String(uid) !== userIdStr;
-            }));
-
+            setHiddenUsers(prev => prev.filter(u => String(u?.userId ?? u?.id ?? u?.user_id) !== idStr));
             await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
-            alert('ユーザーを表示状態に戻しました');
+            setRestoreDialogOpen(false);
+            setRestoreDialogUser(null);
         } catch (err) {
-            console.error('restoreHiddenUserLocal error:', err);
-            alert('復元に失敗しました: ' + (err?.message || JSON.stringify(err)));
+            setRestoreError(err.message || String(err));
         } finally {
             setRestoringId(null);
         }
@@ -465,7 +396,7 @@ function UserList() {
     };
 
     const processedUsers = React.useMemo(() => {
-        let list = users.filter((u) => !u.hidden && !u.hidden);
+        let list = users.filter((u) => !u.hidden);
         if (roleFilter && roleFilter !== 'ALL') list = list.filter((u) => u.role === roleFilter);
         if (roleSort !== 'NONE') {
             list = [...list].sort((a, b) => {
@@ -495,9 +426,13 @@ function UserList() {
     if (isStudent) {
         return (
             <div className="user-list-container">
-                <Card><CardHeader><CardTitle>ユーザー一覧</CardTitle></CardHeader>
+                <Card>
+                    <CardHeader><CardTitle>ユーザー一覧</CardTitle></CardHeader>
                     <CardContent>
-                        <Alert variant="destructive"><AlertTitle>エラー</AlertTitle><AlertDescription>学生はこの機能を使用することはできません</AlertDescription></Alert>
+                        <Alert variant="destructive">
+                            <AlertTitle>エラー</AlertTitle>
+                            <AlertDescription>学生はこの機能を使用することはできません</AlertDescription>
+                        </Alert>
                     </CardContent>
                 </Card>
             </div>
@@ -521,7 +456,12 @@ function UserList() {
                         <div className="mb-4">
                             <Dialog open={openHiddenDialog} onOpenChange={setOpenHiddenDialog}>
                                 <DialogTrigger asChild>
-                                    <Button variant="outline" onClick={() => { setOpenHiddenDialog(true); fetchHiddenUsers(); }} className="focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400" aria-label="非表示ユーザー一覧を開く">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => { setOpenHiddenDialog(true); fetchHiddenUsers(); }}
+                                        className="focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400"
+                                        aria-label="非表示ユーザー一覧を開く"
+                                    >
                                         非表示ユーザーを表示{hiddenUsers && hiddenUsers.length ? ` (${hiddenUsers.length}件)` : ''}
                                     </Button>
                                 </DialogTrigger>
@@ -537,7 +477,9 @@ function UserList() {
                                         {hiddenError && <div className="py-2 text-sm text-red-600">{hiddenError}</div>}
                                         {!hiddenLoading && !hiddenError && (
                                             <>
-                                                {hiddenUsers.length === 0 ? <div className="text-sm text-slate-500">非表示ユーザーは存在しません。</div> : (
+                                                {hiddenUsers.length === 0 ? (
+                                                    <div className="text-sm text-slate-500">非表示ユーザーは存在しません。</div>
+                                                ) : (
                                                     <div className="overflow-auto max-h-[60vh]">
                                                         <table className="w-full border-collapse" aria-label="非表示ユーザー一覧">
                                                             <thead>
@@ -561,16 +503,21 @@ function UserList() {
                                                                         <td className="py-2 px-3 align-top">{name}</td>
                                                                         <td className="py-2 px-3 align-top">{u?.email ?? ''}</td>
                                                                         <td className="py-2 px-3 align-top">
-                                            <span className="whitespace-nowrap flex items-center gap-2">
-                                              <RoleIcon role={u?.role} className="h-4 w-4" />
-                                                {roleLabel(u?.role)}
-                                            </span>
+                                        <span className="whitespace-nowrap flex items-center gap-2">
+                                          <RoleIcon role={u?.role} className="h-4 w-4" />
+                                            {roleLabel(u?.role)}
+                                        </span>
                                                                         </td>
                                                                         <td className="py-2 px-3 align-top">{created ? new Date(created).toLocaleString('ja-JP') : ''}</td>
                                                                         <td className="py-2 px-3 align-top">
                                                                             <Button
                                                                                 size="sm"
-                                                                                onClick={() => restoreHiddenUserLocal(uid)}
+                                                                                onClick={() => {
+                                                                                    if (isPlaceholder) return;
+                                                                                    setRestoreDialogUser(u);
+                                                                                    setRestoreError(null);
+                                                                                    setRestoreDialogOpen(true);
+                                                                                }}
                                                                                 disabled={restoringId === uid || isPlaceholder}
                                                                                 aria-label={`ユーザー ${name} を復元`}
                                                                             >
@@ -595,6 +542,77 @@ function UserList() {
                             </Dialog>
                         </div>
                     )}
+
+                    {/* 復元確認ダイアログ */}
+                    <Dialog open={restoreDialogOpen} onOpenChange={(v) => { if (!v) { setRestoreDialogOpen(false); setRestoreDialogUser(null); setRestoreError(null); } }}>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>ユーザーを復元</DialogTitle>
+                                <DialogDescription>
+                                    {restoreDialogUser
+                                        ? `${restoreDialogUser.userName ?? restoreDialogUser.name ?? restoreDialogUser.fullName ?? ''} を表示状態に戻しますか？`
+                                        : '選択されたユーザーを表示状態に戻しますか？'}
+                                </DialogDescription>
+                            </DialogHeader>
+                            {restoreError && <div className="text-sm text-red-600 mb-2">{restoreError}</div>}
+                            <DialogFooter className="flex justify-end gap-2 mt-4">
+                                <Button variant="outline" onClick={() => { setRestoreDialogOpen(false); setRestoreDialogUser(null); }} disabled={!!restoringId}>キャンセル</Button>
+                                <Button onClick={performRestore} disabled={!!restoringId}>{restoringId ? '復元中…' : '復元'}</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* 削除(非表示切替)確認ダイアログ */}
+                    <Dialog
+                        open={deleteDialogOpen}
+                        onOpenChange={(v) => {
+                            if (!v) {
+                                setDeleteDialogOpen(false);
+                                setDeleteTargetUser(null);
+                                setHideToggleError(null);
+                            }
+                        }}
+                    >
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>
+                                    {deleteTargetUser?.hidden ? 'ユーザーを再表示' : 'ユーザーを削除(非表示)'}
+                                </DialogTitle>
+                                <DialogDescription>
+                                    {deleteTargetUser
+                                        ? `${deleteTargetUser.userName ?? deleteTargetUser.name ?? ''} を${deleteTargetUser.hidden ? '再表示しますか？' : '非表示にしますか？'}`
+                                        : '対象ユーザーが選択されていません'}
+                                </DialogDescription>
+                            </DialogHeader>
+                            {hideToggleError && (
+                                <div className="text-sm text-red-600 mb-2">{hideToggleError}</div>
+                            )}
+                            <DialogFooter className="flex justify-end gap-2 mt-4">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setDeleteDialogOpen(false);
+                                        setDeleteTargetUser(null);
+                                        setHideToggleError(null);
+                                    }}
+                                    disabled={hideToggleLoading}
+                                >
+                                    キャンセル
+                                </Button>
+                                <Button
+                                    variant={deleteTargetUser?.hidden ? 'default' : 'destructive'}
+                                    onClick={performHideToggle}
+                                    disabled={hideToggleLoading || !deleteTargetUser}
+                                >
+                                    {hideToggleLoading
+                                        ? '処理中…'
+                                        : deleteTargetUser?.hidden
+                                            ? '再表示'
+                                            : '削除'}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
 
                     <form onSubmit={handleSearch} className="search-form flex flex-wrap gap-2 items-center mb-4" aria-labelledby="userlist-heading">
                         <label htmlFor="search-input" className="sr-only">名前またはメールアドレスで検索</label>
@@ -629,7 +647,6 @@ function UserList() {
                                                 <TableCell>
                                                     {isAdmin ? (
                                                         <Select value={user.role} onValueChange={(value) => handleRoleChange(uid, value)}>
-                                                            {/* SelectTrigger shows only the selected text; SelectItem contains icon + label */}
                                                             <SelectTrigger className="w-[180px] role-select">
                                                                 <SelectValue placeholder="ロールを選択" />
                                                             </SelectTrigger>
@@ -641,8 +658,7 @@ function UserList() {
                                                         </Select>
                                                     ) : (
                                                         <span className="whitespace-nowrap flex items-center gap-2" aria-label={`権限: ${roleLabel(user.role)}`}>
-                              <RoleIcon role={user.role} className="h-4 w-4" />
-                                                            {roleLabel(user.role)}
+                              <RoleIcon role={user.role} className="h-4 w-4" />{roleLabel(user.role)}
                             </span>
                                                     )}
                                                 </TableCell>
@@ -650,7 +666,14 @@ function UserList() {
                                                 {isAdmin && (
                                                     <TableCell>
                                                         <div className="flex gap-2">
-                                                            <Button variant="destructive" onClick={() => handleHideToggle(uid)} aria-label={`${name} を削除(非表示)`} className="focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400">{user.hidden ? '表示' : '削除'}</Button>
+                                                            <Button
+                                                                variant="destructive"
+                                                                onClick={() => openHideToggleDialog(user)}
+                                                                aria-label={`${name} を削除(非表示)`}
+                                                                className="focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400"
+                                                            >
+                                                                {user.hidden ? '表示' : '削除'}
+                                                            </Button>
                                                         </div>
                                                     </TableCell>
                                                 )}
@@ -664,14 +687,12 @@ function UserList() {
 
                     <div className="mt-4 flex items-center justify-center gap-3">
                         <Button onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 0}>前へ</Button>
-                        <div className="flex items-center gap-2" role="navigation" aria-label="ページナビゲーション">{renderPageButtons(currentPage, totalPages, goToPage)}</div>
+                        <div className="flex items-center gap-2" role="navigation" aria-label="ページナビゲーション">
+                            {renderPageButtons(currentPage, totalPages, goToPage)}
+                        </div>
                         <Button onClick={() => goToPage(currentPage + 1)} disabled={totalPages === 0 || currentPage >= totalPages - 1}>次へ</Button>
-
                         <div className="ml-4 flex items-center gap-2">
-                            {/* 旧: <label style={{ fontSize: 13 }} className="sr-only" htmlFor="page-size-select">表示数</label> */}
-                            {/* 変更: sr-only の span を作り、Select に aria-labelledby を与える */}
                             <span id="page-size-select-label" className="sr-only" style={{ fontSize: 13 }}>表示数</span>
-
                             <span className="text-sm text-slate-600 mr-2" aria-hidden="true">表示数</span>
                             <Select
                                 id="page-size-select"
