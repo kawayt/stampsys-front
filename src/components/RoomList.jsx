@@ -36,11 +36,33 @@ export function RoomList() {
     const [closeProcessing, setCloseProcessing] = useState(false);
     const [closeError, setCloseError] = useState(null);
 
+    // 削除（非表示）用 state
+    const [openHideDialog, setOpenHideDialog] = useState(false);
+    const [hideSelectedRoom, setHideSelectedRoom] = useState(null); // { roomId, roomName }
+    const [hideProcessing, setHideProcessing] = useState(false);
+    const [hideError, setHideError] = useState(null);
+
+    // --- ヘルパー: 認証リダイレクトの簡易チェック ---
+    const handleAuthRedirectIfNeeded = async (res) => {
+        // fetch がリダイレクトを自動で追わなかったり、401 が返るケースに対応
+        // セッション認証を想定している場合、未認証ならログインページへ遷移させる
+        if (res.status === 401 || res.redirected) {
+            // OAuth2 のエンドポイント（バックエンド側の設定に合わせて必要なら修正）
+            window.location.href = "/oauth2/authorization/microsoft";
+            return true;
+        }
+        return false;
+    };
+
     const fetchRooms = async () => {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(`/api/rooms/${encodeURIComponent(classId)}`);
+            const res = await fetch(`/api/rooms/${encodeURIComponent(classId)}`, {
+                credentials: "include", // ← 追加: セッション cookie を送る
+            });
+            // 認証リダイレクトが発生したらここで遷移する
+            if (await handleAuthRedirectIfNeeded(res)) return;
             if (!res.ok) {
                 throw new Error(`ルーム一覧の取得に失敗しました: ${res.status}`);
             }
@@ -72,6 +94,7 @@ export function RoomList() {
                 headers: {
                     "Content-Type": "application/json",
                 },
+                credentials: "include",
                 body: JSON.stringify({
                     classId: Number(classId),
                     roomName: createRoomName.trim(), // RoomForm のフィールド名に合わせて変更してください
@@ -146,6 +169,56 @@ export function RoomList() {
             setCloseError(err.message ?? "通信エラーが発生しました");
         } finally {
             setCloseProcessing(false);
+        }
+    };
+
+    // 削除（非表示）ダイアログを開く
+    const openHideRoomDialog = (room) => {
+        setHideSelectedRoom(room);
+        setHideError(null);
+        setOpenHideDialog(true);
+    };
+
+    // 確認ダイアログで「削除」を押したときの処理（hidden = true にする）
+    const handleConfirmHide = async () => {
+        if (!hideSelectedRoom || !hideSelectedRoom.roomId) return;
+        setHideProcessing(true);
+        setHideError(null);
+
+        try {
+            const res = await fetch(`/api/rooms/${encodeURIComponent(hideSelectedRoom.roomId)}/delete`, {
+                method: "PATCH",
+                credentials: "include",
+            });
+
+            if (await handleAuthRedirectIfNeeded(res)) return;
+
+            if (res.status === 204) {
+                // 成功: ローカル state から削除して一覧に表示しないようにする
+                setRooms((prev) => prev.filter((r) => r.roomId !== hideSelectedRoom.roomId));
+                setOpenHideDialog(false);
+                setHideSelectedRoom(null);
+            } else {
+                let message = `ルームの削除（非表示）に失敗しました: ${res.status}`;
+                try {
+                    const contentType = res.headers.get("content-type") || "";
+                    if (contentType.includes("application/json")) {
+                        const body = await res.json();
+                        message = (body && (body.error || body.message || JSON.stringify(body))) || message;
+                    } else {
+                        const txt = await res.text();
+                        if (txt) message = txt;
+                    }
+                } catch {
+                    // ignore
+                }
+                setHideError(message);
+            }
+        } catch (err) {
+            console.error(err);
+            setHideError(err.message ?? "通信エラーが発生しました");
+        } finally {
+            setHideProcessing(false);
         }
     };
 
@@ -311,9 +384,20 @@ export function RoomList() {
 
                                             {/* active が false のときだけ「終了」ラベル */}
                                             {!r.active && (
-                                                <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-500 border border-red-100">
-                                                    終了
-                                                </span>
+                                                <>
+                                                    <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-500 border border-red-100">
+                                                        終了
+                                                    </span>
+                                                    {/* 終了ラベルの右側に削除ボタンを表示 */}
+                                                    <Button
+                                                        size="sm"
+                                                        variant="destructive"
+                                                        className="text-xs font-medium ml-2"
+                                                        onClick={() => openHideRoomDialog({ roomId: r.roomId, roomName: r.roomName })}
+                                                    >
+                                                        削除
+                                                    </Button>
+                                                </>
                                             )}
                                         </div>
 
@@ -346,20 +430,20 @@ export function RoomList() {
                                             {r.active ? "入室" : "履歴"}
                                         </Button>
 
-                                    {/* 追加: 終了ボタン（active のときのみ表示） */}
-                                    {r.active && (
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="text-xs font-medium"
-                                            onClick={() =>
-                                                openCloseRoomDialog({ roomId: r.roomId, roomName: r.roomName })
-                                            }
-                                        >
-                                            終了
-                                        </Button>
-                                    )}
-                                </div>
+                                        {/* 追加: 終了ボタン（active のときのみ表示） */}
+                                        {r.active && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="text-xs font-medium"
+                                                onClick={() =>
+                                                    openCloseRoomDialog({ roomId: r.roomId, roomName: r.roomName })
+                                                }
+                                            >
+                                                終了
+                                            </Button>
+                                        )}
+                                    </div>
 
                                     <span
                                         className={
@@ -424,6 +508,58 @@ export function RoomList() {
                             disabled={closeProcessing}
                         >
                             {closeProcessing ? "終了中..." : "終了する"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ルーム削除（非表示）確認ダイアログ */}
+            <Dialog
+                open={openHideDialog}
+                onOpenChange={(open) => {
+                    setOpenHideDialog(open);
+                    if (!open) {
+                        setHideSelectedRoom(null);
+                        setHideError(null);
+                        setHideProcessing(false);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>ルームを削除（非表示）しますか？</DialogTitle>
+                        <DialogDescription className="text-xs">
+                            {hideSelectedRoom
+                                ? `「${hideSelectedRoom.roomName}」を削除（非表示）します。よろしいですか？`
+                                : "削除（非表示）するルームを確認してください。"}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {hideError && (
+                        <p className="text-sm text-red-600 mb-2">{hideError}</p>
+                    )}
+
+                    <DialogFooter className="flex justify-end gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="text-xs"
+                            onClick={() => {
+                                setOpenHideDialog(false);
+                                setHideSelectedRoom(null);
+                                setHideError(null);
+                            }}
+                            disabled={hideProcessing}
+                        >
+                            戻る
+                        </Button>
+                        <Button
+                            type="button"
+                            className="text-xs font-medium"
+                            onClick={handleConfirmHide}
+                            disabled={hideProcessing}
+                        >
+                            {hideProcessing ? "削除中..." : "削除"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
