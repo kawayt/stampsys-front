@@ -13,6 +13,25 @@ import {
     ChartTooltip,
     ChartTooltipContent,
 } from "@/components/ui/chart";
+import {
+    Button,
+} from "@/components/ui/button";
+import {
+    Input,
+} from "@/components/ui/input";
+import {
+    Label,
+} from "@/components/ui/label";
+import {
+    Checkbox,
+} from "@/components/ui/checkbox";
+import {
+    Select,
+    SelectTrigger,
+    SelectContent,
+    SelectItem,
+    SelectValue,
+} from "@/components/ui/select";
 
 import {
     CartesianGrid,
@@ -25,11 +44,11 @@ import {
 } from "recharts";
 
 const INTERVAL_OPTIONS = [
-    { value: "1 minute", label: "1 minute" },
-    { value: "5 minutes", label: "5 minutes" },
-    { value: "15 minutes", label: "15 minutes" },
-    { value: "30 minutes", label: "30 minutes" },
-    { value: "1 hour", label: "1 hour" },
+    { value: "1 minute", label: "1分" },
+    { value: "5 minutes", label: "5分" },
+    { value: "15 minutes", label: "15分" },
+    { value: "30 minutes", label: "30分" },
+    { value: "1 hour", label: "1時間" },
 ];
 
 // datetime-local (yyyy-MM-ddTHH:mm) -> ISO8601 (+09:00 付与)
@@ -202,61 +221,73 @@ function RoomHistory() {
 
             {/* 条件入力（roomId セレクト削除済み） */}
             <div className="flex flex-wrap gap-4 items-end">
-                <div>
-                    <label className="block text-sm font-medium mb-1">interval</label>
-                    <select
-                        className="border rounded px-2 py-1"
+                <div className="space-y-1">
+                    <Label className="text-sm font-medium" htmlFor="interval-select">
+                        表示間隔
+                    </Label>
+                    <Select
                         value={interval}
-                        onChange={(e) => setInterval(e.target.value)}
+                        onValueChange={setInterval}
                     >
-                        {INTERVAL_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                            </option>
-                        ))}
-                    </select>
+                        <SelectTrigger
+                            id="interval-select"
+                            className="border rounded px-2 py-1 text-sm w-[140px]"
+                        >
+                            <SelectValue placeholder="interval" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {INTERVAL_OPTIONS.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium mb-1">
-                        start (optional)
-                    </label>
-                    <input
+                <div className="space-y-1">
+                    <Label className="text-sm font-medium" htmlFor="start-datetime">
+                        開始時刻（オプション）
+                    </Label>
+                    <Input
+                        id="start-datetime"
                         type="datetime-local"
-                        className="border rounded px-2 py-1"
+                        className="border rounded px-2 py-1 text-sm w-[220px]"
                         value={start}
                         onChange={(e) => setStart(e.target.value)}
                     />
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium mb-1">
-                        end (optional)
-                    </label>
-                    <input
+                <div className="space-y-1">
+                    <Label className="text-sm font-medium" htmlFor="end-datetime">
+                        終了時刻（オプション）
+                    </Label>
+                    <Input
+                        id="end-datetime"
                         type="datetime-local"
-                        className="border rounded px-2 py-1"
+                        className="border rounded px-2 py-1 text-sm w-[220px]"
                         value={end}
                         onChange={(e) => setEnd(e.target.value)}
                     />
                 </div>
 
                 <div className="flex gap-2">
-                    <button
+                    <Button
                         type="button"
-                        className="border rounded px-3 py-1 bg-blue-600 text-white text-sm"
+                        className="px-3 py-1 text-sm"
                         onClick={handleFetch}
                         disabled={loading}
                     >
                         {loading ? "取得中..." : "取得"}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         type="button"
-                        className="border rounded px-3 py-1 text-sm"
+                        variant="outline"
+                        className="px-3 py-1 text-sm"
                         onClick={handleResetSelection}
                     >
                         選択リセット
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -326,46 +357,51 @@ function RoomHistory() {
                         <CardTitle>スタンプ一覧</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2 text-sm">
-                        <div>
-                            <label className="flex items-center gap-2">
-                                <input
-                                    type="checkbox"
-                                    checked={showAllKinds}
-                                    onChange={(e) => setShowAllKinds(e.target.checked)}
-                                />
-                                <span>全種類表示</span>
-                            </label>
+                        <div className="flex items-center gap-2">
+                            <Checkbox
+                                id="show-all-kinds"
+                                checked={showAllKinds}
+                                onCheckedChange={(v) => setShowAllKinds(Boolean(v))}
+                            />
+                            <Label htmlFor="show-all-kinds" className="text-sm font-normal">
+                                全種類表示
+                            </Label>
                         </div>
-                        <div>
-                            <label className="flex items-center gap-2">
-                                <input
-                                    type="checkbox"
-                                    checked={showTotal}
-                                    onChange={(e) => setShowTotal(e.target.checked)}
-                                />
-                                <span>合計（全スタンプ総数）を表示</span>
-                            </label>
+                        <div className="flex items-center gap-2">
+                            <Checkbox
+                                id="show-total"
+                                checked={showTotal}
+                                onCheckedChange={(v) => setShowTotal(Boolean(v))}
+                            />
+                            <Label htmlFor="show-total" className="text-sm font-normal">
+                                合計（全スタンプ総数）を表示
+                            </Label>
                         </div>
 
                         <div className="border-t pt-2 space-y-1">
                             {stampTypes.map((kind) => (
-                                <label
+                                <div
                                     key={kind}
                                     className="flex items-center justify-between gap-2"
                                 >
-                  <span className="flex items-center gap-2">
-                    <input
-                        type="checkbox"
-                        checked={showAllKinds || selectedKinds.includes(kind)}
-                        disabled={showAllKinds}
-                        onChange={() => handleToggleKind(kind)}
-                    />
-                    <span>{kind}</span>
-                  </span>
+                                    <div className="flex items-center gap-2">
+                                        <Checkbox
+                                            id={`stamp-kind-${kind}`}
+                                            checked={showAllKinds || selectedKinds.includes(kind)}
+                                            disabled={showAllKinds}
+                                            onCheckedChange={() => handleToggleKind(kind)}
+                                        />
+                                        <Label
+                                            htmlFor={`stamp-kind-${kind}`}
+                                            className="text-sm font-normal"
+                                        >
+                                            {kind}
+                                        </Label>
+                                    </div>
                                     <span className="text-xs text-muted-foreground">
                     ({totalPerKind[kind] ?? 0})
                   </span>
-                                </label>
+                                </div>
                             ))}
                         </div>
                     </CardContent>
