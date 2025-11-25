@@ -44,6 +44,9 @@ import {
     YAxis,
 } from "recharts";
 
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+
 const INTERVAL_OPTIONS = [
     { value: "1 minute", label: "1分" },
     { value: "5 minutes", label: "5分" },
@@ -69,6 +72,7 @@ function formatTimeLabel(isoString) {
 
 function RoomHistory() {
     const { roomId } = useParams();
+    const navigate = useNavigate();
 
     const [interval, setInterval] = useState("5 minutes");
     const [start, setStart] = useState(""); // datetime-local
@@ -241,6 +245,18 @@ function RoomHistory() {
 
     return (
         <div className="flex flex-col gap-4 p-4">
+            <div className="mb-2">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="inline-flex items-center gap-1 px-0 text-xs text-slate-600 hover:text-slate-800"
+                    onClick={() => navigate(-1)}
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    <span>ルーム一覧へ戻る</span>
+                </Button>
+            </div>
+
             {/* ヘッダ */}
             <div className="flex items-center justify-between gap-4">
                 <h2 className="text-xl font-bold">スタンプ履歴 - ルーム{roomId}</h2>
