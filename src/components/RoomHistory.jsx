@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { fetchStampActivity } from "../api/stampActivity";
+import { getStampColorByCode } from "../lib/StampDefinition";
 
 import {
     Card,
@@ -157,6 +158,32 @@ function RoomHistory() {
             .map((s) => s.stampName);
     }, [data]);
 
+    // スタンプ名 → カラーコード(bg) のマップ
+    const stampColorMap = useMemo(() => {
+        if (!data?.series) return {};
+        const map = {};
+        for (const s of data.series) {
+            if (s.stampName === "NO_STAMP") continue;
+            // stampColor は 1〜10 の数値を想定
+            const color = getStampColorByCode(s.stampColor);
+            map[s.stampName] = color.bg;
+        }
+        return map;
+    }, [data]);
+
+    // ChartContainer 用の設定（凡例・ツールチップの色指定）
+    const chartConfig = useMemo(() => {
+        const cfg = {};
+        for (const name of stampTypes) {
+            cfg[name] = {
+                label: name,
+                color: stampColorMap[name] || "#6b7280",
+            };
+        }
+        cfg.total = { label: "合計", color: "#0ea5e9" };
+        return cfg;
+    }, [stampTypes, stampColorMap]);
+
     // 表示対象のスタンプ種別
     const visibleStampTypes = useMemo(() => {
         if (showAllKinds) return stampTypes;
@@ -309,12 +336,7 @@ function RoomHistory() {
                         ) : (
                             <ChartContainer
                                 className="h-80 w-full"
-                                config={{
-                                    Good: { label: "Good", color: "hsl(var(--chart-1))" },
-                                    Great: { label: "Great", color: "hsl(var(--chart-2))" },
-                                    Bad: { label: "Bad", color: "hsl(var(--chart-3))" },
-                                    total: { label: "合計", color: "hsl(var(--chart-4))" },
-                                }}
+                                config={chartConfig}
                             >
                                 <ResponsiveContainer width="100%" height="100%">
                                     <LineChart data={chartData}>
@@ -328,7 +350,7 @@ function RoomHistory() {
                                                 key={kind}
                                                 type="monotone"
                                                 dataKey={kind}
-                                                stroke={["#f97316", "#22c55e", "#6b7280"][index % 3]}
+                                                stroke={stampColorMap[kind] || "#6b7280"}
                                                 strokeWidth={2}
                                                 dot={{ r: 3 }}
                                                 isAnimationActive={false}
@@ -354,7 +376,7 @@ function RoomHistory() {
                 {/* スタンプ一覧・設定 */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>スタンプ一覧</CardTitle>
+                        <CardTitle>表示設定</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2 text-sm">
                         <div className="flex items-center gap-2">
@@ -364,7 +386,7 @@ function RoomHistory() {
                                 onCheckedChange={(v) => setShowAllKinds(Boolean(v))}
                             />
                             <Label htmlFor="show-all-kinds" className="text-sm font-normal">
-                                全種類表示
+                                すべてのスタンプを表示
                             </Label>
                         </div>
                         <div className="flex items-center gap-2">
@@ -374,7 +396,7 @@ function RoomHistory() {
                                 onCheckedChange={(v) => setShowTotal(Boolean(v))}
                             />
                             <Label htmlFor="show-total" className="text-sm font-normal">
-                                合計（全スタンプ総数）を表示
+                                合計スタンプ数を表示
                             </Label>
                         </div>
 

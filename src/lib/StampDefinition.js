@@ -1,15 +1,15 @@
 // スタンプカラーを定義
 const COLOR_MAP = {
-    1: { bg: "#fee2e2", label: "Red" },
-    2: { bg: "#ffedd5", label: "Orange" },
-    3: { bg: "#fef3c7", label: "Amber" },
-    4: { bg: "#ecfccb", label: "Lime" },
-    5: { bg: "#dcfce7", label: "Green" },
-    6: { bg: "#e0f2fe", label: "Sky" },
-    7: { bg: "#dbeafe", label: "Blue" },
-    8: { bg: "#e0e7ff", label: "Indigo" },
-    9: { bg: "#f5e9ff", label: "Purple" },
-    10: { bg: "#ffe4f3", label: "Pink" },
+    1: { bg: "#ff8c8c", label: "Red" },
+    2: { bg: "#ffba74", label: "Orange" },
+    3: { bg: "#ffe25f", label: "Yellow" },
+    4: { bg: "#bef264", label: "Yellow Green" },
+    5: { bg: "#77ffa7", label: "Green" },
+    6: { bg: "#81d5ff", label: "Sky Blue" },
+    7: { bg: "#6c80ff", label: "Blue" },
+    8: { bg: "#c28fff", label: "Purple" },
+    9: { bg: "#ff8ccf", label: "Pink" },
+    10:{ bg: "#916464", label: "Brown" },
 };
 
 const DEFAULT_COLOR = { bg: "#e5e7eb", label: "Default" };
