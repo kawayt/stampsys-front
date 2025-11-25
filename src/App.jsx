@@ -5,6 +5,7 @@ import { ClassList } from './components/ClassList';
 import StampList from './components/StampList';
 import { RoomList } from "@/components/RoomList";
 import { RoomDetail } from "@/components/RoomDetail";
+import RoomHistory from "./components/RoomHistory";
 import {
     BrowserRouter,
     Routes,
@@ -170,6 +171,9 @@ function Dashboard({ appData, onLogout }) {
 
                         {/* ルーム詳細ページ */}
                         <Route path="/rooms/:roomId" element={<RoomDetail userId={appData.user?.userId} role={appData.user?.role} />}/>
+
+                        {/* スタンプ履歴ページ */}
+                        <Route path="/rooms/:roomId/history" element={<RoomHistory />} />
 
                         {/* デフォルトはクラス一覧 */}
                         <Route path="*" element={<Navigate to="classes" replace />} />
