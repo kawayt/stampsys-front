@@ -528,11 +528,11 @@ export function RoomList() {
             >
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>ルームを削除（非表示）しますか？</DialogTitle>
+                        <DialogTitle>このルームを削除しますか？</DialogTitle>
                         <DialogDescription className="text-xs">
                             {hideSelectedRoom
-                                ? `「${hideSelectedRoom.roomName}」を削除（非表示）します。よろしいですか？`
-                                : "削除（非表示）するルームを確認してください。"}
+                                ? `「${hideSelectedRoom.roomName}」を削除します。この操作は取り消せません。`
+                                : "削除するルームを確認してください。"}
                         </DialogDescription>
                     </DialogHeader>
 

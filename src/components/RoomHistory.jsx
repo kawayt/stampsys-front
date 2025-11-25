@@ -131,6 +131,9 @@ function RoomHistory() {
         }
     };
 
+    // ページ表示時（マウント時）に一度だけ自動取得
+    useEffect(() => {handleFetch();}, []);
+
     const handleResetSelection = () => {
         setInterval("5 minutes");
         setStart("");
@@ -437,7 +440,7 @@ function RoomHistory() {
                                         </Label>
                                     </div>
                                     <span className="text-xs text-muted-foreground">
-                    ({totalPerKind[kind] ?? 0})
+                    {totalPerKind[kind] ?? 0}
                   </span>
                                 </div>
                             ))}
