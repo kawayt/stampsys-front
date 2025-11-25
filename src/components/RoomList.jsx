@@ -419,11 +419,12 @@ export function RoomList() {
                                                     ? "text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white px-4"
                                                     : "text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 px-4"
                                             }
-                                            disabled={!r.active}
                                             onClick={() => {
                                                 if (r.active) {
                                                     // ★ active なルームだけ詳細ページに遷移
                                                     navigate(`/rooms/${r.roomId}`);
+                                                } else {
+                                                    navigate(`/rooms/${r.roomId}/history`);
                                                 }
                                             }}
                                         >
