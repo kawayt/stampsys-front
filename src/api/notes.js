@@ -1,0 +1,30 @@
+const API_BASE = (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) || "/api";
+
+async function handleResponse(res) {
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || `HTTP error ${res.status}`);
+    }
+    return res.headers.get("Content-Type")?.includes("application/json") ? res.json() : null;
+}
+
+export async function createNote(noteText, roomId) {
+    const res = await fetch(`${API_BASE}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ noteText, roomId }),
+    });
+    return handleResponse(res);
+}
+
+export async function fetchNotes(roomId, includeHidden = false) {
+    const res = await fetch(`${API_BASE}/rooms/${encodeURIComponent(roomId)}/notes?includeHidden=${includeHidden}`);
+    return handleResponse(res);
+}
+
+export async function setHidden(noteId, hidden) {
+    const res = await fetch(`${API_BASE}/notes/${encodeURIComponent(noteId)}/hidden?hidden=${hidden}`, {
+        method: "PATCH",
+    });
+    return handleResponse(res);
+}

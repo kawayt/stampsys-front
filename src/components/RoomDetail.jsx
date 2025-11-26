@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition.js";
 import { sendStamp } from "../api/StampSendApi.js";
 import { ArrowLeft } from "lucide-react";
+import NoteForm from "@/components/NoteForm";
 
 function SimpleBarChart({ data }) {
     if (!data || data.length === 0) return null;
@@ -302,6 +303,15 @@ export function RoomDetail({ userId, role }) {
                                 )}
                             </>
                         )}
+
+                        {/* 教員向けのメモ入力フォームを条件付きで表示 */}
+                        {isTeacherView && (
+                            <section style={{ marginTop: 16 }}>
+                                <h3 className="text-lg font-medium">授業メモ</h3>
+                                <NoteForm roomId={Number(roomId)} />
+                            </section>
+                        )}
+
                     </CardContent>
                 </Card>
             )}

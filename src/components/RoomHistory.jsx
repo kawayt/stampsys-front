@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchStampActivity } from "../api/stampActivity";
 import { getStampColorByCode, getStampIconByCode } from "../lib/StampDefinition";
+import NotesList from "@/components/NoteList";
 
 import {
     Card,
@@ -528,6 +529,17 @@ function RoomHistory() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* ルームに残したメモ一覧（追加） */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>このルームのメモ</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {/* roomId は useParams() で文字列なので数値に変換して渡す */}
+                    <NotesList roomId={Number(roomId)} />
+                </CardContent>
+            </Card>
 
             {/* テーブル表示 */}
             <Card>
