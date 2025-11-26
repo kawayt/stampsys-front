@@ -128,6 +128,21 @@ export function RoomDetail({ userId, role }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [roomId, isTeacherView]);
 
+    //ポーリング
+    useEffect(() => {
+        if (!isTeacherView) return; // 教員/管理者ビューのみポーリング
+        const intervalMs = 5000; // 5秒ごと。必要に応じて変更してください（例: 10000 = 10秒）
+        const id = setInterval(() => {
+            // エラーはコンソールに出すだけにして UI を壊さない
+            fetchStampSummary().catch((e) =>
+                console.error("polling summary failed", e)
+            );
+        }, intervalMs);
+
+        // クリーンアップ: コンポーネントアンマウント時や依存が変わったら停止
+        return () => clearInterval(id);
+    }, [roomId, isTeacherView]);
+
     // スタンプをクリックしたときに送信する処理
     const handleStampClick = async (stampId) => {
         if (!userId) {
@@ -312,6 +327,18 @@ export function RoomDetail({ userId, role }) {
                             </section>
                         )}
 
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* スタンプが無い場合でも、教員/管理者ならメモフォームを表示する（Card を分けて表示） */}
+            {isTeacherView && (!stamps || stamps.length === 0) && (
+                <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
+                    <CardContent className="pt-4">
+                        <section>
+                            <h3 className="text-lg font-medium">授業メモ</h3>
+                            <NoteForm roomId={Number(roomId)} />
+                        </section>
                     </CardContent>
                 </Card>
             )}
