@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SetupPage from './components/SetupPage'; // 追加: /setup 用ページ（トップレベルで公開）
+import LoginDisabled from './components/LoginDisabled'; // 追加: ログイン拒否ページ
 
 function App() {
     const [loading, setLoading] = useState(true);
@@ -67,6 +68,8 @@ function App() {
             <Routes>
                 {/* 公開: /setup はログイン不要でアクセス可能（トップレベル） */}
                 <Route path="/setup" element={<SetupPage />} />
+                {/* 追加: ログイン拒否ページ */}
+                <Route path="/login-disabled" element={<LoginDisabled />} />
 
                 {/* ログインページ: /login */}
                 <Route
