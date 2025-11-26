@@ -166,7 +166,7 @@ function Dashboard({ appData, onLogout }) {
                 <section className="mt-2">
                     <Routes>
                         {/* ルート: クラス一覧 */}
-                        <Route path="/classes" element={<ClassList />} />
+                        <Route path="/classes" element={<ClassList role={appData.user?.role} />} />
 
                         {/* ユーザー一覧ページ */}
                         <Route path="/users" element={<UserList />} />
@@ -184,7 +184,7 @@ function Dashboard({ appData, onLogout }) {
                         <Route path="/rooms/:roomId/history" element={<RoomHistory />} />
 
                         {/* デフォルトはクラス一覧 */}
-                        <Route path="*" element={<Navigate to="classes" replace />} />
+                        <Route path="*" element={<Navigate to="/classes" replace />} />
                     </Routes>
                 </section>
             </main>

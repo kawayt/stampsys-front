@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
-export function ClassList() {
+export function ClassList({ role }) {
     const navigate = useNavigate();
     const [classes, setClasses] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -25,6 +25,18 @@ export function ClassList() {
     const [createLoading, setCreateLoading] = useState(false);
     const [createError, setCreateError] = useState(null);
     const [openCreateDialog, setOpenCreateDialog] = useState(false);
+
+    // 参加処理の状態
+    const [joinLoading, setJoinLoading] = useState(false);
+    const [joinError, setJoinError] = useState(null);
+
+    // role は prop で渡すが、未渡しのケースに備えてローカルにも保持する
+    const [currentRole, setCurrentRole] = useState(role ?? null);
+
+    useEffect(() => {
+        // prop の role が変わったら反映
+        setCurrentRole(role ?? null);
+    }, [role]);
 
     const fetchClasses = async () => {
         setLoading(true);
@@ -47,6 +59,71 @@ export function ClassList() {
     useEffect(() => {
         fetchClasses();
     }, []);
+
+    // フォールバック: サーバから現在のユーザー role を取得（prop が未渡しのとき）
+    const fetchCurrentUserRole = async () => {
+        try {
+            const res = await fetch("/api/app", { credentials: "include" });
+            if (!res.ok) {
+                console.warn("failed to fetch app info:", res.status);
+                return null;
+            }
+            const d = await res.json();
+            const r = d?.user?.role ?? null;
+            setCurrentRole(r);
+            return r;
+        } catch (err) {
+            console.warn("error fetching app info:", err);
+            return null;
+        }
+    };
+
+    // 参加処理 (role によって振り分け)
+    const onJoinClass = async (classId) => {
+        setJoinError(null);
+
+        let roleToUse = currentRole;
+        if (!roleToUse) {
+            roleToUse = await fetchCurrentUserRole();
+        }
+
+        // TEACHER / ADMIN は従来どおりルーム一覧へ遷移
+        if (roleToUse === "TEACHER" || roleToUse === "ADMIN") {
+            navigate(`/classes/${classId}`);
+            return;
+        }
+
+        // STUDENT（または role 不明 -> デフォルト student 扱い）
+        setJoinLoading(true);
+        try {
+            const res = await fetch(`/api/classes/${classId}/active-room`, {
+                method: "GET",
+                credentials: "include",
+            });
+
+            if (res.ok) {
+                const body = await res.json();
+                const roomId = body?.roomId;
+                if (!roomId) {
+                    setJoinError("現在利用可能なルームが見つかりませんでした。");
+                    return;
+                }
+                // StampForm のルートに合わせて遷移してください
+                navigate(`/rooms/${roomId}`);
+            } else if (res.status === 404) {
+                const text = await res.text();
+                setJoinError(text || "現在ルームが開いていません。教員がルームを開くのを待ってください。");
+            } else {
+                const text = await res.text();
+                setJoinError(text || `参加時にエラーが発生しました (status: ${res.status})`);
+            }
+        } catch (err) {
+            console.error(err);
+            setJoinError("参加処理でエラーが発生しました");
+        } finally {
+            setJoinLoading(false);
+        }
+    };
 
     // クラス新規作成処理
     const handleCreateClass = async (e) => {
@@ -115,6 +192,13 @@ export function ClassList() {
 
     return (
         <section className="py-4">
+            {/* 参加時のエラーメッセージ */}
+            {joinError && (
+                <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">
+                    {joinError}
+                </div>
+            )}
+
             <div className="mb-6 flex items-center justify-between gap-4">
                 <h2 className="text-lg font-semibold text-slate-800">
                     クラス一覧
@@ -210,9 +294,10 @@ export function ClassList() {
                                 <Button
                                     variant="ghost"
                                     className="text-xs font-medium text-orange-500 hover:text-orange-600 hover:bg-orange-50 px-0"
-                                    onClick={() => navigate(`/classes/${c.classId}`)}
+                                    onClick={() => onJoinClass(c.classId)}
+                                    disabled={joinLoading}
                                 >
-                                    授業に参加 →
+                                    {joinLoading ? "参加中..." : "授業に参加 →"}
                                 </Button>
                             </CardContent>
                         </Card>
