@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { fetchStampActivity } from "../api/stampActivity";
-import { getStampColorByCode } from "../lib/StampDefinition";
+import { getStampColorByCode, getStampIconByCode } from "../lib/StampDefinition";
 
 import {
     Card,
@@ -44,7 +44,6 @@ import {
     YAxis,
 } from "recharts";
 
-import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
 const INTERVAL_OPTIONS = [
@@ -59,6 +58,21 @@ const INTERVAL_OPTIONS = [
 function toIsoWithOffset(datetimeLocal) {
     if (!datetimeLocal) return undefined;
     return `${datetimeLocal}:00+09:00`;
+}
+
+// ISO8601 文字列 → datetime-local 用文字列 (ローカルタイム)
+function toDatetimeLocal(isoString) {
+    if (!isoString) return "";
+    const d = new Date(isoString);
+
+    const pad = (n) => String(n).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    const MM = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const mm = pad(d.getMinutes());
+
+    return `${yyyy}-${MM}-${dd}T${hh}:${mm}`;
 }
 
 // "2025-11-25T00:20:00Z" → "00:20"
@@ -117,6 +131,21 @@ function RoomHistory() {
 
             setData(resp);
 
+            // 初回（開始・終了が未指定）のみ、デフォルトで
+            // 「開始時刻」に最も古い日時、「終了時刻」に最も新しい日時をセット
+            if (
+                !start &&
+                !end &&
+                resp &&
+                Array.isArray(resp.timeline) &&
+                resp.timeline.length > 0
+            ) {
+                const first = resp.timeline[0];
+                const last = resp.timeline[resp.timeline.length - 1];
+                setStart(toDatetimeLocal(first));
+                setEnd(toDatetimeLocal(last));
+            }
+
             if (resp && Array.isArray(resp.series)) {
                 const names = resp.series
                     .filter((s) => s.stampName !== "NO_STAMP")
@@ -136,8 +165,6 @@ function RoomHistory() {
 
     const handleResetSelection = () => {
         setInterval("5 minutes");
-        setStart("");
-        setEnd("");
         setShowAllKinds(true);
         setShowTotal(false);
 
@@ -148,6 +175,21 @@ function RoomHistory() {
             setSelectedKinds(names);
         } else {
             setSelectedKinds([]);
+        }
+
+        // デフォルトとしてデータ内の最古・最新日時を再設定
+        if (
+            data &&
+            Array.isArray(data.timeline) &&
+            data.timeline.length > 0
+        ) {
+            const first = data.timeline[0];
+            const last = data.timeline[data.timeline.length - 1];
+            setStart(toDatetimeLocal(first));
+            setEnd(toDatetimeLocal(last));
+        } else {
+            setStart("");
+            setEnd("");
         }
     };
 
@@ -174,6 +216,22 @@ function RoomHistory() {
             // stampColor は 1〜10 の数値を想定
             const color = getStampColorByCode(s.stampColor);
             map[s.stampName] = color.bg;
+        }
+        return map;
+    }, [data]);
+
+    // スタンプ名 → 表示情報（背景色・アイコン）マップ
+    const stampDisplayMap = useMemo(() => {
+        if (!data?.series) return {};
+        const map = {};
+        for (const s of data.series) {
+            if (s.stampName === "NO_STAMP") continue;
+            const color = getStampColorByCode(s.stampColor);
+            const icon = getStampIconByCode(s.stampIcon);
+            map[s.stampName] = {
+                bg: color.bg,
+                icon,
+            };
         }
         return map;
     }, [data]);
@@ -337,8 +395,6 @@ function RoomHistory() {
                 </div>
             </div>
 
-            {/* API 説明 */}
-
             {error && <div className="text-red-600 text-sm">{error}</div>}
 
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4">
@@ -364,7 +420,7 @@ function RoomHistory() {
                                         <YAxis allowDecimals={false} />
                                         <ChartTooltip content={<ChartTooltipContent />} />
                                         <Legend />
-                                        {visibleStampTypes.map((kind, index) => (
+                                        {visibleStampTypes.map((kind) => (
                                             <Line
                                                 key={kind}
                                                 type="monotone"
@@ -379,7 +435,7 @@ function RoomHistory() {
                                             <Line
                                                 type="monotone"
                                                 dataKey="total"
-                                                stroke="#0ea5e9"
+                                                stroke="#000000"
                                                 strokeWidth={2}
                                                 dot={{ r: 3 }}
                                                 isAnimationActive={false}
@@ -420,30 +476,54 @@ function RoomHistory() {
                         </div>
 
                         <div className="border-t pt-2 space-y-1">
-                            {stampTypes.map((kind) => (
-                                <div
-                                    key={kind}
-                                    className="flex items-center justify-between gap-2"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Checkbox
-                                            id={`stamp-kind-${kind}`}
-                                            checked={showAllKinds || selectedKinds.includes(kind)}
-                                            disabled={showAllKinds}
-                                            onCheckedChange={() => handleToggleKind(kind)}
-                                        />
-                                        <Label
-                                            htmlFor={`stamp-kind-${kind}`}
-                                            className="text-sm font-normal"
-                                        >
-                                            {kind}
-                                        </Label>
+                            {stampTypes.map((kind) => {
+                                const display = stampDisplayMap[kind];
+                                return (
+                                    <div
+                                        key={kind}
+                                        className="flex items-center justify-between gap-2"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Checkbox
+                                                id={`stamp-kind-${kind}`}
+                                                checked={
+                                                    showAllKinds || selectedKinds.includes(kind)
+                                                }
+                                                disabled={showAllKinds}
+                                                onCheckedChange={() => handleToggleKind(kind)}
+                                            />
+                                            <Label
+                                                htmlFor={`stamp-kind-${kind}`}
+                                                className="text-sm font-normal"
+                                            >
+                                                <span
+                                                    className="
+                                                        inline-flex items-center gap-1
+                                                        rounded-xl pl-1 pr-2 py-1
+                                                        border border-slate-100
+                                                        shadow-sm
+                                                        text-slate-700
+                                                    "
+                                                    style={{
+                                                        backgroundColor:
+                                                            display?.bg ?? "#f9fafb",
+                                                    }}
+                                                >
+                                                    <span className="text-lg leading-none">
+                                                        {display?.icon ?? "🙂"}
+                                                    </span>
+                                                    <span className="text-xs font-medium">
+                                                        {kind}
+                                                    </span>
+                                                </span>
+                                            </Label>
+                                        </div>
+                                        <span className="text-xs text-muted-foreground">
+                                            {totalPerKind[kind] ?? 0}
+                                        </span>
                                     </div>
-                                    <span className="text-xs text-muted-foreground">
-                    {totalPerKind[kind] ?? 0}
-                  </span>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </CardContent>
                 </Card>
