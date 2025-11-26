@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft } from "lucide-react";
+import { ClassStampManagement } from "./ClassStampManagement";
 
 export function RoomList() {
     const { classId } = useParams();
@@ -44,10 +45,7 @@ export function RoomList() {
 
     // --- ヘルパー: 認証リダイレクトの簡易チェック ---
     const handleAuthRedirectIfNeeded = async (res) => {
-        // fetch がリダイレクトを自動で追わなかったり、401 が返るケースに対応
-        // セッション認証を想定している場合、未認証ならログインページへ遷移させる
         if (res.status === 401 || res.redirected) {
-            // OAuth2 のエンドポイント（バックエンド側の設定に合わせて必要なら修正）
             window.location.href = "/oauth2/authorization/microsoft";
             return true;
         }
@@ -59,9 +57,8 @@ export function RoomList() {
         setError(null);
         try {
             const res = await fetch(`/api/rooms/${encodeURIComponent(classId)}`, {
-                credentials: "include", // ← 追加: セッション cookie を送る
+                credentials: "include",
             });
-            // 認証リダイレクトが発生したらここで遷移する
             if (await handleAuthRedirectIfNeeded(res)) return;
             if (!res.ok) {
                 throw new Error(`ルーム一覧の取得に失敗しました: ${res.status}`);
@@ -97,22 +94,20 @@ export function RoomList() {
                 credentials: "include",
                 body: JSON.stringify({
                     classId: Number(classId),
-                    roomName: createRoomName.trim(), // RoomForm のフィールド名に合わせて変更してください
+                    roomName: createRoomName.trim(),
                 }),
             });
 
             if (!res.ok) {
                 const text = await res.text();
-                // バリデーションエラーなどは文字列で返ってくる想定
                 throw new Error(text || `ルーム作成に失敗しました: ${res.status}`);
             }
 
-            await res.json(); // created room を使わなくても一応 parse
+            await res.json();
 
             setCreateSuccess("ルームを作成しました");
             setCreateRoomName("");
             setOpenCreateDialog(false);
-            // 一覧を更新
             await fetchRooms();
         } catch (err) {
             console.error(err);
@@ -141,20 +136,22 @@ export function RoomList() {
             });
 
             if (res.status === 204) {
-                // 成功: ローカル state を更新して active = false にする
                 setRooms((prev) =>
-                    prev.map((r) => (r.roomId === selectedRoom.roomId ? { ...r, active: false } : r))
+                    prev.map((r) =>
+                        r.roomId === selectedRoom.roomId ? { ...r, active: false } : r
+                    )
                 );
                 setOpenCloseDialog(false);
                 setSelectedRoom(null);
             } else {
-                // エラーレスポンスを可能な限りパースして表示
                 let message = `ルームの終了に失敗しました: ${res.status}`;
                 try {
                     const contentType = res.headers.get("content-type") || "";
                     if (contentType.includes("application/json")) {
                         const body = await res.json();
-                        message = (body && (body.error || body.message || JSON.stringify(body))) || message;
+                        message =
+                            (body && (body.error || body.message || JSON.stringify(body))) ||
+                            message;
                     } else {
                         const txt = await res.text();
                         if (txt) message = txt;
@@ -186,15 +183,17 @@ export function RoomList() {
         setHideError(null);
 
         try {
-            const res = await fetch(`/api/rooms/${encodeURIComponent(hideSelectedRoom.roomId)}/delete`, {
-                method: "PATCH",
-                credentials: "include",
-            });
+            const res = await fetch(
+                `/api/rooms/${encodeURIComponent(hideSelectedRoom.roomId)}/delete`,
+                {
+                    method: "PATCH",
+                    credentials: "include",
+                }
+            );
 
             if (await handleAuthRedirectIfNeeded(res)) return;
 
             if (res.status === 204) {
-                // 成功: ローカル state から削除して一覧に表示しないようにする
                 setRooms((prev) => prev.filter((r) => r.roomId !== hideSelectedRoom.roomId));
                 setOpenHideDialog(false);
                 setHideSelectedRoom(null);
@@ -204,7 +203,9 @@ export function RoomList() {
                     const contentType = res.headers.get("content-type") || "";
                     if (contentType.includes("application/json")) {
                         const body = await res.json();
-                        message = (body && (body.error || body.message || JSON.stringify(body))) || message;
+                        message =
+                            (body && (body.error || body.message || JSON.stringify(body))) ||
+                            message;
                     } else {
                         const txt = await res.text();
                         if (txt) message = txt;
@@ -271,6 +272,9 @@ export function RoomList() {
                 </h2>
 
                 <div className="flex items-center gap-2">
+                    {/* スタンプ管理 */}
+                    <ClassStampManagement classId={classId} />
+
                     {/* ルーム新規作成ダイアログ */}
                     <Dialog
                         open={openCreateDialog}
@@ -365,7 +369,6 @@ export function RoomList() {
                             <CardContent className="flex items-center justify-between px-8 py-5">
                                 {/* 左側：アイコン + 情報 */}
                                 <div className="flex items-center gap-4">
-                                    {/* アイコン部分（ダミー） */}
                                     <div
                                         className={`flex h-10 w-10 items-center justify-center rounded-full text-xl ${
                                             r.active
@@ -382,19 +385,17 @@ export function RoomList() {
                                                 {r.roomName}
                                             </p>
 
-                                            {/* active が false のときだけ「終了」ラベル */}
                                             {!r.active && (
-                                                <>
-                                                    <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-500 border border-red-100">
-                                                        終了
-                                                    </span>
-                                                </>
+                                                <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-500 border border-red-100">
+                                                    終了
+                                                </span>
                                             )}
                                         </div>
 
                                         {r.createdAt && (
                                             <p className="mt-1 text-[11px] text-slate-400">
-                                                作成日時: {new Date(r.createdAt).toLocaleString("ja-JP")}
+                                                作成日時:{" "}
+                                                {new Date(r.createdAt).toLocaleString("ja-JP")}
                                             </p>
                                         )}
                                     </div>
@@ -412,7 +413,6 @@ export function RoomList() {
                                             }
                                             onClick={() => {
                                                 if (r.active) {
-                                                    // ★ active なルームだけ詳細ページに遷移
                                                     navigate(`/rooms/${r.roomId}`);
                                                 } else {
                                                     navigate(`/rooms/${r.roomId}/history`);
@@ -422,28 +422,35 @@ export function RoomList() {
                                             {r.active ? "入室" : "履歴"}
                                         </Button>
 
-                                        {/* 追加: 終了ボタン（active のときのみ表示） */}
-                                        {r.active ?
+                                        {r.active ? (
                                             <Button
                                                 size="sm"
                                                 variant="outline"
                                                 className="text-xs font-medium px-4"
                                                 onClick={() =>
-                                                    openCloseRoomDialog({ roomId: r.roomId, roomName: r.roomName })
+                                                    openCloseRoomDialog({
+                                                        roomId: r.roomId,
+                                                        roomName: r.roomName,
+                                                    })
                                                 }
                                             >
                                                 終了
                                             </Button>
-                                            :
+                                        ) : (
                                             <Button
                                                 size="sm"
                                                 variant="destructive"
                                                 className="text-xs font-medium px-4"
-                                                onClick={() => openHideRoomDialog({ roomId: r.roomId, roomName: r.roomName })}
+                                                onClick={() =>
+                                                    openHideRoomDialog({
+                                                        roomId: r.roomId,
+                                                        roomName: r.roomName,
+                                                    })
+                                                }
                                             >
                                                 削除
                                             </Button>
-                                        }
+                                        )}
                                     </div>
 
                                     <span
@@ -462,7 +469,7 @@ export function RoomList() {
                 </div>
             )}
 
-            {/* ルーム終了確認ダイアログ（共通） */}
+            {/* ルーム終了確認ダイアログ */}
             <Dialog
                 open={openCloseDialog}
                 onOpenChange={(open) => {
@@ -565,7 +572,6 @@ export function RoomList() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
         </section>
     );
 }
