@@ -17,25 +17,40 @@ function SimpleBarChart({ data }) {
             {data.map((d) => {
                 const ratio = (d.count || 0) / maxCount;
                 const widthPercent = `${ratio * 100}%`;
-                const barColor = d.color?.bg ?? d.color?.background ?? "#fb923c"; // tailwind orange-400 相当をフォールバック
+                const barColor = d.color?.bg ?? d.color?.background ?? "#fb923c";
                 const textColor = d.color?.fg ?? d.color?.text ?? "inherit";
 
+                const iconBg = d.color?.bg ?? "#fff";
+                const iconColor = d.color?.fg ?? "#000";
+
                 return (
-                    <div key={d.stampId ?? d.stampName} className="space-y-1">
-                        <div className="flex justify-between text-xs text-slate-600">
-                            <span className="flex items-center gap-1" style={{ color: textColor }}>
-                                <span>{d.icon}</span>
-                                <span>{d.stampName}</span>
-                            </span>
-                            <span>
-                                {d.count}回 / {(d.percentage ?? 0).toFixed(1)}%
+                    <div key={d.stampId ?? d.stampName} className="flex items-center gap-3">
+                        {/* アイコン + 名前 */}
+                        <div className="flex items-center gap-3 w-44">
+                            <div
+                                className="flex items-center justify-center h-10 w-10 rounded-full shrink-0"
+                                style={{ backgroundColor: iconBg, color: iconColor }}
+                            >
+                                <span className="text-lg leading-none">{d.icon}</span>
+                            </div>
+                            <span className="font-medium truncate" style={{ color: textColor }}>
+                                {d.stampName}
                             </span>
                         </div>
-                        <div className="h-5 w-full rounded-full bg-slate-100 overflow-hidden">
-                            <div
-                                className="h-full rounded-full"
-                                style={{ width: widthPercent, backgroundColor: barColor }}
-                            />
+
+                        {/* 棒グラフ */}
+                        <div className="flex-1">
+                            <div className="h-10 w-full rounded-full bg-slate-100 overflow-hidden">
+                                <div
+                                    className="h-full rounded-full"
+                                    style={{ width: widthPercent, backgroundColor: barColor }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* 数値 */}
+                        <div className="w-28 text-right text-slate-600">
+                            {d.count}回 / {(d.percentage ?? 0).toFixed(1)}%
                         </div>
                     </div>
                 );
@@ -131,7 +146,7 @@ export function RoomDetail({ userId, role }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [roomId, isTeacherView]);
 
-    //ポーリング
+    // ポーリング
     useEffect(() => {
         if (!isTeacherView) return; // 教員/管理者ビューのみポーリング
         const intervalMs = 5000; // 5秒ごと。必要に応じて変更してください（例: 10000 = 10秒）
@@ -242,9 +257,9 @@ export function RoomDetail({ userId, role }) {
                 </p>
             ) : (
                 <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
-                    <CardContent className="pt-4">
+                    <CardContent>
                         {/* STUDENT のとき: スタンプ送信ボタンのみ */}
-
+                        {!isTeacherView && (
                         <>
                             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                                 {stamps.map((s) => {
@@ -296,7 +311,7 @@ export function RoomDetail({ userId, role }) {
                                 スタンプは即時に送信されます。連打しすぎないように注意してください。
                             </p>
                         </>
-
+                        )}
 
                         {/* ADMIN / TEACHER のとき: スタンプ集計表示 */}
                         {isTeacherView && (
@@ -312,8 +327,8 @@ export function RoomDetail({ userId, role }) {
                                     </p>
                                 )}
                                 {!summaryLoading && !summaryError && summary && summary.length > 0 && (
-                                    <div className="mt-2">
-                                        <h3 className="text-sm font-semibold text-slate-700 mb-1">
+                                    <div>
+                                        <h3 className="text-lg font-medium">
                                             スタンプ送信状況（最新）
                                         </h3>
                                         <SimpleBarChart data={summary} />
@@ -321,23 +336,14 @@ export function RoomDetail({ userId, role }) {
                                 )}
                             </>
                         )}
-
-                        {/* 教員向けのメモ入力フォームを条件付きで表示 */}
-                        {isTeacherView && (
-                            <section style={{ marginTop: 16 }}>
-                                <h3 className="text-lg font-medium">授業メモ</h3>
-                                <NoteForm roomId={Number(roomId)} />
-                            </section>
-                        )}
-
                     </CardContent>
                 </Card>
             )}
 
-            {/* スタンプが無い場合でも、教員/管理者ならメモフォームを表示する（Card を分けて表示） */}
-            {isTeacherView && (!stamps || stamps.length === 0) && (
+            {/* 教員/管理者ならメモフォームを表示する */}
+            {isTeacherView && (
                 <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
-                    <CardContent className="pt-4">
+                    <CardContent>
                         <section>
                             <h3 className="text-lg font-medium">授業メモ</h3>
                             <NoteForm roomId={Number(roomId)} />
