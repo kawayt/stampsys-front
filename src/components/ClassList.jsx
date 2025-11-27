@@ -30,6 +30,11 @@ export function ClassList({ role }) {
     const [joinLoading, setJoinLoading] = useState(false);
     const [joinError, setJoinError] = useState(null);
 
+    // ★ 削除処理の状態
+    const [deleteLoadingId, setDeleteLoadingId] = useState(null);
+    const [deleteError, setDeleteError] = useState(null);
+    const [deleteTargetClass, setDeleteTargetClass] = useState(null);
+
     // role は prop で渡すが、未渡しのケースに備えてローカルにも保持する
     const [currentRole, setCurrentRole] = useState(role ?? null);
 
@@ -174,6 +179,43 @@ export function ClassList({ role }) {
         }
     };
 
+    // ★ クラス論理削除処理
+    const handleDeleteClass = async () => {
+        if (!deleteTargetClass) return;
+
+        setDeleteError(null);
+        setDeleteLoadingId(deleteTargetClass.classId);
+
+        try {
+            const res = await fetch(`/api/classes/${deleteTargetClass.classId}`, {
+                method: "DELETE",
+                credentials: "include",
+            });
+
+            if (!res.ok) {
+                let msg = `クラスの削除に失敗しました: ${res.status}`;
+                try {
+                    const text = await res.text();
+                    if (text) msg = text;
+                } catch {
+                    // ignore
+                }
+                throw new Error(msg);
+            }
+
+            // 成功したらローカル状態から削除
+            setClasses((prev) =>
+                prev.filter((c) => c.classId !== deleteTargetClass.classId)
+            );
+            setDeleteTargetClass(null);
+        } catch (err) {
+            console.error(err);
+            setDeleteError(err.message ?? "クラス削除時にエラーが発生しました");
+        } finally {
+            setDeleteLoadingId(null);
+        }
+    };
+
     if (loading) {
         return (
             <div className="py-8 text-sm text-slate-600">
@@ -196,6 +238,13 @@ export function ClassList({ role }) {
             {joinError && (
                 <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">
                     {joinError}
+                </div>
+            )}
+
+            {/* 削除時のエラーメッセージ */}
+            {deleteError && (
+                <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">
+                    {deleteError}
                 </div>
             )}
 
@@ -291,14 +340,67 @@ export function ClassList({ role }) {
                                     )}
                                 </div>
 
-                                <Button
-                                    variant="ghost"
-                                    className="text-xs font-medium text-orange-500 hover:text-orange-600 hover:bg-orange-50 px-0"
-                                    onClick={() => onJoinClass(c.classId)}
-                                    disabled={joinLoading}
-                                >
-                                    {joinLoading ? "参加中..." : "授業に参加 →"}
-                                </Button>
+                                <div className="flex flex-col items-end gap-2">
+                                    <Button
+                                        variant="ghost"
+                                        className="text-xs font-medium text-orange-500 hover:text-orange-600 hover:bg-orange-50 px-0"
+                                        onClick={() => onJoinClass(c.classId)}
+                                        disabled={joinLoading}
+                                    >
+                                        {joinLoading ? "参加中..." : "授業に参加 →"}
+                                    </Button>
+
+                                    {/* ★ 削除ボタン（教師・管理者のみ表示などの制御を入れてもOK） */}
+                                    <Dialog
+                                        open={deleteTargetClass?.classId === c.classId}
+                                        onOpenChange={(open) => {
+                                            if (open) {
+                                                setDeleteTargetClass(c);
+                                            } else {
+                                                setDeleteTargetClass(null);
+                                            }
+                                        }}
+                                    >
+                                        <DialogTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="text-[11px] text-red-600 border-red-200 hover:bg-red-50"
+                                                disabled={deleteLoadingId === c.classId}
+                                            >
+                                                {deleteLoadingId === c.classId ? "削除中..." : "クラスを削除"}
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="sm:max-w-md">
+                                            <DialogHeader>
+                                                <DialogTitle>このクラスを削除しますか？</DialogTitle>
+                                                <DialogDescription className="text-xs">
+                                                    「{c.className}」を削除します。この操作は取り消せません。
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <DialogFooter className="flex justify-end gap-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    className="text-xs"
+                                                    onClick={() => setDeleteTargetClass(null)}
+                                                    disabled={deleteLoadingId === c.classId}
+                                                >
+                                                    キャンセル
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    className="text-xs font-medium"
+                                                    onClick={handleDeleteClass}
+                                                    disabled={deleteLoadingId === c.classId}
+                                                >
+                                                    {deleteLoadingId === c.classId ? "削除中..." : "削除"}
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                </div>
                             </CardContent>
                         </Card>
                     ))}
