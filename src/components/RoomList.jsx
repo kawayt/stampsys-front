@@ -52,6 +52,10 @@ export function RoomList() {
     const [hideProcessing, setHideProcessing] = useState(false);
     const [hideError, setHideError] = useState(null);
 
+    // スタンプ管理 / ユーザー管理ダイアログの open state
+    const [openStampDialog, setOpenStampDialog] = useState(false);
+    const [openUserDialog, setOpenUserDialog] = useState(false);
+
     // --- ヘルパー: 認証リダイレクトの簡易チェック ---
     const handleAuthRedirectIfNeeded = async (res) => {
         if (res.status === 401 || res.redirected) {
@@ -347,11 +351,66 @@ export function RoomList() {
                         )}
                     </div>
 
-                    {/* スタンプ管理 */}
-                    <ClassStampManagement classId={classId} />
+                    {/* ★ スタンプ管理ダイアログ */}
+                    <Dialog
+                        open={openStampDialog}
+                        onOpenChange={(open) => setOpenStampDialog(open)}
+                    >
+                        <DialogTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className="text-xs font-medium"
+                            >
+                                スタンプ管理
+                            </Button>
+                        </DialogTrigger>
 
-                    {/* ユーザー管理 */}
-                    <ClassUserManagement classId={classId} />
+                        <DialogContent className="sm:max-w-2xl">
+                            <DialogHeader>
+                                <DialogTitle>クラスで使用するスタンプの管理</DialogTitle>
+                                <DialogDescription className="text-xs">
+                                    このクラスで使用するスタンプを追加・削除できます。
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            {/* 中身はコンポーネントに委譲 */}
+                            <ClassStampManagement
+                                classId={classId}
+                                open={openStampDialog}
+                            />
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* ★ ユーザー管理ダイアログ */}
+                    <Dialog
+                        open={openUserDialog}
+                        onOpenChange={(open) => {
+                            setOpenUserDialog(open);
+                        }}
+                    >
+                        <DialogTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className="text-xs font-medium"
+                            >
+                                ユーザー管理
+                            </Button>
+                        </DialogTrigger>
+
+                        <DialogContent className="sm:max-w-3xl">
+                            <DialogHeader>
+                                <DialogTitle>クラスに参加するユーザーの管理</DialogTitle>
+                                <DialogDescription className="text-xs">
+                                    このクラスに参加するユーザーを追加・削除できます。
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <ClassUserManagement
+                                classId={classId}
+                                open={openUserDialog}
+                            />
+                        </DialogContent>
+                    </Dialog>
 
                     {/* ルーム新規作成ダイアログ */}
                     <Dialog

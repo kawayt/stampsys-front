@@ -1,27 +1,14 @@
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogTrigger,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from "@/components/ui/dialog";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition";
 import { Trash2, Plus } from "lucide-react";
 
-export function ClassStampManagement({ classId }) {
-    const [assignedStamps, setAssignedStamps] = useState([]);     // クラスに紐づいているスタンプ
-    const [unassignedStamps, setUnassignedStamps] = useState([]); // クラスに紐づいていないスタンプ
+export function ClassStampManagement({ classId, open }) {
+    const [assignedStamps, setAssignedStamps] = useState([]);
+    const [unassignedStamps, setUnassignedStamps] = useState([]);
     const [stampLoading, setStampLoading] = useState(false);
     const [stampError, setStampError] = useState(null);
     const [stampProcessing, setStampProcessing] = useState(false);
 
-    // Dialog の開閉状態（開いたときに最新を取得したい場合に使う）
-    const [open, setOpen] = useState(false);
-
-    // 認証リダイレクトの簡易チェック
     const handleAuthRedirectIfNeeded = async (res) => {
         if (res.status === 401 || res.redirected) {
             window.location.href = "/oauth2/authorization/microsoft";
@@ -30,7 +17,6 @@ export function ClassStampManagement({ classId }) {
         return false;
     };
 
-    // クラスに紐づく / 紐づかないスタンプ一覧を取得
     const fetchStamps = async () => {
         if (!classId) return;
         setStampLoading(true);
@@ -65,7 +51,6 @@ export function ClassStampManagement({ classId }) {
         }
     };
 
-    // クラスにスタンプを割り当てる
     const handleAddStampToClass = async (stampId) => {
         if (!classId || !stampId) return;
         setStampProcessing(true);
@@ -100,7 +85,6 @@ export function ClassStampManagement({ classId }) {
         }
     };
 
-    // クラスからスタンプ割り当てを解除
     const handleRemoveStampFromClass = async (stampId) => {
         if (!classId || !stampId) return;
         setStampProcessing(true);
@@ -135,161 +119,138 @@ export function ClassStampManagement({ classId }) {
         }
     };
 
-    // classId が変わったら一度だけ読み込む
+    // 親(DIalog) から渡される `open` が true のときにだけ読み込む
     useEffect(() => {
-        if (open) {fetchStamps();}}, [classId, open]);
+        if (open) {
+            fetchStamps();
+        }
+    }, [classId, open]);
 
     return (
-        <Dialog
-            open={open}
-            onOpenChange={(next) => {
-                setOpen(next);
-                if (next) {
-                    fetchStamps();
-                }
-            }}
-        >
-            <DialogTrigger asChild>
-                <Button
-                    variant="outline"
-                    className="text-xs font-medium"
-                >
-                    スタンプ管理
-                </Button>
-            </DialogTrigger>
+        <div>
+            {stampError && (
+                <p className="mb-2 text-xs text-red-600">
+                    {stampError}
+                </p>
+            )}
 
-            <DialogContent className="sm:max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle>クラスで使用するスタンプの管理</DialogTitle>
-                    <DialogDescription className="text-xs">
-                        このクラスで使用するスタンプを追加・削除できます。
-                    </DialogDescription>
-                </DialogHeader>
+            {stampLoading ? (
+                <p className="text-xs text-slate-500">
+                    スタンプ情報を読み込み中...
+                </p>
+            ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                    {/* 使用中のスタンプ */}
+                    <div>
+                        <p className="mb-1 text-xs font-medium text-slate-600">
+                            使用中のスタンプ
+                        </p>
 
-                {stampError && (
-                    <p className="mb-2 text-xs text-red-600">
-                        {stampError}
-                    </p>
-                )}
-
-                {stampLoading ? (
-                    <p className="text-xs text-slate-500">
-                        スタンプ情報を読み込み中...
-                    </p>
-                ) : (
-                    <div className="grid gap-4 md:grid-cols-2">
-                        {/* クラスに追加済みのスタンプ */}
-                        <div>
-                            <p className="mb-1 text-xs font-medium text-slate-600">
-                                使用中のスタンプ
-                            </p>
-
-                            <div className="max-h-[400px] overflow-y-auto pr-1">
-                                {assignedStamps.length === 0 ? (
-                                    <p className="text-xs text-slate-400">
-                                        右列からスタンプを追加してください。
-                                    </p>
-                                ) : (
-                                    <ul className="space-y-1">
-                                        {assignedStamps.map((stamp) => {
-                                            if (!stamp) return null;
-                                            const color = getStampColorByCode(
-                                                Number(stamp.stampColor) || 0
-                                            );
-                                            const icon = getStampIconByCode(
-                                                Number(stamp.stampIcon) || 0
-                                            );
-                                            return (
-                                                <li
-                                                    key={stamp.stampId}
-                                                    className="flex items-center justify-between rounded-lg px-2 py-2"
-                                                    style={{ backgroundColor: color.bg }}
-                                                >
-                                                    <div className="flex items-center gap-2">
+                        <div className="max-h-[400px] overflow-y-auto pr-1">
+                            {assignedStamps.length === 0 ? (
+                                <p className="text-xs text-slate-400">
+                                    右列からスタンプを追加してください。
+                                </p>
+                            ) : (
+                                <ul className="space-y-1">
+                                    {assignedStamps.map((stamp) => {
+                                        if (!stamp) return null;
+                                        const color = getStampColorByCode(
+                                            Number(stamp.stampColor) || 0
+                                        );
+                                        const icon = getStampIconByCode(
+                                            Number(stamp.stampIcon) || 0
+                                        );
+                                        return (
+                                            <li
+                                                key={stamp.stampId}
+                                                className="flex items-center justify-between rounded-lg px-2 py-2"
+                                                style={{ backgroundColor: color.bg }}
+                                            >
+                                                <div className="flex items-center gap-2">
                                                     <span className="text-base">
                                                         {icon}
                                                     </span>
-                                                        <div className="flex flex-col">
+                                                    <div className="flex flex-col">
                                                         <span className="text-xs font-medium text-slate-800">
                                                             {stamp.stampName}
                                                         </span>
-                                                        </div>
                                                     </div>
-                                                    <button
-                                                        type="button"
-                                                        disabled={stampProcessing}
-                                                        onClick={() =>
-                                                            handleRemoveStampFromClass(stamp.stampId)
-                                                        }
-                                                        className="p-1 rounded-full bg-black/40 hover:bg-black/60 transition-colors disabled:opacity-50"
-                                                    >
-                                                        <Trash2 className="w-4 h-4 text-white" />
-                                                    </button>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* クラスに追加されていないスタンプ */}
-                        <div>
-                            <p className="mb-1 text-xs font-medium text-slate-600">
-                                追加できるスタンプ
-                            </p>
-
-                            <div className="max-h-[400px] overflow-y-auto pr-1">
-                                {unassignedStamps.length === 0 ? (
-                                    <p className="text-xs text-slate-400">
-                                        スタンプはありません。
-                                    </p>
-                                ) : (
-                                    <ul className="space-y-1">
-                                        {unassignedStamps.map((stamp) => {
-                                            if (!stamp) return null;
-                                            const color = getStampColorByCode(
-                                                Number(stamp.stampColor) || 0
-                                            );
-                                            const icon = getStampIconByCode(
-                                                Number(stamp.stampIcon) || 0
-                                            );
-                                            return (
-                                                <li
-                                                    key={stamp.stampId}
-                                                    className="flex items-center justify-between rounded-lg px-2 py-2"
-                                                    style={{ backgroundColor: color.bg }}
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    disabled={stampProcessing}
+                                                    onClick={() =>
+                                                        handleRemoveStampFromClass(stamp.stampId)
+                                                    }
+                                                    className="p-1 rounded-full bg-black/40 hover:bg-black/60 transition-colors disabled:opacity-50"
                                                 >
-                                                    <div className="flex items-center gap-2">
-                                                    <span className="text-base">
-                                                        {icon}
-                                                    </span>
-                                                        <div className="flex flex-col">
-                                                        <span className="text-xs font-medium text-slate-800">
-                                                            {stamp.stampName}
-                                                        </span>
-                                                        </div>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        disabled={stampProcessing}
-                                                        onClick={() =>
-                                                            handleAddStampToClass(stamp.stampId)
-                                                        }
-                                                        className="p-1 rounded-full bg-black/40 hover:bg-black/60 transition-colors disabled:opacity-50"
-                                                    >
-                                                        <Plus className="w-4 h-4 text-white" />
-                                                    </button>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                )}
-                            </div>
+                                                    <Trash2 className="w-4 h-4 text-white" />
+                                                </button>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
                         </div>
                     </div>
-                )}
-            </DialogContent>
-        </Dialog>
+
+                    {/* 追加できるスタンプ */}
+                    <div>
+                        <p className="mb-1 text-xs font-medium text-slate-600">
+                            追加できるスタンプ
+                        </p>
+
+                        <div className="max-h-[400px] overflow-y-auto pr-1">
+                            {unassignedStamps.length === 0 ? (
+                                <p className="text-xs text-slate-400">
+                                    スタンプはありません。
+                                </p>
+                            ) : (
+                                <ul className="space-y-1">
+                                    {unassignedStamps.map((stamp) => {
+                                        if (!stamp) return null;
+                                        const color = getStampColorByCode(
+                                            Number(stamp.stampColor) || 0
+                                        );
+                                        const icon = getStampIconByCode(
+                                            Number(stamp.stampIcon) || 0
+                                        );
+                                        return (
+                                            <li
+                                                key={stamp.stampId}
+                                                className="flex items-center justify-between rounded-lg px-2 py-2"
+                                                style={{ backgroundColor: color.bg }}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-base">
+                                                        {icon}
+                                                    </span>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-medium text-slate-800">
+                                                            {stamp.stampName}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    disabled={stampProcessing}
+                                                    onClick={() =>
+                                                        handleAddStampToClass(stamp.stampId)
+                                                    }
+                                                    className="p-1 rounded-full bg-black/40 hover:bg-black/60 transition-colors disabled:opacity-50"
+                                                >
+                                                    <Plus className="w-4 h-4 text-white" />
+                                                </button>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }
