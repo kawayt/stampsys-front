@@ -15,6 +15,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { ArrowLeft } from "lucide-react";
 import { ClassStampManagement } from "./ClassStampManagement";
+import { ClassUserManagement } from "./ClassUserManagement";
 
 export function RoomList() {
     const { classId } = useParams();
@@ -274,6 +275,9 @@ export function RoomList() {
                 <div className="flex items-center gap-2">
                     {/* スタンプ管理 */}
                     <ClassStampManagement classId={classId} />
+
+                    {/* ユーザー管理 */}
+                    <ClassUserManagement classId={classId} />
 
                     {/* ルーム新規作成ダイアログ */}
                     <Dialog
