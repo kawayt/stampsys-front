@@ -13,7 +13,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Search } from "lucide-react";
 import { ClassStampManagement } from "./ClassStampManagement";
 import { ClassUserManagement } from "./ClassUserManagement";
 
@@ -24,6 +24,9 @@ export function RoomList() {
     const [rooms, setRooms] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // search
+    const [searchQuery, setSearchQuery] = useState("");
 
     // counts state
     const [countsMap, setCountsMap] = useState({}); // { [roomId]: count }
@@ -271,6 +274,14 @@ export function RoomList() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [classId]);
 
+    // filter rooms by name (client side)
+    const filteredRooms = (rooms || []).filter((r) => {
+        if (!searchQuery || !searchQuery.trim()) return true;
+        const q = searchQuery.trim().toLowerCase();
+        const name = (r.roomName ?? r.name ?? r.roomName ?? "").toString().toLowerCase();
+        return name.includes(q);
+    });
+
     if (loading) {
         return <div className="py-8 text-sm text-slate-600">読み込み中...</div>;
     }
@@ -315,6 +326,27 @@ export function RoomList() {
                 </h2>
 
                 <div className="flex items-center gap-2">
+                    {/* search input */}
+                    <div className="flex items-center bg-slate-50 rounded-md px-2 py-1 mr-2">
+                        <Search className="w-4 h-4 text-slate-400 mr-2" />
+                        <Input
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="ルーム名で検索"
+                            className="text-sm bg-transparent border-0 px-0"
+                            aria-label="ルーム名で検索"
+                        />
+                        {searchQuery && (
+                            <button
+                                aria-label="検索クリア"
+                                onClick={() => setSearchQuery("")}
+                                className="text-slate-400 ml-2 text-xs"
+                            >
+                                クリア
+                            </button>
+                        )}
+                    </div>
+
                     {/* スタンプ管理 */}
                     <ClassStampManagement classId={classId} />
 
@@ -333,9 +365,7 @@ export function RoomList() {
                         }}
                     >
                         <DialogTrigger asChild>
-                            <Button className="text-xs font-medium">
-                                ルームを作成
-                            </Button>
+                            <Button className="text-xs font-medium">ルームを作成</Button>
                         </DialogTrigger>
 
                         <DialogContent className="sm:max-w-md">
@@ -363,14 +393,10 @@ export function RoomList() {
                                         className="text-sm"
                                     />
                                     {createError && (
-                                        <p className="text-[11px] text-red-600">
-                                            {createError}
-                                        </p>
+                                        <p className="text-[11px] text-red-600">{createError}</p>
                                     )}
                                     {createSuccess && (
-                                        <p className="text-[11px] text-emerald-600">
-                                            {createSuccess}
-                                        </p>
+                                        <p className="text-[11px] text-emerald-600">{createSuccess}</p>
                                     )}
                                 </div>
 
@@ -387,11 +413,7 @@ export function RoomList() {
                                     >
                                         キャンセル
                                     </Button>
-                                    <Button
-                                        type="submit"
-                                        disabled={creating}
-                                        className="text-xs font-medium"
-                                    >
+                                    <Button type="submit" disabled={creating} className="text-xs font-medium">
                                         {creating ? "作成中..." : "作成"}
                                     </Button>
                                 </DialogFooter>
@@ -401,13 +423,11 @@ export function RoomList() {
                 </div>
             </div>
 
-            {(!rooms || rooms.length === 0) ? (
-                <p className="text-sm text-slate-500">
-                    このクラスに紐づくルームは登録されていません。
-                </p>
+            {(!filteredRooms || filteredRooms.length === 0) ? (
+                <p className="text-sm text-slate-500">このクラスに紐づくルームは登録されていません。</p>
             ) : (
                 <div className="space-y-4">
-                    {rooms.map((r) => {
+                    {filteredRooms.map((r) => {
                         const roomKey = String(r.roomId ?? r.room_id ?? r.id ?? r.room ?? "");
                         const total = countsLoading ? "読み込み中…" : (countsMap[roomKey] ?? 0);
 
@@ -468,9 +488,14 @@ export function RoomList() {
                                                 }
                                                 onClick={() => {
                                                     if (r.active) {
+                                                        // pass roomName as query for easier history search
                                                         navigate(`/rooms/${r.roomId}`);
                                                     } else {
-                                                        navigate(`/rooms/${r.roomId}/history`);
+                                                        navigate(
+                                                            `/rooms/${r.roomId}/history?q=${encodeURIComponent(
+                                                                r.roomName ?? ""
+                                                            )}`
+                                                        );
                                                     }
                                                 }}
                                             >
