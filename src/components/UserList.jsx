@@ -23,9 +23,40 @@ import {
 import { restoreHiddenUser } from '@/api/user.js';
 
 /**
- * シンプルなトーストコンポーネント（このファイル内に定義）
- * - クリックで閉じる
- * - autoHideMs が指定されていれば自動で閉じる（null または 0 なら自動閉じしない）
+ * Campus badge / icon
+ * - email containing '@ngo' (case-insensitive) => 名古屋 (N)
+ * - otherwise => 津 (T)
+ */
+function CampusBadge({ email, size = 18 }) {
+    const e = (email || '').toLowerCase();
+    const isNagoya = e.includes('@ngo');
+    const label = isNagoya ? '名古屋' : '津';
+    const bg = isNagoya ? '#2563EB' : '#10B981'; // blue / green
+    const fg = '#fff';
+
+    const style = {
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: size,
+        height: size,
+        borderRadius: '9999px',
+        background: bg,
+        color: fg,
+        fontSize: Math.max(10, Math.floor(size / 2.2)),
+        fontWeight: 700,
+        lineHeight: 1,
+    };
+
+    return (
+        <span title={label} aria-label={label} style={style}>
+      {isNagoya ? 'N' : 'T'}
+    </span>
+    );
+}
+
+/**
+ * Simple toast
  */
 function Toast({ open, message, onClose, autoHideMs = 5000 }) {
     useEffect(() => {
@@ -46,7 +77,7 @@ function Toast({ open, message, onClose, autoHideMs = 5000 }) {
                 right: 20,
                 bottom: 24,
                 zIndex: 9999,
-                background: 'rgba(17,24,39,0.95)', // 暗めの背景
+                background: 'rgba(17,24,39,0.95)',
                 color: '#fff',
                 padding: '12px 16px',
                 borderRadius: 8,
@@ -80,21 +111,21 @@ function RoleIcon({ role, className = 'h-4 w-4', ariaHidden = true }) {
     const r = (role || '').toUpperCase();
     if (r === 'ADMIN') {
         return (
-            <svg xmlns="http://www.w3.org/2000/svg" className={className + ' text-red-600'} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden={ariaHidden}>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`${className} text-red-600`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden={ariaHidden}>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 2l8 4v6c0 5-3.9 9.4-8 10-4.1-.6-8-5-8-10V6l8-4z" />
             </svg>
         );
     }
     if (r === 'TEACHER') {
         return (
-            <svg xmlns="http://www.w3.org/2000/svg" className={className + ' text-blue-600'} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden={ariaHidden}>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`${className} text-blue-600`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden={ariaHidden}>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 14l9-5-9-5-9 5 9 5z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 14v7" />
             </svg>
         );
     }
     return (
-        <svg xmlns="http://www.w3.org/2000/svg" className={className + ' text-green-600'} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden={ariaHidden}>
+        <svg xmlns="http://www.w3.org/2000/svg" className={`${className} text-green-600`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden={ariaHidden}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A9 9 0 0112 15a9 9 0 016.879 2.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
     );
@@ -178,7 +209,12 @@ function UserList() {
     const [hideToggleLoading, setHideToggleLoading] = useState(false);
     const [hideToggleError, setHideToggleError] = useState(null);
 
-    // トースト用 state（成功通知はトーストで表示する）
+    // 成功ダイアログ（削除/再表示/復元 完了）
+    const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+    const [successDialogMessage, setSuccessDialogMessage] = useState('');
+    const [pendingSuccessMessage, setPendingSuccessMessage] = useState('');
+
+    // トースト
     const [toastOpen, setToastOpen] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
 
@@ -199,6 +235,20 @@ function UserList() {
         if (typeof body === 'string' && body.length > 0) throw new Error(body);
         throw new Error('サーバーエラーが発生しました');
     };
+
+    // If confirm dialogs closed and there is a pending success message, show it
+    useEffect(() => {
+        if (!deleteDialogOpen && !restoreDialogOpen && pendingSuccessMessage) {
+            const delayMs = 180;
+            const t = setTimeout(() => {
+                setSuccessDialogMessage(pendingSuccessMessage);
+                setPendingSuccessMessage('');
+                setSuccessDialogOpen(true);
+            }, delayMs);
+            return () => clearTimeout(t);
+        }
+        return undefined;
+    }, [deleteDialogOpen, restoreDialogOpen, pendingSuccessMessage]);
 
     const focusCard = (index) => {
         const el = cardRefs.current && cardRefs.current[index];
@@ -365,9 +415,8 @@ function UserList() {
             return;
         }
 
-        // 操作対象の表示名を先に保持しておく
         const targetName = deleteTargetUser.userName ?? deleteTargetUser.name ?? deleteTargetUser.fullName ?? String(userId);
-        const willHide = !deleteTargetUser.hidden; // true: 今から非表示（削除）する、false: 今から再表示する
+        const willHide = !deleteTargetUser.hidden;
 
         setHideToggleLoading(true);
         try {
@@ -382,10 +431,8 @@ function UserList() {
             await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
 
-            // トースト表示：確認ダイアログを閉じてから少し遅延してトーストを開く
             const msg = willHide ? `${targetName} の削除が完了しました` : `${targetName} の再表示が完了しました`;
             setDeleteDialogOpen(false);
-            // 短い遅延（モーダルの閉じトランジションと被らない程度）
             setTimeout(() => {
                 setToastMessage(msg);
                 setToastOpen(true);
@@ -397,7 +444,6 @@ function UserList() {
         }
     };
 
-    // 復元実行
     const performRestore = async () => {
         if (!restoreDialogUser) return;
         setRestoreError(null);
@@ -416,9 +462,7 @@ function UserList() {
             return;
         }
 
-        // 操作対象の表示名を先に保持
         const targetName = restoreDialogUser.userName ?? restoreDialogUser.name ?? restoreDialogUser.fullName ?? idStr;
-
         setRestoringId(idStr);
         try {
             if (typeof restoreHiddenUser === 'function') {
@@ -442,7 +486,6 @@ function UserList() {
             await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
 
-            // トースト表示：復元ダイアログを閉じて少し遅延してトーストを開く
             const msg = `${targetName} の復元が完了しました`;
             setRestoreDialogOpen(false);
             setTimeout(() => {
@@ -567,13 +610,18 @@ function UserList() {
                                                                 const isPlaceholder = /^hidden-\d+$/i.test(uid);
                                                                 return (
                                                                     <tr key={uid} className="border-t" tabIndex={0}>
-                                                                        <td className="py-2 px-3 align-top">{name}</td>
+                                                                        <td className="py-2 px-3 align-top">
+                                                                            <div className="flex items-center gap-3">
+                                                                                <CampusBadge email={u?.email} />
+                                                                                <span>{name}</span>
+                                                                            </div>
+                                                                        </td>
                                                                         <td className="py-2 px-3 align-top">{u?.email ?? ''}</td>
                                                                         <td className="py-2 px-3 align-top">
-                                        <span className="whitespace-nowrap flex items-center gap-2">
-                                          <RoleIcon role={u?.role} className="h-4 w-4" />
-                                            {roleLabel(u?.role)}
-                                        </span>
+                                                                            <span className="whitespace-nowrap flex items-center gap-2">
+                                                                                <RoleIcon role={u?.role} className="h-4 w-4" />
+                                                                                {roleLabel(u?.role)}
+                                                                            </span>
                                                                         </td>
                                                                         <td className="py-2 px-3 align-top">{created ? new Date(created).toLocaleString('ja-JP') : ''}</td>
                                                                         <td className="py-2 px-3 align-top">
@@ -687,6 +735,31 @@ function UserList() {
                         </DialogContent>
                     </Dialog>
 
+                    {/* 成功ダイアログ */}
+                    <Dialog
+                        open={successDialogOpen}
+                        onOpenChange={(v) => {
+                            if (!v) {
+                                setSuccessDialogOpen(false);
+                                setSuccessDialogMessage('');
+                                setDeleteTargetUser(null);
+                                setRestoreDialogUser(null);
+                            }
+                        }}
+                    >
+                        <DialogContent className="sm:max-w-sm">
+                            <DialogHeader>
+                                <DialogTitle>操作が完了しました</DialogTitle>
+                                <DialogDescription>
+                                    {successDialogMessage || '操作が完了しました'}
+                                </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter className="flex justify-end gap-2 mt-4">
+                                <Button onClick={() => setSuccessDialogOpen(false)}>閉じる</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
                     <form onSubmit={handleSearch} className="search-form flex flex-wrap gap-2 items-center mb-4" aria-labelledby="userlist-heading">
                         <label htmlFor="search-input" className="sr-only">名前またはメールアドレスで検索</label>
                         <Input id="search-input" type="text" placeholder="名前またはメールアドレスで検索" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="search-input max-w-xs" aria-label="名前またはメールアドレスで検索" />
@@ -715,7 +788,12 @@ function UserList() {
                                         const created = user?.createdAt ?? user?.created_at ?? '';
                                         return (
                                             <TableRow key={uid} tabIndex={0}>
-                                                <TableCell>{name}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-3">
+                                                        <CampusBadge email={user?.email} />
+                                                        <span>{name}</span>
+                                                    </div>
+                                                </TableCell>
                                                 <TableCell>{user?.email ?? ''}</TableCell>
                                                 <TableCell>
                                                     {isAdmin ? (
@@ -787,7 +865,7 @@ function UserList() {
                 </CardContent>
             </Card>
 
-            {/* トーストをルート直下にレンダー */}
+            {/* トースト */}
             <Toast open={toastOpen} message={toastMessage} onClose={() => setToastOpen(false)} autoHideMs={5000} />
         </div>
     );
