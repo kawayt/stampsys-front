@@ -25,6 +25,11 @@ export function RoomList() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // counts state
+    const [countsMap, setCountsMap] = useState({}); // { [roomId]: count }
+    const [countsLoading, setCountsLoading] = useState(true);
+    const [countsError, setCountsError] = useState(null);
+
     // ルーム作成用 state
     const [creating, setCreating] = useState(false);
     const [createRoomName, setCreateRoomName] = useState("");
@@ -74,6 +79,36 @@ export function RoomList() {
         }
     };
 
+    const fetchCounts = async () => {
+        setCountsLoading(true);
+        setCountsError(null);
+        try {
+            const res = await fetch(`/api/classes/${encodeURIComponent(classId)}/rooms/stamp-counts`, {
+                credentials: "include",
+            });
+            if (await handleAuthRedirectIfNeeded(res)) return;
+            if (!res.ok) {
+                const text = await res.text().catch(() => "");
+                throw new Error(text || `stamp-counts の取得に失敗しました: ${res.status}`);
+            }
+            const arr = await res.json();
+            // build map
+            const map = {};
+            (arr || []).forEach((it) => {
+                const id = it.roomId ?? it.room_id ?? it.room ?? it.id;
+                const cnt = it.count ?? it.cnt ?? it.counts ?? 0;
+                if (id != null) map[String(id)] = Number(cnt);
+            });
+            setCountsMap(map);
+        } catch (err) {
+            console.error("fetchCounts error:", err);
+            setCountsError(err.message ?? "合計スタンプ取得時にエラーが発生しました");
+            setCountsMap({});
+        } finally {
+            setCountsLoading(false);
+        }
+    };
+
     // ルーム作成関数
     const handleCreateRoom = async (e) => {
         e.preventDefault();
@@ -110,6 +145,7 @@ export function RoomList() {
             setCreateRoomName("");
             setOpenCreateDialog(false);
             await fetchRooms();
+            await fetchCounts();
         } catch (err) {
             console.error(err);
             setCreateError(err.message ?? "ルーム作成時にエラーが発生しました");
@@ -144,6 +180,8 @@ export function RoomList() {
                 );
                 setOpenCloseDialog(false);
                 setSelectedRoom(null);
+                // refresh counts because active state change may affect UI
+                await fetchCounts();
             } else {
                 let message = `ルームの終了に失敗しました: ${res.status}`;
                 try {
@@ -198,6 +236,8 @@ export function RoomList() {
                 setRooms((prev) => prev.filter((r) => r.roomId !== hideSelectedRoom.roomId));
                 setOpenHideDialog(false);
                 setHideSelectedRoom(null);
+                // refresh counts because rooms list changed
+                await fetchCounts();
             } else {
                 let message = `ルームの削除（非表示）に失敗しました: ${res.status}`;
                 try {
@@ -225,7 +265,9 @@ export function RoomList() {
     };
 
     useEffect(() => {
+        // load both rooms and counts when classId changes
         fetchRooms();
+        fetchCounts();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [classId]);
 
@@ -365,111 +407,121 @@ export function RoomList() {
                 </p>
             ) : (
                 <div className="space-y-4">
-                    {rooms.map((r) => (
-                        <Card
-                            key={r.roomId}
-                            className="rounded-3xl border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] bg-white/95"
-                        >
-                            <CardContent className="flex items-center justify-between px-8 py-5">
-                                {/* 左側：アイコン + 情報 */}
-                                <div className="flex items-center gap-4">
-                                    <div
-                                        className={`flex h-10 w-10 items-center justify-center rounded-full text-xl ${
-                                            r.active
-                                                ? "bg-orange-100 text-orange-500"
-                                                : "bg-slate-100 text-slate-400"
-                                        }`}
-                                    >
-                                        ⌂
+                    {rooms.map((r) => {
+                        const roomKey = String(r.roomId ?? r.room_id ?? r.id ?? r.room ?? "");
+                        const total = countsLoading ? "読み込み中…" : (countsMap[roomKey] ?? 0);
+
+                        return (
+                            <Card
+                                key={r.roomId}
+                                className="rounded-3xl border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] bg-white/95"
+                            >
+                                <CardContent className="flex items-center justify-between px-8 py-5">
+                                    {/* 左側：アイコン + 情報 */}
+                                    <div className="flex items-center gap-4">
+                                        <div
+                                            className={`flex h-10 w-10 items-center justify-center rounded-full text-xl ${
+                                                r.active
+                                                    ? "bg-orange-100 text-orange-500"
+                                                    : "bg-slate-100 text-slate-400"
+                                            }`}
+                                        >
+                                            ⌂
+                                        </div>
+
+                                        <div className="text-left">
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-sm font-medium text-slate-800">
+                                                    {r.roomName}
+                                                </p>
+
+                                                {!r.active && (
+                                                    <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-500 border border-red-100">
+                                                        終了
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {r.createdAt && (
+                                                <p className="mt-1 text-[11px] text-slate-400">
+                                                    作成日時:{" "}
+                                                    {new Date(r.createdAt).toLocaleString("ja-JP")}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
 
-                                    <div className="text-left">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-sm font-medium text-slate-800">
-                                                {r.roomName}
-                                            </p>
+                                    {/* 右側：ボタン／合計スタンプ／矢印 */}
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-right mr-4">
+                                            <div className="text-sm text-slate-500">合計スタンプ</div>
+                                            <div className="text-2xl font-bold">{total}</div>
+                                        </div>
 
-                                            {!r.active && (
-                                                <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-500 border border-red-100">
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                size="sm"
+                                                className={
+                                                    r.active
+                                                        ? "text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white px-4"
+                                                        : "text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 px-4"
+                                                }
+                                                onClick={() => {
+                                                    if (r.active) {
+                                                        navigate(`/rooms/${r.roomId}`);
+                                                    } else {
+                                                        navigate(`/rooms/${r.roomId}/history`);
+                                                    }
+                                                }}
+                                            >
+                                                {r.active ? "入室" : "履歴"}
+                                            </Button>
+
+                                            {r.active ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="text-xs font-medium px-4"
+                                                    onClick={() =>
+                                                        openCloseRoomDialog({
+                                                            roomId: r.roomId,
+                                                            roomName: r.roomName,
+                                                        })
+                                                    }
+                                                >
                                                     終了
-                                                </span>
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    size="sm"
+                                                    variant="destructive"
+                                                    className="text-xs font-medium px-4"
+                                                    onClick={() =>
+                                                        openHideRoomDialog({
+                                                            roomId: r.roomId,
+                                                            roomName: r.roomName,
+                                                        })
+                                                    }
+                                                >
+                                                    削除
+                                                </Button>
                                             )}
                                         </div>
 
-                                        {r.createdAt && (
-                                            <p className="mt-1 text-[11px] text-slate-400">
-                                                作成日時:{" "}
-                                                {new Date(r.createdAt).toLocaleString("ja-JP")}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* 右側：ボタン／矢印 */}
-                                <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            size="sm"
+                                        <span
                                             className={
                                                 r.active
-                                                    ? "text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white px-4"
-                                                    : "text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 px-4"
+                                                    ? "text-orange-400 text-lg"
+                                                    : "text-slate-300 text-lg"
                                             }
-                                            onClick={() => {
-                                                if (r.active) {
-                                                    navigate(`/rooms/${r.roomId}`);
-                                                } else {
-                                                    navigate(`/rooms/${r.roomId}/history`);
-                                                }
-                                            }}
                                         >
-                                            {r.active ? "入室" : "履歴"}
-                                        </Button>
-
-                                        {r.active ? (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="text-xs font-medium px-4"
-                                                onClick={() =>
-                                                    openCloseRoomDialog({
-                                                        roomId: r.roomId,
-                                                        roomName: r.roomName,
-                                                    })
-                                                }
-                                            >
-                                                終了
-                                            </Button>
-                                        ) : (
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                className="text-xs font-medium px-4"
-                                                onClick={() =>
-                                                    openHideRoomDialog({
-                                                        roomId: r.roomId,
-                                                        roomName: r.roomName,
-                                                    })
-                                                }
-                                            >
-                                                削除
-                                            </Button>
-                                        )}
+                                            →
+                                        </span>
                                     </div>
-
-                                    <span
-                                        className={
-                                            r.active
-                                                ? "text-orange-400 text-lg"
-                                                : "text-slate-300 text-lg"
-                                        }
-                                    >
-                                        →
-                                    </span>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
                 </div>
             )}
 
