@@ -181,7 +181,7 @@ export function ClassUserManagement({ classId }) {
                 <DialogHeader>
                     <DialogTitle>クラスに参加するユーザーの管理</DialogTitle>
                     <DialogDescription className="text-xs">
-                        このクラスに参加させるユーザーを追加・削除できます。
+                        このクラスに参加するユーザーを追加・削除できます。
                     </DialogDescription>
                 </DialogHeader>
 
@@ -204,7 +204,7 @@ export function ClassUserManagement({ classId }) {
                             </p>
                             {usersInClass.length === 0 ? (
                                 <p className="text-xs text-slate-400">
-                                    このクラスに参加しているユーザーはいません。
+                                    右列からユーザーを追加してください。
                                 </p>
                             ) : (
                                 <ul className="space-y-1 max-h-[400px] overflow-auto pr-1">
@@ -233,11 +233,11 @@ export function ClassUserManagement({ classId }) {
                         {/* クラスに未追加ユーザー */}
                         <div>
                             <p className="mb-1 text-xs font-medium text-slate-600">
-                                まだクラスに参加していないユーザー
+                                追加できるユーザー
                             </p>
                             {usersNotInClass.length === 0 ? (
                                 <p className="text-xs text-slate-400">
-                                    追加可能なユーザーはありません。
+                                    ユーザーはありません。
                                 </p>
                             ) : (
                                 <ul className="space-y-1 max-h-[400px] overflow-auto pr-1">

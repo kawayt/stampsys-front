@@ -150,7 +150,10 @@ export function ClassStampManagement({ classId }) {
             }}
         >
             <DialogTrigger asChild>
-                <Button className="text-xs font-medium">
+                <Button
+                    variant="outline"
+                    className="text-xs font-medium"
+                >
                     スタンプ管理
                 </Button>
             </DialogTrigger>
