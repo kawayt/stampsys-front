@@ -9,6 +9,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
+import { Trash2, Plus } from "lucide-react";
 
 /**
  * クラスに参加するユーザーの追加・削除を行う管理コンポーネント
@@ -199,31 +200,30 @@ export function ClassUserManagement({ classId }) {
                         {/* クラスに追加済みユーザー */}
                         <div>
                             <p className="mb-1 text-xs font-medium text-slate-600">
-                                クラスに参加しているユーザー
+                                参加中のユーザー
                             </p>
                             {usersInClass.length === 0 ? (
                                 <p className="text-xs text-slate-400">
                                     このクラスに参加しているユーザーはいません。
                                 </p>
                             ) : (
-                                <ul className="space-y-1 max-h-72 overflow-auto pr-1">
+                                <ul className="space-y-1 max-h-[400px] overflow-auto pr-1">
                                     {usersInClass.map((u) => (
                                         <li
                                             key={u.userId}
-                                            className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-1"
+                                            className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-2"
                                         >
                                             <div className="flex-1 pr-2 text-xs text-slate-800 truncate">
                                                 {renderUserLabel(u)}
                                             </div>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="text-[11px] px-2"
+                                            <button
+                                                type="button"
                                                 disabled={processing}
                                                 onClick={() => handleRemoveUser(u.userId)}
+                                                className="p-1 rounded-full bg-black/40 hover:bg-black/60 transition-colors disabled:opacity-50"
                                             >
-                                                削除
-                                            </Button>
+                                                <Trash2 className="w-4 h-4 text-white" />
+                                            </button>
                                         </li>
                                     ))}
                                 </ul>
@@ -240,23 +240,23 @@ export function ClassUserManagement({ classId }) {
                                     追加可能なユーザーはありません。
                                 </p>
                             ) : (
-                                <ul className="space-y-1 max-h-72 overflow-auto pr-1">
+                                <ul className="space-y-1 max-h-[400px] overflow-auto pr-1">
                                     {usersNotInClass.map((u) => (
                                         <li
                                             key={u.userId}
-                                            className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-1"
+                                            className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-2"
                                         >
                                             <div className="flex-1 pr-2 text-xs text-slate-800 truncate">
                                                 {renderUserLabel(u)}
                                             </div>
-                                            <Button
-                                                size="sm"
-                                                className="text-[11px] px-2"
+                                            <button
+                                                type="button"
                                                 disabled={processing}
                                                 onClick={() => handleAddUser(u.userId)}
+                                                className="p-1 rounded-full bg-black/40 hover:bg-black/60 transition-colors disabled:opacity-50"
                                             >
-                                                追加
-                                            </Button>
+                                                <Plus className="w-4 h-4 text-white" />
+                                            </button>
                                         </li>
                                     ))}
                                 </ul>
