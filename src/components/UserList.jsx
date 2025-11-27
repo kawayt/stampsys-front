@@ -22,6 +22,47 @@ import {
 } from '@/components/ui/dialog';
 import { restoreHiddenUser } from '@/api/user.js';
 
+/**
+ * シンプルなトーストコンポーネント（このファイル内に定義）
+ * - クリックで閉じる
+ * - autoHideMs が指定されていれば自動で閉じる（null または 0 なら自動閉じしない）
+ */
+function Toast({ open, message, onClose, autoHideMs = 5000 }) {
+    useEffect(() => {
+        if (!open) return undefined;
+        if (!autoHideMs) return undefined;
+        const t = setTimeout(() => onClose(), autoHideMs);
+        return () => clearTimeout(t);
+    }, [open, autoHideMs, onClose]);
+
+    if (!open) return null;
+    return (
+        <div
+            role="status"
+            aria-live="polite"
+            onClick={onClose}
+            style={{
+                position: 'fixed',
+                right: 20,
+                bottom: 24,
+                zIndex: 9999,
+                background: 'rgba(17,24,39,0.95)', // 暗めの背景
+                color: '#fff',
+                padding: '12px 16px',
+                borderRadius: 8,
+                boxShadow: '0 6px 24px rgba(0,0,0,0.15)',
+                cursor: 'pointer',
+                maxWidth: '360px',
+                pointerEvents: 'auto',
+            }}
+        >
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>操作が完了しました</div>
+            <div style={{ fontSize: 13, opacity: 0.95 }}>{message}</div>
+            <div style={{ fontSize: 11, opacity: 0.75, marginTop: 8 }}>クリックで閉じる</div>
+        </div>
+    );
+}
+
 const ROLE_ORDER = ['ADMIN', 'TEACHER', 'STUDENT'];
 const CARD_ROLES = ['ADMIN', 'TEACHER', 'STUDENT'];
 
@@ -136,6 +177,10 @@ function UserList() {
     const [deleteTargetUser, setDeleteTargetUser] = useState(null);
     const [hideToggleLoading, setHideToggleLoading] = useState(false);
     const [hideToggleError, setHideToggleError] = useState(null);
+
+    // トースト用 state（成功通知はトーストで表示する）
+    const [toastOpen, setToastOpen] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
 
     const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
     const fetchWithCreds = (url, options = {}) => {
@@ -319,6 +364,11 @@ function UserList() {
             setHideToggleError('ユーザーIDが取得できません');
             return;
         }
+
+        // 操作対象の表示名を先に保持しておく
+        const targetName = deleteTargetUser.userName ?? deleteTargetUser.name ?? deleteTargetUser.fullName ?? String(userId);
+        const willHide = !deleteTargetUser.hidden; // true: 今から非表示（削除）する、false: 今から再表示する
+
         setHideToggleLoading(true);
         try {
             const newHidden = !deleteTargetUser.hidden;
@@ -331,8 +381,15 @@ function UserList() {
             await res.json().catch(() => null);
             await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
+
+            // トースト表示：確認ダイアログを閉じてから少し遅延してトーストを開く
+            const msg = willHide ? `${targetName} の削除が完了しました` : `${targetName} の再表示が完了しました`;
             setDeleteDialogOpen(false);
-            setDeleteTargetUser(null);
+            // 短い遅延（モーダルの閉じトランジションと被らない程度）
+            setTimeout(() => {
+                setToastMessage(msg);
+                setToastOpen(true);
+            }, 180);
         } catch (err) {
             setHideToggleError(err.message || String(err));
         } finally {
@@ -358,6 +415,10 @@ function UserList() {
             setRestoreError('管理者権限が必要です');
             return;
         }
+
+        // 操作対象の表示名を先に保持
+        const targetName = restoreDialogUser.userName ?? restoreDialogUser.name ?? restoreDialogUser.fullName ?? idStr;
+
         setRestoringId(idStr);
         try {
             if (typeof restoreHiddenUser === 'function') {
@@ -380,8 +441,14 @@ function UserList() {
             setHiddenUsers(prev => prev.filter(u => String(u?.userId ?? u?.id ?? u?.user_id) !== idStr));
             await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
+
+            // トースト表示：復元ダイアログを閉じて少し遅延してトーストを開く
+            const msg = `${targetName} の復元が完了しました`;
             setRestoreDialogOpen(false);
-            setRestoreDialogUser(null);
+            setTimeout(() => {
+                setToastMessage(msg);
+                setToastOpen(true);
+            }, 180);
         } catch (err) {
             setRestoreError(err.message || String(err));
         } finally {
@@ -544,14 +611,20 @@ function UserList() {
                     )}
 
                     {/* 復元確認ダイアログ */}
-                    <Dialog open={restoreDialogOpen} onOpenChange={(v) => { if (!v) { setRestoreDialogOpen(false); setRestoreDialogUser(null); setRestoreError(null); } }}>
+                    <Dialog open={restoreDialogOpen} onOpenChange={(v) => {
+                        if (!v) {
+                            setRestoreDialogOpen(false);
+                            setRestoreDialogUser(null);
+                            setRestoreError(null);
+                        }
+                    }}>
                         <DialogContent className="sm:max-w-md">
                             <DialogHeader>
                                 <DialogTitle>ユーザーを復元</DialogTitle>
                                 <DialogDescription>
                                     {restoreDialogUser
                                         ? `${restoreDialogUser.userName ?? restoreDialogUser.name ?? restoreDialogUser.fullName ?? ''} を表示状態に戻しますか？`
-                                        : '選択されたユーザーを表示状態に戻しますか？'}
+                                        : ''}
                                 </DialogDescription>
                             </DialogHeader>
                             {restoreError && <div className="text-sm text-red-600 mb-2">{restoreError}</div>}
@@ -581,7 +654,7 @@ function UserList() {
                                 <DialogDescription>
                                     {deleteTargetUser
                                         ? `${deleteTargetUser.userName ?? deleteTargetUser.name ?? ''} を${deleteTargetUser.hidden ? '再表示しますか？' : '非表示にしますか？'}`
-                                        : '対象ユーザーが選択されていません'}
+                                        : ''}
                                 </DialogDescription>
                             </DialogHeader>
                             {hideToggleError && (
@@ -713,6 +786,9 @@ function UserList() {
                     <div className="user-count mt-4 text-right" aria-live="polite">表示: {processedUsers.length} / 全体: {totalElements} 人</div>
                 </CardContent>
             </Card>
+
+            {/* トーストをルート直下にレンダー */}
+            <Toast open={toastOpen} message={toastMessage} onClose={() => setToastOpen(false)} autoHideMs={5000} />
         </div>
     );
 }
