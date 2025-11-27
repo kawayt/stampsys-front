@@ -104,6 +104,7 @@ function RoomHistory() {
     const navigate = useNavigate();
 
     const [interval, setInterval] = useState("5 minutes");
+    const [activeTab, setActiveTab] = useState("graph"); // 'graph' | 'logs'
     const [start, setStart] = useState(""); // datetime-local
     const [end, setEnd] = useState("");
 
@@ -116,7 +117,6 @@ function RoomHistory() {
     const [selectedKinds, setSelectedKinds] = useState([]); // ["Good","Great",...]
 
     // 生ログ用 state
-    const [showRawLogs, setShowRawLogs] = useState(false);
     const [logs, setLogs] = useState([]);
     const [logsLoading, setLogsLoading] = useState(false);
     const [logsError, setLogsError] = useState("");
@@ -126,6 +126,7 @@ function RoomHistory() {
     // roomId が変わったら状態リセット
     useEffect(() => {
         setInterval("5 minutes");
+        setActiveTab("graph");
         setStart("");
         setEnd("");
         setShowAllKinds(true);
@@ -133,7 +134,6 @@ function RoomHistory() {
         setSelectedKinds([]);
         setData(null);
         setError("");
-        setShowRawLogs(false);
         setLogs([]);
         setLogsError("");
         setLogsLoading(false);
@@ -193,6 +193,7 @@ function RoomHistory() {
 
     const handleResetSelection = () => {
         setInterval("5 minutes");
+        setActiveTab("graph");
         setShowAllKinds(true);
         setShowTotal(false);
 
@@ -361,11 +362,11 @@ function RoomHistory() {
         }
     };
 
-    // 生ログを表示するトグル。表示開始時に初回ロード
+    // 生ログを表示するタブになったときにロード
     useEffect(() => {
-        if (showRawLogs) loadLogs();
+        if (activeTab === "logs") loadLogs();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [showRawLogs, logsLimit, logsOffset, start, end, interval]);
+    }, [activeTab, logsLimit, logsOffset, start, end, interval]);
 
     // --- interval ごとにグルーピングする処理（スタンプごと・送信者ごとに分離） ---
     const groupedLogs = useMemo(() => {
@@ -500,6 +501,24 @@ function RoomHistory() {
             {/* ヘッダ */}
             <div className="flex items-center justify-between gap-4">
                 <h2 className="text-xl font-bold">スタンプ履歴 - ルーム{roomId}</h2>
+
+                {/* タブ切替（画面中央付近、タイトルの右側） */}
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab("graph")}
+                        className={`text-sm px-3 py-1 rounded ${activeTab === "graph" ? "bg-slate-200" : "bg-white border"}`}
+                    >
+                        グラフ
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab("logs")}
+                        className={`text-sm px-3 py-1 rounded ${activeTab === "logs" ? "bg-slate-200" : "bg-white border"}`}
+                    >
+                        ログ一覧
+                    </button>
+                </div>
             </div>
 
             {/* 条件入力 */}
@@ -571,229 +590,225 @@ function RoomHistory() {
                     >
                         選択リセット
                     </Button>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        className="px-3 py-1 text-sm"
-                        onClick={() => setShowRawLogs((s) => !s)}
-                    >
-                        {showRawLogs ? "生ログを隠す" : "生ログを表示"}
-                    </Button>
                 </div>
             </div>
 
             {error && <div className="text-red-600 text-sm">{error}</div>}
 
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4">
-                {/* グラフエリア */}
-                <Card className="w-full">
-                    <CardHeader>
-                        <CardTitle>スタンプ履歴グラフ</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {chartData.length === 0 ? (
-                            <div className="text-sm text-muted-foreground">
-                                データがありません。条件を指定して「取得」を押してください。
-                            </div>
-                        ) : (
-                            <ChartContainer
-                                className="h-80 w-full"
-                                config={chartConfig}
-                                style={{ minHeight: 240, minWidth: 0 }}
-                            >
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={chartData}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="timeLabel" />
-                                        <YAxis allowDecimals={false} />
-                                        <ChartTooltip content={<ChartTooltipContent />} />
-                                        <Legend />
-                                        {visibleStampTypes.map((kind) => (
-                                            <Line
-                                                key={kind}
-                                                type="monotone"
-                                                dataKey={kind}
-                                                stroke={stampColorMap[kind] || "#6b7280"}
-                                                strokeWidth={2}
-                                                dot={{ r: 3 }}
-                                                isAnimationActive={false}
-                                            />
-                                        ))}
-                                        {showTotal && (
-                                            <Line
-                                                type="monotone"
-                                                dataKey="total"
-                                                stroke="#000000"
-                                                strokeWidth={2}
-                                                dot={{ r: 3 }}
-                                                isAnimationActive={false}
-                                            />
-                                        )}
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </ChartContainer>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* スタンプ一覧・設定 */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>表示設定</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-sm">
-                        <div className="flex items-center gap-2">
-                            <Checkbox
-                                id="show-all-kinds"
-                                checked={showAllKinds}
-                                onCheckedChange={(v) => setShowAllKinds(Boolean(v))}
-                            />
-                            <Label htmlFor="show-all-kinds" className="text-sm font-normal">
-                                すべてのスタンプを表示
-                            </Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Checkbox
-                                id="show-total"
-                                checked={showTotal}
-                                onCheckedChange={(v) => setShowTotal(Boolean(v))}
-                            />
-                            <Label htmlFor="show-total" className="text-sm font-normal">
-                                合計スタンプ数を表示
-                            </Label>
-                        </div>
-
-                        <div className="border-t pt-2 space-y-1">
-                            {stampTypes.map((kind) => {
-                                const display = stampDisplayMap[kind];
-                                return (
-                                    <div
-                                        key={kind}
-                                        className="flex items-center justify-between gap-2"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <Checkbox
-                                                id={`stamp-kind-${kind}`}
-                                                checked={
-                                                    showAllKinds || selectedKinds.includes(kind)
-                                                }
-                                                disabled={showAllKinds}
-                                                onCheckedChange={() => handleToggleKind(kind)}
-                                            />
-                                            <Label
-                                                htmlFor={`stamp-kind-${kind}`}
-                                                className="text-sm font-normal"
-                                            >
-                                                <span
-                                                    className="
-                                                        inline-flex items-center gap-1
-                                                        rounded-xl pl-1 pr-2 py-1
-                                                        border border-slate-100
-                                                        shadow-sm
-                                                        text-slate-700
-                                                    "
-                                                    style={{
-                                                        backgroundColor:
-                                                            display?.bg ?? "#f9fafb",
-                                                    }}
-                                                >
-                                                    <span className="text-lg leading-none">
-                                                        {display?.icon ?? "🙂"}
-                                                    </span>
-                                                    <span className="text-xs font-medium">
-                                                        {kind}
-                                                    </span>
-                                                </span>
-                                            </Label>
-                                        </div>
-                                        <span className="text-xs text-muted-foreground">
-                                            {totalPerKind[kind] ?? 0}
-                                        </span>
+            {/* タブ切替に応じて表示を切り替え */}
+            {activeTab === "graph" && (
+                <>
+                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4">
+                        {/* グラフエリア */}
+                        <Card className="w-full">
+                            <CardHeader>
+                                <CardTitle>スタンプ履歴グラフ</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {chartData.length === 0 ? (
+                                    <div className="text-sm text-muted-foreground">
+                                        データがありません。条件を指定して「取得」を押してください。
                                     </div>
-                                );
-                            })}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                                ) : (
+                                    <ChartContainer
+                                        className="h-80 w-full"
+                                        config={chartConfig}
+                                        style={{ minHeight: 240, minWidth: 0 }}
+                                    >
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={chartData}>
+                                                <CartesianGrid strokeDasharray="3 3" />
+                                                <XAxis dataKey="timeLabel" />
+                                                <YAxis allowDecimals={false} />
+                                                <ChartTooltip content={<ChartTooltipContent />} />
+                                                <Legend />
+                                                {visibleStampTypes.map((kind) => (
+                                                    <Line
+                                                        key={kind}
+                                                        type="monotone"
+                                                        dataKey={kind}
+                                                        stroke={stampColorMap[kind] || "#6b7280"}
+                                                        strokeWidth={2}
+                                                        dot={{ r: 3 }}
+                                                        isAnimationActive={false}
+                                                    />
+                                                ))}
+                                                {showTotal && (
+                                                    <Line
+                                                        type="monotone"
+                                                        dataKey="total"
+                                                        stroke="#000000"
+                                                        strokeWidth={2}
+                                                        dot={{ r: 3 }}
+                                                        isAnimationActive={false}
+                                                    />
+                                                )}
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </ChartContainer>
+                                )}
+                            </CardContent>
+                        </Card>
 
-            {/* ルームに残したメモ一覧（追加） */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>このルームのメモ</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <NotesList roomId={Number(roomId)} />
-                </CardContent>
-            </Card>
+                        {/* スタンプ一覧・設定 */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>表示設定</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="show-all-kinds"
+                                        checked={showAllKinds}
+                                        onCheckedChange={(v) => setShowAllKinds(Boolean(v))}
+                                    />
+                                    <Label htmlFor="show-all-kinds" className="text-sm font-normal">
+                                        すべてのスタンプを表示
+                                    </Label>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="show-total"
+                                        checked={showTotal}
+                                        onCheckedChange={(v) => setShowTotal(Boolean(v))}
+                                    />
+                                    <Label htmlFor="show-total" className="text-sm font-normal">
+                                        合計スタンプ数を表示
+                                    </Label>
+                                </div>
 
-            {/* テーブル表示 */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>スタンプ集計表</CardTitle>
-                </CardHeader>
-                <CardContent className="overflow-auto">
-                    {hasTableData ? (
-                        <table className="min-w-full text-xs border-collapse">
-                            <thead>
-                            <tr>
-                                <th className="border px-2 py-1 text-left">スタンプ</th>
-                                {data.timeline.map((t, idx) => (
-                                    <th key={idx} className="border px-2 py-1">
-                                        {formatTimeLabel(t)}
-                                    </th>
-                                ))}
-                                <th className="border px-2 py-1">合計</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {data.series
-                                .filter((s) => s.stampName !== "NO_STAMP")
-                                .map((s) => (
-                                    <tr key={s.stampId}>
-                                        <td className="border px-2 py-1">{s.stampName}</td>
+                                <div className="border-t pt-2 space-y-1">
+                                    {stampTypes.map((kind) => {
+                                        const display = stampDisplayMap[kind];
+                                        return (
+                                            <div
+                                                key={kind}
+                                                className="flex items-center justify-between gap-2"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <Checkbox
+                                                        id={`stamp-kind-${kind}`}
+                                                        checked={
+                                                            showAllKinds || selectedKinds.includes(kind)
+                                                        }
+                                                        disabled={showAllKinds}
+                                                        onCheckedChange={() => handleToggleKind(kind)}
+                                                    />
+                                                    <Label
+                                                        htmlFor={`stamp-kind-${kind}`}
+                                                        className="text-sm font-normal"
+                                                    >
+                                                        <span
+                                                            className="
+                                                                inline-flex items-center gap-1
+                                                                rounded-xl pl-1 pr-2 py-1
+                                                                border border-slate-100
+                                                                shadow-sm
+                                                                text-slate-700
+                                                            "
+                                                            style={{
+                                                                backgroundColor:
+                                                                    display?.bg ?? "#f9fafb",
+                                                            }}
+                                                        >
+                                                            <span className="text-lg leading-none">
+                                                                {display?.icon ?? "🙂"}
+                                                            </span>
+                                                            <span className="text-xs font-medium">
+                                                                {kind}
+                                                            </span>
+                                                        </span>
+                                                    </Label>
+                                                </div>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {totalPerKind[kind] ?? 0}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* ルームに残したメモ一覧（追加） */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>このルームのメモ</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <NotesList roomId={Number(roomId)} />
+                        </CardContent>
+                    </Card>
+
+                    {/* テーブル表示 */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>スタンプ集計表</CardTitle>
+                        </CardHeader>
+                        <CardContent className="overflow-auto">
+                            {hasTableData ? (
+                                <table className="min-w-full text-xs border-collapse">
+                                    <thead>
+                                    <tr>
+                                        <th className="border px-2 py-1 text-left">スタンプ</th>
+                                        {data.timeline.map((t, idx) => (
+                                            <th key={idx} className="border px-2 py-1">
+                                                {formatTimeLabel(t)}
+                                            </th>
+                                        ))}
+                                        <th className="border px-2 py-1">合計</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {data.series
+                                        .filter((s) => s.stampName !== "NO_STAMP")
+                                        .map((s) => (
+                                            <tr key={s.stampId}>
+                                                <td className="border px-2 py-1">{s.stampName}</td>
+                                                {data.timeline.map((_, idx) => (
+                                                    <td
+                                                        key={idx}
+                                                        className="border px-2 py-1 text-right"
+                                                    >
+                                                        {s.values?.[idx] ?? 0}
+                                                    </td>
+                                                ))}
+                                                <td className="border px-2 py-1 text-right">
+                                                    {(s.values || []).reduce((acc, v) => acc + v, 0)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    <tr>
+                                        <td className="border px-2 py-1">合計（件数）</td>
                                         {data.timeline.map((_, idx) => (
                                             <td
                                                 key={idx}
                                                 className="border px-2 py-1 text-right"
                                             >
-                                                {s.values?.[idx] ?? 0}
+                                                {data.totals?.[idx] ?? 0}
                                             </td>
                                         ))}
                                         <td className="border px-2 py-1 text-right">
-                                            {(s.values || []).reduce((acc, v) => acc + v, 0)}
+                                            {(data.totals || []).reduce((acc, v) => acc + v, 0)}
                                         </td>
                                     </tr>
-                                ))}
-                            <tr>
-                                <td className="border px-2 py-1">合計（件数）</td>
-                                {data.timeline.map((_, idx) => (
-                                    <td
-                                        key={idx}
-                                        className="border px-2 py-1 text-right"
-                                    >
-                                        {data.totals?.[idx] ?? 0}
-                                    </td>
-                                ))}
-                                <td className="border px-2 py-1 text-right">
-                                    {(data.totals || []).reduce((acc, v) => acc + v, 0)}
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    ) : (
-                        <div className="text-sm text-muted-foreground">
-                            データがありません。
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <div className="text-sm text-muted-foreground">
+                                    データがありません。
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </>
+            )}
 
-            {/* --- 生ログ表示カード（interval ごとの集合表示） */}
-            {showRawLogs && (
+            {activeTab === "logs" && (
                 <Card>
                     <CardHeader>
-                        <CardTitle>生ログ（{interval} ごとにまとめて表示）</CardTitle>
+                        <CardTitle>スタンプログ（{interval} ごとにまとめて表示）</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-center gap-2 mb-2">
