@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchStampActivity } from "../api/stampActivity";
+import { fetchStampLogs } from "../api/stampLogs";
 import { getStampColorByCode, getStampIconByCode } from "../lib/StampDefinition";
 import NotesList from "@/components/NoteList";
 
@@ -55,6 +56,19 @@ const INTERVAL_OPTIONS = [
     { value: "1 hour", label: "1時間" },
 ];
 
+function parseIntervalToMs(interval) {
+    if (!interval) return 5 * 60 * 1000;
+    if (interval.includes("minute")) {
+        const n = Number(interval.split(" ")[0]);
+        return n * 60 * 1000;
+    }
+    if (interval.includes("hour")) {
+        const n = Number(interval.split(" ")[0]);
+        return n * 60 * 60 * 1000;
+    }
+    return 5 * 60 * 1000;
+}
+
 // datetime-local (yyyy-MM-ddTHH:mm) -> ISO8601 (+09:00 付与)
 function toIsoWithOffset(datetimeLocal) {
     if (!datetimeLocal) return undefined;
@@ -101,7 +115,15 @@ function RoomHistory() {
     const [showTotal, setShowTotal] = useState(false);
     const [selectedKinds, setSelectedKinds] = useState([]); // ["Good","Great",...]
 
-    // roomId が変わったら状態リセット（実際は1つだが保険として残す）
+    // 生ログ用 state
+    const [showRawLogs, setShowRawLogs] = useState(false);
+    const [logs, setLogs] = useState([]);
+    const [logsLoading, setLogsLoading] = useState(false);
+    const [logsError, setLogsError] = useState("");
+    const [logsLimit, setLogsLimit] = useState(100);
+    const [logsOffset, setLogsOffset] = useState(0);
+
+    // roomId が変わったら状態リセット
     useEffect(() => {
         setInterval("5 minutes");
         setStart("");
@@ -111,6 +133,12 @@ function RoomHistory() {
         setSelectedKinds([]);
         setData(null);
         setError("");
+        setShowRawLogs(false);
+        setLogs([]);
+        setLogsError("");
+        setLogsLoading(false);
+        setLogsLimit(100);
+        setLogsOffset(0);
     }, [roomId]);
 
     const handleFetch = async () => {
@@ -132,8 +160,7 @@ function RoomHistory() {
 
             setData(resp);
 
-            // 初回（開始・終了が未指定）のみ、デフォルトで
-            // 「開始時刻」に最も古い日時、「終了時刻」に最も新しい日時をセット
+            // 初回（開始・終了が未指定）のみ、デフォルトで範囲をセット
             if (
                 !start &&
                 !end &&
@@ -161,8 +188,8 @@ function RoomHistory() {
         }
     };
 
-    // ページ表示時（マウント時）に一度だけ自動取得
-    useEffect(() => {handleFetch();}, []);
+    // マウント時に一度自動取得
+    useEffect(() => { handleFetch(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleResetSelection = () => {
         setInterval("5 minutes");
@@ -178,12 +205,7 @@ function RoomHistory() {
             setSelectedKinds([]);
         }
 
-        // デフォルトとしてデータ内の最古・最新日時を再設定
-        if (
-            data &&
-            Array.isArray(data.timeline) &&
-            data.timeline.length > 0
-        ) {
+        if (data && Array.isArray(data.timeline) && data.timeline.length > 0) {
             const first = data.timeline[0];
             const last = data.timeline[data.timeline.length - 1];
             setStart(toDatetimeLocal(first));
@@ -214,7 +236,6 @@ function RoomHistory() {
         const map = {};
         for (const s of data.series) {
             if (s.stampName === "NO_STAMP") continue;
-            // stampColor は 1〜10 の数値を想定
             const color = getStampColorByCode(s.stampColor);
             map[s.stampName] = color.bg;
         }
@@ -270,11 +291,10 @@ function RoomHistory() {
             if (Array.isArray(series)) {
                 for (const s of series) {
                     if (s.stampName === "NO_STAMP") continue;
-                    const value =
+                    row[s.stampName] =
                         Array.isArray(s.values) && s.values.length > idx
                             ? s.values[idx]
                             : 0;
-                    row[s.stampName] = value;
                 }
             }
 
@@ -292,8 +312,7 @@ function RoomHistory() {
         const result = {};
         for (const s of data.series) {
             if (s.stampName === "NO_STAMP") continue;
-            const sum = (s.values || []).reduce((acc, v) => acc + v, 0);
-            result[s.stampName] = sum;
+            result[s.stampName] = (s.values || []).reduce((acc, v) => acc + v, 0);
         }
         return result;
     }, [data]);
@@ -304,6 +323,159 @@ function RoomHistory() {
         data.timeline.length > 0 &&
         Array.isArray(data.series) &&
         data.series.length > 0;
+
+    // --- 生ログ取得処理 ---
+    // stampIcon/stampColor はバックエンドが返す場合に備えて追加で正規化
+    const normalizeLogRow = (r) => ({
+        // stamp_log 側で camelCase や snake_case どちらでも受け取れるように
+        id: r.stampLogId ?? r.stamp_log_id ?? r.id ?? r.log_id ?? r.logId ?? null,
+        userId: r.userId ?? r.user_id ?? r.user ?? null,
+        senderName: r.senderName ?? r.sender_name ?? r.displayName ?? r.userName ?? null,
+        stampId: r.stampId ?? r.stamp_id ?? r.stamp ?? null,
+        // stampName, stampIcon, stampColor: snake_case でも camelCase でも拾う
+        stampName: r.stampName ?? r.stamp_name ?? null,
+        stampIcon: r.stampIcon ?? r.stamp_icon ?? null,
+        stampColor: r.stampColor ?? r.stamp_color ?? null,
+        sentAt: r.sentAt ?? r.sent_at ?? r.timestamp ?? null,
+    });
+
+    const loadLogs = async () => {
+        setLogsLoading(true);
+        setLogsError("");
+        try {
+            const resp = await fetchStampLogs(roomId, {
+                start: toIsoWithOffset(start),
+                end: toIsoWithOffset(end),
+                limit: logsLimit,
+                offset: logsOffset,
+            });
+            const list = Array.isArray(resp) ? resp.map(normalizeLogRow) : [];
+            setLogs(list);
+        } catch (e) {
+            console.error(e);
+            setLogsError(e.message || "ログの取得に失敗しました");
+        } finally {
+            setLogsLoading(false);
+        }
+    };
+
+    // 生ログを表示するトグル。表示開始時に初回ロード
+    useEffect(() => {
+        if (showRawLogs) loadLogs();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showRawLogs, logsLimit, logsOffset, start, end, interval]);
+
+    // --- interval ごとにグルーピングする処理（スタンプごと・送信者ごとに分離） ---
+    const groupedLogs = useMemo(() => {
+        if (!logs || logs.length === 0) return [];
+
+        const intervalMs = parseIntervalToMs(interval);
+        // sort by time ascending
+        const sorted = [...logs].sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
+
+        const groups = new Map(); // bucketStartMs -> { bucketStartMs, entries: Map<entryKey, entry>, firstTs, lastTs }
+
+        for (const row of sorted) {
+            const ts = new Date(row.sentAt).getTime();
+            if (Number.isNaN(ts)) continue;
+            const bucket = Math.floor(ts / intervalMs) * intervalMs;
+            let g = groups.get(bucket);
+            if (!g) {
+                g = {
+                    bucketStartMs: bucket,
+                    firstTs: ts,
+                    lastTs: ts,
+                    entries: new Map(), // key: `${stampKey}||${senderKey}`
+                };
+                groups.set(bucket, g);
+            } else {
+                if (ts < g.firstTs) g.firstTs = ts;
+                if (ts > g.lastTs) g.lastTs = ts;
+            }
+
+            const stampKey = row.stampName ?? `stamp-${row.stampId}`;
+            const senderKey = row.senderName ?? `user-${row.userId}`;
+
+            const entryKey = `${stampKey}||${senderKey}`;
+            const existing = g.entries.get(entryKey);
+            if (existing) {
+                existing.count += 1;
+                // if icon/color missing but row has them, prefer row values
+                if (existing.icon == null && row.stampIcon != null) existing.icon = row.stampIcon;
+                if (existing.color == null && row.stampColor != null) existing.color = row.stampColor;
+            } else {
+                g.entries.set(entryKey, {
+                    key: entryKey,
+                    stampName: row.stampName ?? null,
+                    stampId: row.stampId ?? null,
+                    senderName: row.senderName ?? senderKey,
+                    count: 1,
+                    icon: row.stampIcon ?? null,
+                    color: row.stampColor ?? null,
+                });
+            }
+        }
+
+        // convert to array sorted by bucket
+        return Array.from(groups.values()).sort((a, b) => a.bucketStartMs - b.bucketStartMs).map((g) => {
+            const stamps = Array.from(g.stamps.entries()).map(([key, s]) => {
+                return {
+                    key,
+                    stampName: s.stampName,
+                    stampId: s.stampId,
+                    count: s.count,
+                    senders: Array.from(s.senders.entries()).map(([name, c]) => ({ name, count: c })),
+                    icon: s.icon,
+                    color: s.color,
+                };
+            });
+            const senders = Array.from(g.senders.entries()).map(([name, c]) => ({ name, count: c }));
+            return {
+                bucketStartMs: g.bucketStartMs,
+                firstTs: g.firstTs,
+                lastTs: g.lastTs,
+                stamps,
+                senders,
+            };
+        });
+    }, [logs, interval, stampDisplayMap]);
+    // --- グルーピング処理終わり ---
+
+    function formatDateTime(iso) {
+        if (!iso) return "";
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return String(iso);
+        return d.toLocaleString();
+    }
+
+    // helper: スタンプピルを返す（entry 単位）
+    const renderStampPill = (e) => {
+        const stampKey = e.stampName ?? `stamp-${e.stampId}`;
+        const display = stampDisplayMap?.[stampKey] ?? null;
+
+        const bgFromEntry = e.color ?? null;
+        const iconFromEntry = e.icon ?? null;
+
+        const bg = bgFromEntry != null ? getStampColorByCode(bgFromEntry).bg : (display?.bg ?? "#f9fafb");
+        const icon = iconFromEntry != null ? getStampIconByCode(iconFromEntry) : (display?.icon ?? "🏷");
+        const text = e.stampName ?? `stamp-${e.stampId ?? ""}`;
+
+        return (
+            <div
+                key={e.key}
+                className="inline-flex items-center gap-2 rounded-xl px-3 py-1 border border-slate-100 shadow-sm text-slate-700"
+                style={{ backgroundColor: bg }}
+                title={text}
+            >
+                <span className="text-lg leading-none">{icon}</span>
+                <div className="flex flex-col">
+                    <span className="text-sm font-medium leading-tight">{text}</span>
+                    <span className="text-xs text-slate-500">{e.senderName}</span>
+                </div>
+                {e.count > 1 && <span className="ml-2 text-xs bg-white/30 text-slate-700 px-1 rounded">{e.count}</span>}
+            </div>
+        );
+    };
 
     return (
         <div className="flex flex-col gap-4 p-4">
@@ -324,7 +496,7 @@ function RoomHistory() {
                 <h2 className="text-xl font-bold">スタンプ履歴 - ルーム{roomId}</h2>
             </div>
 
-            {/* 条件入力（roomId セレクト削除済み） */}
+            {/* 条件入力 */}
             <div className="flex flex-wrap gap-4 items-end">
                 <div className="space-y-1">
                     <Label className="text-sm font-medium" htmlFor="interval-select">
@@ -393,6 +565,14 @@ function RoomHistory() {
                     >
                         選択リセット
                     </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        className="px-3 py-1 text-sm"
+                        onClick={() => setShowRawLogs((s) => !s)}
+                    >
+                        {showRawLogs ? "生ログを隠す" : "生ログを表示"}
+                    </Button>
                 </div>
             </div>
 
@@ -413,6 +593,7 @@ function RoomHistory() {
                             <ChartContainer
                                 className="h-80 w-full"
                                 config={chartConfig}
+                                style={{ minHeight: 240, minWidth: 0 }}
                             >
                                 <ResponsiveContainer width="100%" height="100%">
                                     <LineChart data={chartData}>
@@ -536,7 +717,6 @@ function RoomHistory() {
                     <CardTitle>このルームのメモ</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {/* roomId は useParams() で文字列なので数値に変換して渡す */}
                     <NotesList roomId={Number(roomId)} />
                 </CardContent>
             </Card>
@@ -602,6 +782,91 @@ function RoomHistory() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* --- 生ログ表示カード（interval ごとの集合表示） */}
+            {showRawLogs && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>生ログ（{interval} ごとにまとめて表示）</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center gap-2 mb-2">
+                            <label className="text-sm flex items-center gap-2">
+                                表示件数:
+                                <input
+                                    type="number"
+                                    value={logsLimit}
+                                    onChange={(e) => setLogsLimit(Math.max(1, Number(e.target.value) || 1))}
+                                    className="ml-2 w-20 rounded border px-2 py-1 text-sm"
+                                />
+                            </label>
+                            <label className="text-sm flex items-center gap-2">
+                                offset:
+                                <input
+                                    type="number"
+                                    value={logsOffset}
+                                    onChange={(e) => setLogsOffset(Math.max(0, Number(e.target.value) || 0))}
+                                    className="ml-2 w-20 rounded border px-2 py-1 text-sm"
+                                />
+                            </label>
+                            <Button onClick={loadLogs} className="ml-auto text-sm">更新</Button>
+                        </div>
+
+                        {logsLoading && <div className="text-sm text-slate-500">読み込み中...</div>}
+                        {logsError && <div className="text-sm text-red-600">エラー: {logsError}</div>}
+
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full text-xs border-collapse">
+                                <thead>
+                                <tr>
+                                    <th className="border px-2 py-1 text-left">時刻帯</th>
+                                    <th className="border px-2 py-1 text-left">スタンプ（アイコン / 名称 / 件数 / 送信者）</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {groupedLogs.length === 0 && !logsLoading && (
+                                    <tr><td className="p-4" colSpan={2}>データがありません</td></tr>
+                                )}
+                                {groupedLogs.map((g) => (
+                                    <tr key={g.bucketStartMs} className="border-b odd:bg-white even:bg-slate-50 align-top">
+                                        <td className="px-2 py-2 align-top w-[160px]">
+                                            <div className="text-sm font-medium">{formatDateTime(new Date(g.bucketStartMs).toISOString())}</div>
+                                        </td>
+                                        <td className="px-2 py-2 align-top">
+                                            <div className="flex flex-wrap gap-2">
+                                                {g.entries.map((e) => (
+                                                    <div key={e.key} className="flex flex-col">
+                                                        {renderStampPill(e)}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-2">
+                            <Button
+                                className="px-2 py-1 text-sm"
+                                onClick={() => setLogsOffset(Math.max(0, logsOffset - logsLimit))}
+                                disabled={logsOffset === 0}
+                            >
+                                前へ
+                            </Button>
+                            <Button
+                                className="px-2 py-1 text-sm"
+                                onClick={() => setLogsOffset(logsOffset + logsLimit)}
+                            >
+                                次へ
+                            </Button>
+                            <div className="text-sm text-slate-500">表示 {groupedLogs.length} バケット（合計 {logs.length} 件）</div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
         </div>
     );
 }
