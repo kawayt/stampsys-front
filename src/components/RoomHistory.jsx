@@ -291,10 +291,11 @@ function RoomHistory() {
             if (Array.isArray(series)) {
                 for (const s of series) {
                     if (s.stampName === "NO_STAMP") continue;
-                    row[s.stampName] =
+                    const value =
                         Array.isArray(s.values) && s.values.length > idx
                             ? s.values[idx]
                             : 0;
+                    row[s.stampName] = value;
                 }
             }
 
@@ -312,7 +313,8 @@ function RoomHistory() {
         const result = {};
         for (const s of data.series) {
             if (s.stampName === "NO_STAMP") continue;
-            result[s.stampName] = (s.values || []).reduce((acc, v) => acc + v, 0);
+            const sum = (s.values || []).reduce((acc, v) => acc + v, 0);
+            result[s.stampName] = sum;
         }
         return result;
     }, [data]);
@@ -417,27 +419,31 @@ function RoomHistory() {
         }
 
         // convert to array sorted by bucket
-        return Array.from(groups.values()).sort((a, b) => a.bucketStartMs - b.bucketStartMs).map((g) => {
-            const stamps = Array.from(g.stamps.entries()).map(([key, s]) => {
+        const arr = Array.from(groups.values())
+            .sort((a, b) => a.bucketStartMs - b.bucketStartMs)
+            .map((g) => {
+                const entries = Array.from(g.entries.values())
+                    // stable sort: by stampName then senderName for consistent display
+                    .sort((a, b) => {
+                        const an = (a.stampName ?? "").toString();
+                        const bn = (b.stampName ?? "").toString();
+                        if (an < bn) return -1;
+                        if (an > bn) return 1;
+                        const sa = (a.senderName ?? "").toString();
+                        const sb = (b.senderName ?? "").toString();
+                        if (sa < sb) return -1;
+                        if (sa > sb) return 1;
+                        return 0;
+                    });
                 return {
-                    key,
-                    stampName: s.stampName,
-                    stampId: s.stampId,
-                    count: s.count,
-                    senders: Array.from(s.senders.entries()).map(([name, c]) => ({ name, count: c })),
-                    icon: s.icon,
-                    color: s.color,
+                    bucketStartMs: g.bucketStartMs,
+                    firstTs: g.firstTs,
+                    lastTs: g.lastTs,
+                    entries,
                 };
             });
-            const senders = Array.from(g.senders.entries()).map(([name, c]) => ({ name, count: c }));
-            return {
-                bucketStartMs: g.bucketStartMs,
-                firstTs: g.firstTs,
-                lastTs: g.lastTs,
-                stamps,
-                senders,
-            };
-        });
+
+        return arr;
     }, [logs, interval, stampDisplayMap]);
     // --- グルーピング処理終わり ---
 
