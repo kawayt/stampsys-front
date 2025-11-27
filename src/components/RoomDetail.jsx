@@ -17,10 +17,13 @@ function SimpleBarChart({ data }) {
             {data.map((d) => {
                 const ratio = (d.count || 0) / maxCount;
                 const widthPercent = `${ratio * 100}%`;
+                const barColor = d.color?.bg ?? d.color?.background ?? "#fb923c"; // tailwind orange-400 相当をフォールバック
+                const textColor = d.color?.fg ?? d.color?.text ?? "inherit";
+
                 return (
                     <div key={d.stampId ?? d.stampName} className="space-y-1">
                         <div className="flex justify-between text-xs text-slate-600">
-                            <span className="flex items-center gap-1">
+                            <span className="flex items-center gap-1" style={{ color: textColor }}>
                                 <span>{d.icon}</span>
                                 <span>{d.stampName}</span>
                             </span>
@@ -30,8 +33,8 @@ function SimpleBarChart({ data }) {
                         </div>
                         <div className="h-5 w-full rounded-full bg-slate-100 overflow-hidden">
                             <div
-                                className="h-full rounded-full bg-orange-400"
-                                style={{ width: widthPercent }}
+                                className="h-full rounded-full"
+                                style={{ width: widthPercent, backgroundColor: barColor }}
                             />
                         </div>
                     </div>
@@ -240,19 +243,19 @@ export function RoomDetail({ userId, role }) {
             ) : (
                 <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
                     <CardContent className="pt-4">
-                        {/* STUDENT のとき: 従来どおりスタンプ送信ボタンのみ */}
+                        {/* STUDENT のとき: スタンプ送信ボタンのみ */}
 
-                            <>
-                                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                                    {stamps.map((s) => {
-                                        const color = getStampColorByCode(s.stampColor);
-                                        const icon = getStampIconByCode(s.stampIcon);
+                        <>
+                            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                                {stamps.map((s) => {
+                                    const color = getStampColorByCode(s.stampColor);
+                                    const icon = getStampIconByCode(s.stampIcon);
 
-                                        return (
-                                            <button
-                                                type="button"
-                                                key={s.stampId ?? `${s.stampName}-${s.stampColor}-${s.stampIcon}`}
-                                                className="
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={s.stampId ?? `${s.stampName}-${s.stampColor}-${s.stampIcon}`}
+                                            className="
                                                     flex h-28 flex-col items-center justify-center rounded-2xl
                                                     border border-slate-100 bg-slate-50/60
                                                     text-slate-700 shadow-sm
@@ -260,39 +263,39 @@ export function RoomDetail({ userId, role }) {
                                                     transition-all relative
                                                     disabled:opacity-50 disabled:cursor-not-allowed
                                                 "
-                                                style={{ backgroundColor: color.bg }}
-                                                onClick={() => handleStampClick(s.stampId)}
-                                                disabled={sending || !userId}
-                                            >
+                                            style={{ backgroundColor: color.bg }}
+                                            onClick={() => handleStampClick(s.stampId)}
+                                            disabled={sending || !userId}
+                                        >
                                                 <span className="text-3xl mb-1">
                                                     {icon}
                                                 </span>
-                                                <span className="text-xs font-medium">
+                                            <span className="text-xs font-medium">
                                                     {s.stampName}
                                                 </span>
-                                            </button>
-                                        );
-                                    })}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* 送信結果メッセージ */}
+                            {message && (
+                                <div
+                                    className={[
+                                        "mt-4 rounded-xl px-3 py-2 text-xs font-medium",
+                                        isSuccess
+                                            ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                            : "bg-red-50 text-red-700 border border-red-100",
+                                    ].join(" ")}
+                                >
+                                    {message}
                                 </div>
+                            )}
 
-                                {/* 送信結果メッセージ */}
-                                {message && (
-                                    <div
-                                        className={[
-                                            "mt-4 rounded-xl px-3 py-2 text-xs font-medium",
-                                            isSuccess
-                                                ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                                                : "bg-red-50 text-red-700 border border-red-100",
-                                        ].join(" ")}
-                                    >
-                                        {message}
-                                    </div>
-                                )}
-
-                                <p className="mt-3 text-[11px] text-slate-400">
-                                    スタンプは即時に送信されます。連打しすぎないように注意してください。
-                                </p>
-                            </>
+                            <p className="mt-3 text-[11px] text-slate-400">
+                                スタンプは即時に送信されます。連打しすぎないように注意してください。
+                            </p>
+                        </>
 
 
                         {/* ADMIN / TEACHER のとき: スタンプ集計表示 */}
