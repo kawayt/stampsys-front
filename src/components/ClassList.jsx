@@ -54,17 +54,56 @@ export function ClassList({ role }) {
 
     // role は prop で渡すが、未渡しのケースに備えてローカルにも保持する
     const [currentRole, setCurrentRole] = useState(role ?? null);
+    const [currentUserId, setCurrentUserId] = useState(null);
 
     useEffect(() => {
         // prop の role が変わったら反映
         setCurrentRole(role ?? null);
     }, [role]);
 
+    // サーバから現在のユーザー role / userId を取得
+    const fetchCurrentUserInfo = async () => {
+        try {
+            const res = await fetch("/api/app", { credentials: "include" });
+            if (!res.ok) {
+                console.warn("failed to fetch app info:", res.status);
+                return { role: null, userId: null };
+            }
+            const d = await res.json();
+            const r = d?.user?.role ?? null;
+            const uid = d?.user?.userId ?? null;
+            setCurrentRole(r);
+            setCurrentUserId(uid);
+            return { role: r, userId: uid };
+        } catch (err) {
+            console.warn("error fetching app info:", err);
+            return { role: null, userId: null };
+        }
+    };
+
+    // クラス一覧取得処理を role に応じて出し分け
     const fetchClasses = async () => {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch("/api/classes/list");
+            let roleToUse = currentRole;
+            let userIdToUse = currentUserId;
+
+            // role / userId がまだわからない場合は /api/app を叩いて取得
+            if (!roleToUse || !userIdToUse) {
+                const info = await fetchCurrentUserInfo();
+                roleToUse = info.role;
+                userIdToUse = info.userId;
+            }
+
+            let url = "/api/classes/list";
+
+            // ★ STUDENT の場合だけ、自分に紐づくクラスを取得
+            if (roleToUse === "STUDENT" && userIdToUse != null) {
+                url = `/api/users/${userIdToUse}/classes`;
+            }
+
+            const res = await fetch(url, { credentials: "include" });
             if (!res.ok) {
                 throw new Error(`Failed to fetch classes: ${res.status}`);
             }
@@ -81,24 +120,6 @@ export function ClassList({ role }) {
     useEffect(() => {
         fetchClasses();
     }, []);
-
-    // フォールバック: サーバから現在のユーザー role を取得（prop が未渡しのとき）
-    const fetchCurrentUserRole = async () => {
-        try {
-            const res = await fetch("/api/app", { credentials: "include" });
-            if (!res.ok) {
-                console.warn("failed to fetch app info:", res.status);
-                return null;
-            }
-            const d = await res.json();
-            const r = d?.user?.role ?? null;
-            setCurrentRole(r);
-            return r;
-        } catch (err) {
-            console.warn("error fetching app info:", err);
-            return null;
-        }
-    };
 
     // 参加処理 (role によって振り分け)
     const onJoinClass = async (classId) => {
@@ -196,7 +217,7 @@ export function ClassList({ role }) {
         }
     };
 
-    // ★ クラス論理削除処理
+    // クラス論理削除処理
     const handleDeleteClass = async () => {
         if (!deleteTargetClass) return;
 
