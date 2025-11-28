@@ -36,7 +36,7 @@ const roleLabel = (role) => {
 };
 
 /**
- * UserBadge: shows A / N / M / T according to rules
+ * UserBadge: shows Icon for Admin/Teacher, N/M for Student
  */
 function UserBadge({ email, role, size = 18 }) {
     const local = (email || '').split('@')[0] || '';
@@ -58,21 +58,41 @@ function UserBadge({ email, role, size = 18 }) {
         lineHeight: 1,
     });
 
+    // アイコンのサイズ調整
+    const iconSize = Math.max(10, Math.floor(size * 0.7));
+
+    // 管理者: 赤 (#DC2626 - text-red-600相当)
     if (String(role || '').toUpperCase() === 'ADMIN') {
-        return <span title="管理者" aria-label="管理者" style={circleStyle('#DC2626')}>A</span>;
+        return (
+            <span title="管理者" aria-label="管理者" style={circleStyle('#DC2626')}>
+                <svg xmlns="http://www.w3.org/2000/svg" width={iconSize} height={iconSize} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 2l8 4v6c0 5-3.9 9.4-8 10-4.1-.6-8-5-8-10V6l8-4z" />
+                </svg>
+            </span>
+        );
     }
 
     if (isNgo) {
+        // 名古屋(学生): オレンジ (#F97316 - orange-500相当)
+        // 教員が青になったため、区別しやすい色に変更
         if (/^N\d+$/i.test(localUp)) {
-            return <span title="名古屋" aria-label="名古屋" style={circleStyle('#2563EB')}>N</span>;
+            return <span title="名古屋" aria-label="名古屋" style={circleStyle('#F97316')}>N</span>;
         }
+        // 津(学生): 緑 (#16A34A - text-green-600相当)
         if (/^M\d+$/i.test(localUp)) {
-            return <span title="津" aria-label="津" style={circleStyle('#10B981')}>M</span>;
+            return <span title="津" aria-label="津" style={circleStyle('#16A34A')}>M</span>;
         }
     }
 
-    // Fallback: teacher icon
-    return <span title="教員" aria-label="教員" style={circleStyle('#0EA5A3')}>T</span>;
+    // 教員 (Fallback): 青 (#2563EB - text-blue-600相当)
+    return (
+        <span title="教員" aria-label="教員" style={circleStyle('#2563EB')}>
+            <svg xmlns="http://www.w3.org/2000/svg" width={iconSize} height={iconSize} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 14l9-5-9-5-9 5 9 5z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 14v7" />
+            </svg>
+        </span>
+    );
 }
 
 /**
@@ -551,9 +571,6 @@ function UserList() {
 
     const isAdmin = currentUserRole === 'ADMIN';
     const isStudent = currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT';
-
-    // 修正: ローディング中の表示ブロックを削除しました
-    // if (loading) { ... } ブロックを削除
 
     if (isStudent) {
         return (
