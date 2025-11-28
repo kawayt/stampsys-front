@@ -331,24 +331,26 @@ export function RoomList() {
 
                 <div className="flex items-center gap-2">
                     {/* search input */}
-                    <div className="flex items-center bg-slate-50 rounded-md px-2 py-1 mr-2">
-                        <Search className="w-4 h-4 text-slate-400 mr-2" />
-                        <Input
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="ルーム名で検索"
-                            className="text-sm bg-transparent border-0 px-0"
-                            aria-label="ルーム名で検索"
-                        />
-                        {searchQuery && (
-                            <button
-                                aria-label="検索クリア"
-                                onClick={() => setSearchQuery("")}
-                                className="text-slate-400 ml-2 text-xs"
-                            >
-                                クリア
-                            </button>
-                        )}
+                    <div className="mr-2 w-full max-w-xs">
+                        <div className="relative">
+                            <Search className="absolute left-2 top-1/2 w-4 h-4 text-slate-400 -translate-y-1/2 pointer-events-none" />
+                            <Input
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="ルーム名で検索"
+                                className="text-sm bg-white pl-8"
+                                aria-label="ルーム名で検索"
+                            />
+                            {searchQuery && (
+                                <button
+                                    aria-label="検索クリア"
+                                    onClick={() => setSearchQuery("")}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-[11px]"
+                                >
+                                    クリア
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {/* ★ スタンプ管理ダイアログ */}
