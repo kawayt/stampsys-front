@@ -379,6 +379,15 @@ function RoomHistory() {
         const groups = new Map(); // bucketStartMs -> { bucketStartMs, entries: Map<entryKey, entry>, firstTs, lastTs }
 
         for (const row of sorted) {
+            // フィルタ: showAllKinds が false の場合、selectedKinds に含まれないスタンプは無視する
+            if (!showAllKinds) {
+                const stampName = row.stampName ?? null;
+                // もし stampName が無ければ（IDしかない等）除外してしまう選択にしています。
+                if (!stampName || !selectedKinds.includes(stampName)) {
+                    continue;
+                }
+            }
+
             const ts = new Date(row.sentAt).getTime();
             if (Number.isNaN(ts)) continue;
             const bucket = Math.floor(ts / intervalMs) * intervalMs;
@@ -445,7 +454,7 @@ function RoomHistory() {
             });
 
         return arr;
-    }, [logs, interval, stampDisplayMap]);
+    }, [logs, interval, stampDisplayMap, showAllKinds, selectedKinds]);
     // --- グルーピング処理終わり ---
 
     function formatDateTime(iso) {
@@ -811,6 +820,47 @@ function RoomHistory() {
                         <CardTitle>スタンプログ（{interval} ごとにまとめて表示）</CardTitle>
                     </CardHeader>
                     <CardContent>
+                        {/* ログ用のフィルタUI: グラフで使っている選択状態をそのまま操作可能に */}
+                        <div className="mb-3 border-b pb-3">
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="logs-show-all-kinds"
+                                        checked={showAllKinds}
+                                        onCheckedChange={(v) => setShowAllKinds(Boolean(v))}
+                                    />
+                                    <Label htmlFor="logs-show-all-kinds" className="text-sm font-normal">
+                                        すべてのスタンプを表示（ログ）
+                                    </Label>
+                                </div>
+                                <div className="text-sm text-muted-foreground">※ グラフと同じ選択状態が共有されます</div>
+                            </div>
+
+                            {!showAllKinds && (
+                                <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                                    {stampTypes.map((kind) => {
+                                        const display = stampDisplayMap[kind];
+                                        return (
+                                            <label key={kind} className="inline-flex items-center gap-2">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedKinds.includes(kind)}
+                                                    onChange={() => handleToggleKind(kind)}
+                                                />
+                                                <span
+                                                    className="inline-flex items-center gap-1 rounded-xl pl-1 pr-2 py-1 border border-slate-100 shadow-sm text-slate-700"
+                                                    style={{ backgroundColor: display?.bg ?? "#f9fafb" }}
+                                                >
+                                                    <span className="text-sm">{display?.icon ?? "🙂"}</span>
+                                                    <span className="text-xs">{kind}</span>
+                                                </span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
                         <div className="flex items-center gap-2 mb-2">
                             <label className="text-sm flex items-center gap-2">
                                 表示件数:
