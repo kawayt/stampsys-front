@@ -23,18 +23,28 @@ import {
 import { restoreHiddenUser } from '@/api/user.js';
 
 /**
- * Campus badge / icon
- * - email containing '@ngo' (case-insensitive) => 名古屋 (N)
- * - otherwise => 津 (T)
+ * roleLabel: map role code to Japanese label
  */
-function CampusBadge({ email, size = 18 }) {
-    const e = (email || '').toLowerCase();
-    const isNagoya = e.includes('@ngo');
-    const label = isNagoya ? '名古屋' : '津';
-    const bg = isNagoya ? '#2563EB' : '#10B981'; // blue / green
-    const fg = '#fff';
+const roleLabel = (role) => {
+    if (!role) return '';
+    switch (String(role).toUpperCase()) {
+        case 'ADMIN': return '管理者';
+        case 'TEACHER': return '教員';
+        case 'STUDENT': return '学生';
+        default: return role;
+    }
+};
 
-    const style = {
+/**
+ * UserBadge: shows A / N / M / T according to rules
+ */
+function UserBadge({ email, role, size = 18 }) {
+    const local = (email || '').split('@')[0] || '';
+    const localUp = String(local).toUpperCase();
+    const domain = String(email || '').toLowerCase();
+    const isNgo = domain.includes('@ngo');
+
+    const circleStyle = (bg) => ({
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -42,23 +52,60 @@ function CampusBadge({ email, size = 18 }) {
         height: size,
         borderRadius: '9999px',
         background: bg,
-        color: fg,
+        color: '#fff',
         fontSize: Math.max(10, Math.floor(size / 2.2)),
         fontWeight: 700,
         lineHeight: 1,
-    };
+    });
 
+    if (String(role || '').toUpperCase() === 'ADMIN') {
+        return <span title="管理者" aria-label="管理者" style={circleStyle('#DC2626')}>A</span>;
+    }
+
+    if (isNgo) {
+        if (/^N\d+$/i.test(localUp)) {
+            return <span title="名古屋" aria-label="名古屋" style={circleStyle('#2563EB')}>N</span>;
+        }
+        if (/^M\d+$/i.test(localUp)) {
+            return <span title="津" aria-label="津" style={circleStyle('#10B981')}>M</span>;
+        }
+    }
+
+    // Fallback: teacher icon
+    return <span title="教員" aria-label="教員" style={circleStyle('#0EA5A3')}>T</span>;
+}
+
+/**
+ * small RoleIcon for role column / selects
+ */
+function RoleIconSmall({ role, className = 'h-4 w-4' }) {
+    const r = (role || '').toUpperCase();
+    if (r === 'ADMIN') {
+        return (
+            <svg xmlns="http://www.w3.org/2000/svg" className={`${className} text-red-600`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 2l8 4v6c0 5-3.9 9.4-8 10-4.1-.6-8-5-8-10V6l8-4z" />
+            </svg>
+        );
+    }
+    if (r === 'TEACHER') {
+        return (
+            <svg xmlns="http://www.w3.org/2000/svg" className={`${className} text-blue-600`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 14l9-5-9-5-9 5 9 5z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 14v7" />
+            </svg>
+        );
+    }
     return (
-        <span title={label} aria-label={label} style={style}>
-      {isNagoya ? 'N' : 'T'}
-    </span>
+        <svg xmlns="http://www.w3.org/2000/svg" className={`${className} text-green-600`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A9 9 0 0112 15a9 9 0 016.879 2.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
     );
 }
 
 /**
- * Simple toast
+ * Simple toast component
  */
-function Toast({ open, message, onClose, autoHideMs = 5000 }) {
+function ToastSingle({ open, message, onClose, autoHideMs = 5000 }) {
     useEffect(() => {
         if (!open) return undefined;
         if (!autoHideMs) return undefined;
@@ -94,45 +141,9 @@ function Toast({ open, message, onClose, autoHideMs = 5000 }) {
     );
 }
 
-const ROLE_ORDER = ['ADMIN', 'TEACHER', 'STUDENT'];
-const CARD_ROLES = ['ADMIN', 'TEACHER', 'STUDENT'];
-
-const roleLabel = (role) => {
-    if (!role) return '';
-    switch (String(role).toUpperCase()) {
-        case 'ADMIN': return '管理者';
-        case 'TEACHER': return '教員';
-        case 'STUDENT': return '学生';
-        default: return role;
-    }
-};
-
-function RoleIcon({ role, className = 'h-4 w-4', ariaHidden = true }) {
-    const r = (role || '').toUpperCase();
-    if (r === 'ADMIN') {
-        return (
-            <svg xmlns="http://www.w3.org/2000/svg" className={`${className} text-red-600`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden={ariaHidden}>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 2l8 4v6c0 5-3.9 9.4-8 10-4.1-.6-8-5-8-10V6l8-4z" />
-            </svg>
-        );
-    }
-    if (r === 'TEACHER') {
-        return (
-            <svg xmlns="http://www.w3.org/2000/svg" className={`${className} text-blue-600`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden={ariaHidden}>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 14l9-5-9-5-9 5 9 5z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 14v7" />
-            </svg>
-        );
-    }
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" className={`${className} text-green-600`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden={ariaHidden}>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A9 9 0 0112 15a9 9 0 016.879 2.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-    );
-}
-
+/* CountCard (kept simple) */
 function CountCard({ title, count, colorClass = 'bg-gray-50', icon, active = false, onClick, innerRef = null }) {
-    const iconNode = typeof icon === 'function' ? icon(false) : icon;
+    const iconNode = typeof icon === 'function' ? icon() : icon;
     return (
         <button
             type="button"
@@ -157,6 +168,7 @@ function CountCard({ title, count, colorClass = 'bg-gray-50', icon, active = fal
     );
 }
 
+/* Pagination buttons renderer */
 function renderPageButtons(currentPage, totalPages, goToPage) {
     if (!totalPages || totalPages <= 1) return null;
     const buttons = [];
@@ -176,13 +188,19 @@ function renderPageButtons(currentPage, totalPages, goToPage) {
     return buttons;
 }
 
+/* CONSTANTS */
+const ROLE_ORDER = ['ADMIN', 'TEACHER', 'STUDENT'];
+const CARD_ROLES = ['ADMIN', 'TEACHER', 'STUDENT'];
+const DEFAULT_PAGE_SIZE = 20;
+
+/* Main component */
 function UserList() {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(0);
-    const [pageSize, setPageSize] = useState(20);
+    const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
     const [totalPages, setTotalPages] = useState(0);
     const [totalElements, setTotalElements] = useState(0);
     const [counts, setCounts] = useState({ admin: 0, teacher: 0, student: 0, total: 0 });
@@ -198,23 +216,20 @@ function UserList() {
     const cardRefs = useRef([]);
     const [restoringId, setRestoringId] = useState(null);
 
-    // 復元確認ダイアログ
+    // dialogs
     const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
     const [restoreDialogUser, setRestoreDialogUser] = useState(null);
     const [restoreError, setRestoreError] = useState(null);
 
-    // 非表示/再表示確認ダイアログ用状態
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleteTargetUser, setDeleteTargetUser] = useState(null);
     const [hideToggleLoading, setHideToggleLoading] = useState(false);
     const [hideToggleError, setHideToggleError] = useState(null);
 
-    // 成功ダイアログ（削除/再表示/復元 完了）
     const [successDialogOpen, setSuccessDialogOpen] = useState(false);
     const [successDialogMessage, setSuccessDialogMessage] = useState('');
     const [pendingSuccessMessage, setPendingSuccessMessage] = useState('');
 
-    // トースト
     const [toastOpen, setToastOpen] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
 
@@ -236,15 +251,54 @@ function UserList() {
         throw new Error('サーバーエラーが発生しました');
     };
 
-    // If confirm dialogs closed and there is a pending success message, show it
+    const goToPage = (page) => {
+        if (page < 0 || (totalPages > 0 && page >= totalPages)) return;
+        setCurrentPage(page);
+        fetchUsers(page, pageSize, searchQuery);
+    };
+
+    useEffect(() => {
+        cardRefs.current = cardRefs.current.slice(0, CARD_ROLES.length);
+    }, []);
+
+    useEffect(() => {
+        (async () => {
+            setLoading(true);
+            const role = await fetchCurrentUserRole();
+            if (role && String(role).toUpperCase() === 'STUDENT') { setLoading(false); setError(null); return; }
+            await fetchUsers(0, pageSize);
+            await fetchCounts();
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        (async () => {
+            if (currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT') return;
+            setCurrentPage(0);
+            await fetchUsers(0, pageSize, searchQuery);
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [roleFilter]);
+
+    // リアルタイム検索（デバウンス処理）
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT') return;
+            setCurrentPage(0);
+            fetchUsers(0, pageSize, searchQuery);
+        }, 500);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchQuery]);
+
     useEffect(() => {
         if (!deleteDialogOpen && !restoreDialogOpen && pendingSuccessMessage) {
-            const delayMs = 180;
             const t = setTimeout(() => {
                 setSuccessDialogMessage(pendingSuccessMessage);
                 setPendingSuccessMessage('');
                 setSuccessDialogOpen(true);
-            }, delayMs);
+            }, 180);
             return () => clearTimeout(t);
         }
         return undefined;
@@ -271,6 +325,7 @@ function UserList() {
         focusCard(next);
     };
 
+    /* API helpers (kept inline for clarity) */
     const fetchCurrentUserRole = async () => {
         try {
             const res = await fetchWithCreds('/api/app');
@@ -350,28 +405,6 @@ function UserList() {
             setHiddenLoading(false);
         }
     };
-
-    useEffect(() => {
-        cardRefs.current = cardRefs.current.slice(0, CARD_ROLES.length);
-    }, []);
-    useEffect(() => {
-        (async () => {
-            setLoading(true);
-            const role = await fetchCurrentUserRole();
-            if (role && String(role).toUpperCase() === 'STUDENT') { setLoading(false); setError(null); return; }
-            await fetchUsers(0, pageSize);
-            await fetchCounts();
-        })();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-    useEffect(() => {
-        (async () => {
-            if (currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT') return;
-            setCurrentPage(0);
-            await fetchUsers(0, pageSize, searchQuery);
-        })();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [roleFilter]);
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -499,11 +532,7 @@ function UserList() {
         }
     };
 
-    const goToPage = (page) => {
-        if (page < 0 || (totalPages > 0 && page >= totalPages)) return;
-        setCurrentPage(page);
-        fetchUsers(page, pageSize, searchQuery);
-    };
+    /* If still loading early return handled above */
 
     const processedUsers = React.useMemo(() => {
         let list = users.filter((u) => !u.hidden);
@@ -523,15 +552,8 @@ function UserList() {
     const isAdmin = currentUserRole === 'ADMIN';
     const isStudent = currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT';
 
-    if (loading) {
-        return (
-            <div className="user-list-container">
-                <Card role="status" aria-live="polite">
-                    <CardContent className="py-6"><p className="loading">読み込み中...</p></CardContent>
-                </Card>
-            </div>
-        );
-    }
+    // 修正: ローディング中の表示ブロックを削除しました
+    // if (loading) { ... } ブロックを削除
 
     if (isStudent) {
         return (
@@ -556,13 +578,13 @@ function UserList() {
                 <CardContent>
                     <div className="mb-6" aria-live="polite" aria-atomic="true">
                         <div className="grid gap-4 grid-cols-1 sm:grid-cols-3" role="tablist" aria-label="役割で絞り込む" onKeyDown={handleCardKeyDown}>
-                            <CountCard title="管理者" count={counts.admin} colorClass="bg-red-50" icon={() => <RoleIcon role="ADMIN" className="h-6 w-6" />} active={roleFilter === 'ADMIN'} innerRef={(el) => (cardRefs.current[0] = el)} onClick={() => setRoleFilter(prev => prev === 'ADMIN' ? 'ALL' : 'ADMIN')} />
-                            <CountCard title="教員" count={counts.teacher} colorClass="bg-blue-50" icon={() => <RoleIcon role="TEACHER" className="h-6 w-6" />} active={roleFilter === 'TEACHER'} innerRef={(el) => (cardRefs.current[1] = el)} onClick={() => setRoleFilter(prev => prev === 'TEACHER' ? 'ALL' : 'TEACHER')} />
-                            <CountCard title="学生" count={counts.student} colorClass="bg-green-50" icon={() => <RoleIcon role="STUDENT" className="h-6 w-6" />} active={roleFilter === 'STUDENT'} innerRef={(el) => (cardRefs.current[2] = el)} onClick={() => setRoleFilter(prev => prev === 'STUDENT' ? 'ALL' : 'STUDENT')} />
+                            <CountCard title="管理者" count={counts.admin} colorClass="bg-red-50" icon={() => <RoleIconSmall role="ADMIN" />} active={roleFilter === 'ADMIN'} innerRef={(el) => (cardRefs.current[0] = el)} onClick={() => setRoleFilter(prev => prev === 'ADMIN' ? 'ALL' : 'ADMIN')} />
+                            <CountCard title="教員" count={counts.teacher} colorClass="bg-blue-50" icon={() => <RoleIconSmall role="TEACHER" />} active={roleFilter === 'TEACHER'} innerRef={(el) => (cardRefs.current[1] = el)} onClick={() => setRoleFilter(prev => prev === 'TEACHER' ? 'ALL' : 'TEACHER')} />
+                            <CountCard title="学生" count={counts.student} colorClass="bg-green-50" icon={() => <RoleIconSmall role="STUDENT" />} active={roleFilter === 'STUDENT'} innerRef={(el) => (cardRefs.current[2] = el)} onClick={() => setRoleFilter(prev => prev === 'STUDENT' ? 'ALL' : 'STUDENT')} />
                         </div>
                     </div>
 
-                    {isAdmin && (
+                    {String(currentUserRole || '').toUpperCase() === 'ADMIN' && (
                         <div className="mb-4">
                             <Dialog open={openHiddenDialog} onOpenChange={setOpenHiddenDialog}>
                                 <DialogTrigger asChild>
@@ -612,16 +634,15 @@ function UserList() {
                                                                     <tr key={uid} className="border-t" tabIndex={0}>
                                                                         <td className="py-2 px-3 align-top">
                                                                             <div className="flex items-center gap-3">
-                                                                                <CampusBadge email={u?.email} />
+                                                                                <UserBadge email={u?.email} role={u?.role} />
                                                                                 <span>{name}</span>
                                                                             </div>
                                                                         </td>
                                                                         <td className="py-2 px-3 align-top">{u?.email ?? ''}</td>
                                                                         <td className="py-2 px-3 align-top">
-                                                                            <span className="whitespace-nowrap flex items-center gap-2">
-                                                                                <RoleIcon role={u?.role} className="h-4 w-4" />
-                                                                                {roleLabel(u?.role)}
-                                                                            </span>
+                                        <span className="whitespace-nowrap flex items-center gap-2">
+                                          <RoleIconSmall role={u?.role} />{roleLabel(u?.role)}
+                                        </span>
                                                                         </td>
                                                                         <td className="py-2 px-3 align-top">{created ? new Date(created).toLocaleString('ja-JP') : ''}</td>
                                                                         <td className="py-2 px-3 align-top">
@@ -658,7 +679,7 @@ function UserList() {
                         </div>
                     )}
 
-                    {/* 復元確認ダイアログ */}
+                    {/* restore dialog */}
                     <Dialog open={restoreDialogOpen} onOpenChange={(v) => {
                         if (!v) {
                             setRestoreDialogOpen(false);
@@ -670,9 +691,7 @@ function UserList() {
                             <DialogHeader>
                                 <DialogTitle>ユーザーを復元</DialogTitle>
                                 <DialogDescription>
-                                    {restoreDialogUser
-                                        ? `${restoreDialogUser.userName ?? restoreDialogUser.name ?? restoreDialogUser.fullName ?? ''} を表示状態に戻しますか？`
-                                        : ''}
+                                    {restoreDialogUser ? `${restoreDialogUser.userName ?? restoreDialogUser.name ?? restoreDialogUser.fullName ?? ''} を表示状態に戻しますか？` : ''}
                                 </DialogDescription>
                             </DialogHeader>
                             {restoreError && <div className="text-sm text-red-600 mb-2">{restoreError}</div>}
@@ -683,76 +702,44 @@ function UserList() {
                         </DialogContent>
                     </Dialog>
 
-                    {/* 削除(非表示切替)確認ダイアログ */}
-                    <Dialog
-                        open={deleteDialogOpen}
-                        onOpenChange={(v) => {
-                            if (!v) {
-                                setDeleteDialogOpen(false);
-                                setDeleteTargetUser(null);
-                                setHideToggleError(null);
-                            }
-                        }}
-                    >
+                    {/* delete confirmation dialog */}
+                    <Dialog open={deleteDialogOpen} onOpenChange={(v) => {
+                        if (!v) {
+                            setDeleteDialogOpen(false);
+                            setDeleteTargetUser(null);
+                            setHideToggleError(null);
+                        }
+                    }}>
                         <DialogContent className="sm:max-w-md">
                             <DialogHeader>
-                                <DialogTitle>
-                                    {deleteTargetUser?.hidden ? 'ユーザーを再表示' : 'ユーザーを削除(非表示)'}
-                                </DialogTitle>
+                                <DialogTitle>{deleteTargetUser?.hidden ? 'ユーザーを再表示' : 'ユーザーを削除(非表示)'}</DialogTitle>
                                 <DialogDescription>
-                                    {deleteTargetUser
-                                        ? `${deleteTargetUser.userName ?? deleteTargetUser.name ?? ''} を${deleteTargetUser.hidden ? '再表示しますか？' : '非表示にしますか？'}`
-                                        : ''}
+                                    {deleteTargetUser ? `${deleteTargetUser.userName ?? deleteTargetUser.name ?? ''} を${deleteTargetUser.hidden ? '再表示しますか？' : '非表示にしますか？'}` : ''}
                                 </DialogDescription>
                             </DialogHeader>
-                            {hideToggleError && (
-                                <div className="text-sm text-red-600 mb-2">{hideToggleError}</div>
-                            )}
+                            {hideToggleError && <div className="text-sm text-red-600 mb-2">{hideToggleError}</div>}
                             <DialogFooter className="flex justify-end gap-2 mt-4">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => {
-                                        setDeleteDialogOpen(false);
-                                        setDeleteTargetUser(null);
-                                        setHideToggleError(null);
-                                    }}
-                                    disabled={hideToggleLoading}
-                                >
-                                    キャンセル
-                                </Button>
-                                <Button
-                                    variant={deleteTargetUser?.hidden ? 'default' : 'destructive'}
-                                    onClick={performHideToggle}
-                                    disabled={hideToggleLoading || !deleteTargetUser}
-                                >
-                                    {hideToggleLoading
-                                        ? '処理中…'
-                                        : deleteTargetUser?.hidden
-                                            ? '再表示'
-                                            : '削除'}
+                                <Button variant="outline" onClick={() => { setDeleteDialogOpen(false); setDeleteTargetUser(null); setHideToggleError(null); }} disabled={hideToggleLoading}>キャンセル</Button>
+                                <Button variant={deleteTargetUser?.hidden ? 'default' : 'destructive'} onClick={performHideToggle} disabled={hideToggleLoading || !deleteTargetUser}>
+                                    {hideToggleLoading ? '処理中…' : (deleteTargetUser?.hidden ? '再表示' : '削除')}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
 
-                    {/* 成功ダイアログ */}
-                    <Dialog
-                        open={successDialogOpen}
-                        onOpenChange={(v) => {
-                            if (!v) {
-                                setSuccessDialogOpen(false);
-                                setSuccessDialogMessage('');
-                                setDeleteTargetUser(null);
-                                setRestoreDialogUser(null);
-                            }
-                        }}
-                    >
+                    {/* success dialog */}
+                    <Dialog open={successDialogOpen} onOpenChange={(v) => {
+                        if (!v) {
+                            setSuccessDialogOpen(false);
+                            setSuccessDialogMessage('');
+                            setDeleteTargetUser(null);
+                            setRestoreDialogUser(null);
+                        }
+                    }}>
                         <DialogContent className="sm:max-w-sm">
                             <DialogHeader>
                                 <DialogTitle>操作が完了しました</DialogTitle>
-                                <DialogDescription>
-                                    {successDialogMessage || '操作が完了しました'}
-                                </DialogDescription>
+                                <DialogDescription>{successDialogMessage || '操作が完了しました'}</DialogDescription>
                             </DialogHeader>
                             <DialogFooter className="flex justify-end gap-2 mt-4">
                                 <Button onClick={() => setSuccessDialogOpen(false)}>閉じる</Button>
@@ -775,12 +762,12 @@ function UserList() {
                                     <TableHead>メールアドレス</TableHead>
                                     <TableHead>権限</TableHead>
                                     <TableHead>作成日時</TableHead>
-                                    {isAdmin && <TableHead>操作</TableHead>}
+                                    {String(currentUserRole || '').toUpperCase() === 'ADMIN' && <TableHead>操作</TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {processedUsers.length === 0 ? (
-                                    <TableRow><TableCell colSpan={isAdmin ? 6 : 4} className="no-data text-center">ユーザーが見つかりません</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={String(currentUserRole || '').toUpperCase() === 'ADMIN' ? 5 : 4} className="no-data text-center">ユーザーが見つかりません</TableCell></TableRow>
                                 ) : (
                                     processedUsers.map((user, idx) => {
                                         const uid = user?.userId ?? user?.id ?? user?.user_id ?? `u-${idx}`;
@@ -790,31 +777,31 @@ function UserList() {
                                             <TableRow key={uid} tabIndex={0}>
                                                 <TableCell>
                                                     <div className="flex items-center gap-3">
-                                                        <CampusBadge email={user?.email} />
+                                                        <UserBadge email={user?.email} role={user?.role} />
                                                         <span>{name}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>{user?.email ?? ''}</TableCell>
                                                 <TableCell>
-                                                    {isAdmin ? (
+                                                    {String(currentUserRole || '').toUpperCase() === 'ADMIN' ? (
                                                         <Select value={user.role} onValueChange={(value) => handleRoleChange(uid, value)}>
                                                             <SelectTrigger className="w-[180px] role-select">
                                                                 <SelectValue placeholder="ロールを選択" />
                                                             </SelectTrigger>
                                                             <SelectContent>
-                                                                <SelectItem value="ADMIN"><div className="flex items-center gap-2"><RoleIcon role="ADMIN" className="h-4 w-4" /> 管理者</div></SelectItem>
-                                                                <SelectItem value="TEACHER"><div className="flex items-center gap-2"><RoleIcon role="TEACHER" className="h-4 w-4" /> 教員</div></SelectItem>
-                                                                <SelectItem value="STUDENT"><div className="flex items-center gap-2"><RoleIcon role="STUDENT" className="h-4 w-4" /> 学生</div></SelectItem>
+                                                                <SelectItem value="ADMIN"><div className="flex items-center gap-2"><RoleIconSmall role="ADMIN" /> 管理者</div></SelectItem>
+                                                                <SelectItem value="TEACHER"><div className="flex items-center gap-2"><RoleIconSmall role="TEACHER" /> 教員</div></SelectItem>
+                                                                <SelectItem value="STUDENT"><div className="flex items-center gap-2"><RoleIconSmall role="STUDENT" /> 学生</div></SelectItem>
                                                             </SelectContent>
                                                         </Select>
                                                     ) : (
                                                         <span className="whitespace-nowrap flex items-center gap-2" aria-label={`権限: ${roleLabel(user.role)}`}>
-                              <RoleIcon role={user.role} className="h-4 w-4" />{roleLabel(user.role)}
+                              <RoleIconSmall role={user.role} />{roleLabel(user.role)}
                             </span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell>{created ? new Date(created).toLocaleString('ja-JP') : ''}</TableCell>
-                                                {isAdmin && (
+                                                {String(currentUserRole || '').toUpperCase() === 'ADMIN' && (
                                                     <TableCell>
                                                         <div className="flex gap-2">
                                                             <Button
@@ -865,8 +852,7 @@ function UserList() {
                 </CardContent>
             </Card>
 
-            {/* トースト */}
-            <Toast open={toastOpen} message={toastMessage} onClose={() => setToastOpen(false)} autoHideMs={5000} />
+            <ToastSingle open={toastOpen} message={toastMessage} onClose={() => setToastOpen(false)} autoHideMs={5000} />
         </div>
     );
 }
