@@ -1,5 +1,7 @@
+// src/components/ClassUserManagement.jsx
 import { useEffect, useState } from "react";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 export function ClassUserManagement({ classId, open }) {
     const [usersInClass, setUsersInClass] = useState([]);
@@ -8,6 +10,8 @@ export function ClassUserManagement({ classId, open }) {
     const [loading, setLoading] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState(null);
+
+    const [query, setQuery] = useState("");
 
     const handleAuthRedirectIfNeeded = async (res) => {
         if (res.status === 401 || res.redirected) {
@@ -129,8 +133,33 @@ export function ClassUserManagement({ classId, open }) {
         return `${namePart}${rolePart}${emailPart}`;
     };
 
+    // 検索クエリに一致するかどうかを判定するヘルパー
+    const matchesQuery = (user) => {
+        if (!query) return true;
+        const q = query.toLowerCase();
+        const name = (user.userName || "").toLowerCase();
+        const email = (user.email || "").toLowerCase();
+        return name.includes(q) || email.includes(q);
+    };
+
+    const filteredInClass = usersInClass.filter(matchesQuery);
+    const filteredNotInClass = usersNotInClass.filter(matchesQuery);
+
     return (
         <div>
+            {/* 検索窓（shadcn/ui の Input を使用） */}
+            <div className="mb-3">
+                <div className="relative">
+                    <Search className="absolute left-2 top-1/2 w-4 h-4 text-slate-400 -translate-y-1/2 pointer-events-none" />
+                    <Input
+                        placeholder="名前またはメールアドレスで検索"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        className="text-xs pl-8"
+                    />
+                </div>
+            </div>
+
             {error && (
                 <p className="mb-2 text-xs text-red-600">
                     {error}
@@ -147,13 +176,13 @@ export function ClassUserManagement({ classId, open }) {
                         <p className="mb-1 text-xs font-medium text-slate-600">
                             参加中のユーザー
                         </p>
-                        {usersInClass.length === 0 ? (
+                        {filteredInClass.length === 0 ? (
                             <p className="text-xs text-slate-400">
-                                右列からユーザーを追加してください。
+                                {query ? "該当するユーザーがいません。" : "右列からユーザーを追加してください。"}
                             </p>
                         ) : (
                             <ul className="space-y-1 max-h-[400px] overflow-auto pr-1">
-                                {usersInClass.map((u) => (
+                                {filteredInClass.map((u) => (
                                     <li
                                         key={u.userId}
                                         className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-2"
@@ -179,13 +208,13 @@ export function ClassUserManagement({ classId, open }) {
                         <p className="mb-1 text-xs font-medium text-slate-600">
                             追加できるユーザー
                         </p>
-                        {usersNotInClass.length === 0 ? (
+                        {filteredNotInClass.length === 0 ? (
                             <p className="text-xs text-slate-400">
-                                ユーザーはありません。
+                                {query ? "該当するユーザーがいません。" : "ユーザーはありません。"}
                             </p>
                         ) : (
                             <ul className="space-y-1 max-h-[400px] overflow-auto pr-1">
-                                {usersNotInClass.map((u) => (
+                                {filteredNotInClass.map((u) => (
                                     <li
                                         key={u.userId}
                                         className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-2"
