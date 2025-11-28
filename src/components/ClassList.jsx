@@ -13,6 +13,17 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
+import { ClassUserManagement } from "@/components/ClassUserManagement";
+import { ClassStampManagement } from "@/components/ClassStampManagement";
 
 export function ClassList({ role }) {
     const navigate = useNavigate();
@@ -34,6 +45,12 @@ export function ClassList({ role }) {
     const [deleteLoadingId, setDeleteLoadingId] = useState(null);
     const [deleteError, setDeleteError] = useState(null);
     const [deleteTargetClass, setDeleteTargetClass] = useState(null);
+
+    // ユーザー管理ダイアログ
+    const [userManagementClass, setUserManagementClass] = useState(null);
+
+    // スタンプ管理ダイアログ
+    const [stampManagementClass, setStampManagementClass] = useState(null);
 
     // role は prop で渡すが、未渡しのケースに備えてローカルにも保持する
     const [currentRole, setCurrentRole] = useState(role ?? null);
@@ -234,13 +251,6 @@ export function ClassList({ role }) {
 
     return (
         <section className="py-4">
-            {/* 参加時のエラーメッセージ */}
-            {joinError && (
-                <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">
-                    {joinError}
-                </div>
-            )}
-
             {/* 削除時のエラーメッセージ */}
             {deleteError && (
                 <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">
@@ -326,10 +336,15 @@ export function ClassList({ role }) {
                     {classes.map((c) => (
                         <Card
                             key={c.classId}
-                            className="rounded-3xl border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] bg-white/95"
+                            className="group rounded-3xl border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] bg-white/95 cursor-pointer transition hover:bg-slate-50"
+                            onClick={() => {
+                                if (!joinLoading) {
+                                    onJoinClass(c.classId);
+                                }
+                            }}
                         >
                             <CardContent className="flex h-32 items-center justify-between px-8">
-                                <div>
+                                <div className="flex flex-col">
                                     <p className="text-sm font-medium text-slate-800">
                                         {c.className}
                                     </p>
@@ -338,74 +353,187 @@ export function ClassList({ role }) {
                                             作成日時: {new Date(c.createdAt).toLocaleString("ja-JP")}
                                         </p>
                                     )}
+                                    {joinLoading && (
+                                        <p className="mt-1 text-[11px] text-slate-400">
+                                            参加処理中...
+                                        </p>
+                                    )}
                                 </div>
 
-                                <div className="flex flex-col items-end gap-2">
-                                    <Button
-                                        variant="ghost"
-                                        className="text-xs font-medium text-orange-500 hover:text-orange-600 hover:bg-orange-50 px-0"
-                                        onClick={() => onJoinClass(c.classId)}
-                                        disabled={joinLoading}
-                                    >
-                                        {joinLoading ? "参加中..." : "授業に参加 →"}
-                                    </Button>
-
-                                    {/* ★ 削除ボタン（教師・管理者のみ表示などの制御を入れてもOK） */}
-                                    <Dialog
-                                        open={deleteTargetClass?.classId === c.classId}
-                                        onOpenChange={(open) => {
-                                            if (open) {
-                                                setDeleteTargetClass(c);
-                                            } else {
-                                                setDeleteTargetClass(null);
-                                            }
-                                        }}
-                                    >
-                                        <DialogTrigger asChild>
+                                <div
+                                    className="flex flex-col items-end gap-2"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    {/* 3点ドットメニュー */}
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
                                             <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="text-[11px] text-red-600 border-red-200 hover:bg-red-50"
-                                                disabled={deleteLoadingId === c.classId}
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100"
                                             >
-                                                {deleteLoadingId === c.classId ? "削除中..." : "クラスを削除"}
+                                                <MoreHorizontal className="h-4 w-4" />
                                             </Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="sm:max-w-md">
-                                            <DialogHeader>
-                                                <DialogTitle>このクラスを削除しますか？</DialogTitle>
-                                                <DialogDescription className="text-xs">
-                                                    「{c.className}」を削除します。この操作は取り消せません。
-                                                </DialogDescription>
-                                            </DialogHeader>
-                                            <DialogFooter className="flex justify-end gap-2">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    className="text-xs"
-                                                    onClick={() => setDeleteTargetClass(null)}
-                                                    disabled={deleteLoadingId === c.classId}
-                                                >
-                                                    キャンセル
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="destructive"
-                                                    className="text-xs font-medium"
-                                                    onClick={handleDeleteClass}
-                                                    disabled={deleteLoadingId === c.classId}
-                                                >
-                                                    {deleteLoadingId === c.classId ? "削除中..." : "削除"}
-                                                </Button>
-                                            </DialogFooter>
-                                        </DialogContent>
-                                    </Dialog>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-40">
+                                            <DropdownMenuLabel className="text-xs">
+                                                クラス操作
+                                            </DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                                className="text-[11px] text-slate-700"
+                                                onClick={() => setUserManagementClass(c)}
+                                            >
+                                                ユーザー管理
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                className="text-[11px] text-slate-700"
+                                                onClick={() => setStampManagementClass(c)}
+                                            >
+                                                スタンプ管理
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                                className="text-[11px] text-red-600 focus:text-red-600"
+                                                onClick={() => setDeleteTargetClass(c)}
+                                            >
+                                                クラスを削除
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             </CardContent>
                         </Card>
                     ))}
                 </div>
             )}
+
+            {/* クラス削除ダイアログ */}
+            <Dialog
+                open={!!deleteTargetClass}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setDeleteTargetClass(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>このクラスを削除しますか？</DialogTitle>
+                        <DialogDescription className="text-xs">
+                            「{deleteTargetClass?.className}」を削除します。この操作は取り消せません。
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex justify-end gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="text-xs"
+                            onClick={() => setDeleteTargetClass(null)}
+                            disabled={
+                                !!deleteTargetClass &&
+                                deleteLoadingId === deleteTargetClass.classId
+                            }
+                        >
+                            キャンセル
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            className="text-xs font-medium"
+                            onClick={handleDeleteClass}
+                            disabled={
+                                !!deleteTargetClass &&
+                                deleteLoadingId === deleteTargetClass.classId
+                            }
+                        >
+                            {deleteTargetClass &&
+                            deleteLoadingId === deleteTargetClass.classId
+                                ? "削除中..."
+                                : "削除"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ユーザー管理ダイアログ */}
+            <Dialog
+                open={!!userManagementClass}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setUserManagementClass(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>クラスに参加するユーザーの管理</DialogTitle>
+                        <DialogDescription className="text-xs">
+                            このクラスに参加するユーザーを追加・削除できます。
+                        </DialogDescription>
+                    </DialogHeader>
+                    {userManagementClass && (
+                        <ClassUserManagement
+                            classId={userManagementClass.classId}
+                            open={!!userManagementClass}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* スタンプ管理ダイアログ */}
+            <Dialog
+                open={!!stampManagementClass}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setStampManagementClass(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>クラスで使用するスタンプの管理</DialogTitle>
+                        <DialogDescription className="text-xs">
+                            このクラスで使用するスタンプを追加・削除できます。
+                        </DialogDescription>
+                    </DialogHeader>
+                    {stampManagementClass && (
+                        <ClassStampManagement
+                            classId={stampManagementClass.classId}
+                            open={!!stampManagementClass}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* 参加エラーダイアログ (shadcn/ui) */}
+            <Dialog
+                open={!!joinError}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setJoinError(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>ルームに入室できません</DialogTitle>
+                        <DialogDescription>
+                            {joinError}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex justify-end">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="text-xs"
+                            onClick={() => setJoinError(null)}
+                        >
+                            閉じる
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </section>
     );
 }
