@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { fetchStampActivity } from "../api/stampActivity";
+import { fetchStampActivity } from "../api/StampActivity";
 import { fetchStampLogs } from "../api/stampLogs";
 import { getStampColorByCode, getStampIconByCode } from "../lib/StampDefinition";
 import NotesList from "@/components/NoteList";
