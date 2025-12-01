@@ -20,6 +20,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition.js";
+import { notifySuccess, notifyError } from "@/utils/notify";
 
 function StampList() {
     const [stamps, setStamps] = useState([]);
@@ -71,7 +72,9 @@ function StampList() {
 
         // 空チェック
         if (!newStampName || !newStampColor || !newStampIcon) {
-            setError("スタンプ名・カラー・アイコンをすべて選択してください");
+            const msg = "スタンプ名・カラー・アイコンをすべて選択してください";
+            setError(msg);
+            notifyError("スタンプの追加に失敗しました", msg);
             return;
         }
 
@@ -96,18 +99,33 @@ function StampList() {
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                let msg = `HTTP error! status: ${response.status}`;
+                try {
+                    const text = await response.text();
+                    if (text) msg = text;
+                } catch {
+                    // ignore
+                }
+                throw new Error(msg);
             }
 
             // 成功したらフォームクリア & 再取得
+            const addedName = newStampName;
             setNewStampName("");
             setNewStampColor("");
             setNewStampIcon("");
             setOpenAddDialog(false);
             await fetchStamps();
+
+            // 追加成功トースト
+            notifySuccess("スタンプを追加しました", `スタンプ名: ${addedName}`);
         } catch (err) {
             console.error(err);
-            setError("スタンプの追加に失敗しました");
+            const msg = "スタンプを追加できませんでした";
+            setError(msg);
+
+            // 追加失敗トースト
+            notifyError("スタンプを追加できませんでした", err.message ?? msg);
         } finally {
             setAddLoading(false);
         }
@@ -124,16 +142,34 @@ function StampList() {
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                let msg = `HTTP error! status: ${response.status}`;
+                try {
+                    const text = await response.text();
+                    if (text) msg = text;
+                } catch {
+                    // ignore
+                }
+                throw new Error(msg);
             }
 
             // ローカル state を更新
+            const deletedStamp = stamps.find((s) => s.stampId === stampId);
             setStamps((prev) => prev.filter((s) => s.stampId !== stampId));
             setOpenDeleteDialog(false);
             setDeleteTargetStamp(null);
+
+            // 削除成功トースト
+            notifySuccess(
+                "スタンプを削除しました",
+                deletedStamp ? `スタンプ名: ${deletedStamp.stampName}` : undefined
+            );
         } catch (err) {
             console.error(err);
-            setError("スタンプの削除に失敗しました");
+            const msg = "スタンプを削除できませんでした";
+            setError(msg);
+
+            // 削除失敗トースト
+            notifyError("スタンプを削除できませんでした", err.message ?? msg);
         } finally {
             setDeleteLoading(false);
         }
