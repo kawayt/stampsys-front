@@ -29,21 +29,21 @@ export function RoomList() {
     // search
     const [searchQuery, setSearchQuery] = useState("");
 
-    // counts state
+    // カウント用state
     const [countsMap, setCountsMap] = useState({}); // { [roomId]: count }
     const [countsLoading, setCountsLoading] = useState(true);
     const [countsError, setCountsError] = useState(null);
 
-    //追加: ルームごとのメモ件数（クラス単位で一括取得） ---
+    // ルームごとのメモ件数（クラス単位で一括取得）
     const [noteCountsMap, setNoteCountsMap] = useState({}); // { [roomId]: noteCount }
     const [noteCountsLoading, setNoteCountsLoading] = useState(true);
     const [noteCountsError, setNoteCountsError] = useState(null);
 
-    //追加: 個別ルームのメモ本文を遅延取得してキャッシュするための state ---
+    // 個別ルームのメモ本文を遅延取得してキャッシュするための state
     const [notesByRoom, setNotesByRoom] = useState({}); // { [roomId]: [{noteId,noteText,...}] }
     const [notesLoadingMap, setNotesLoadingMap] = useState({}); // { [roomId]: boolean }
 
-    // 追加: 現在ホバーしているルームのキー
+    //  現在ホバーしているルームのキー
     const [hoveredRoom, setHoveredRoom] = useState(null);
 
     // ルーム作成用 state
@@ -69,7 +69,7 @@ export function RoomList() {
     const [openStampDialog, setOpenStampDialog] = useState(false);
     const [openUserDialog, setOpenUserDialog] = useState(false);
 
-    // --- ヘルパー: 認証リダイレクトの簡易チェック ---
+    // ヘルパー: 認証リダイレクトの簡易チェック
     const handleAuthRedirectIfNeeded = async (res) => {
         if (res.status === 401 || res.redirected) {
             window.location.href = "/oauth2/authorization/microsoft";
@@ -129,7 +129,7 @@ export function RoomList() {
         }
     };
 
-    // --- 追加: クラス内のルームごとのメモ件数を一括取得 ---
+    // クラス内のルームごとのメモ件数を一括取得
     const fetchNoteCountsForClass = async () => {
         setNoteCountsLoading(true);
         setNoteCountsError(null);
@@ -151,7 +151,7 @@ export function RoomList() {
         }
     };
 
-    // --- 追加: ホバーで個別ルームのメモ一覧を遅延取得してキャッシュする ---
+    // ホバーで個別ルームのメモ一覧を遅延取得してキャッシュする
     const fetchNotesForRoom = async (roomId) => {
         const key = String(roomId);
         if (!key) return;
@@ -195,6 +195,21 @@ export function RoomList() {
             }
         };
     }, []);
+
+    // 検索クエリが入力されたら、表示中クラスの各ルームについてメモをまとめて取得（未取得分のみ）
+    useEffect(() => {
+        const q = searchQuery.trim();
+        if (!q) return;
+
+        (rooms || []).forEach((r) => {
+            const roomKey = String(r.roomId ?? r.room_id ?? r.id ?? r.room ?? "");
+            if (roomKey) {
+                fetchNotesForRoom(roomKey);
+            }
+        });
+        // searchQuery / rooms の変化に応じてだけ動かしたいので exhaustive-deps は無効化
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchQuery, rooms]);
 
     // ルーム作成関数
     const handleCreateRoom = async (e) => {
@@ -362,12 +377,24 @@ export function RoomList() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [classId]);
 
-    // filter rooms by name (client side)
+    // ルーム名またはメモで検索フィルタ
     const filteredRooms = (rooms || []).filter((r) => {
         if (!searchQuery || !searchQuery.trim()) return true;
         const q = searchQuery.trim().toLowerCase();
-        const name = (r.roomName ?? r.name ?? r.roomName ?? "").toString().toLowerCase();
-        return name.includes(q);
+
+        const name = (r.roomName ?? r.name ?? r.roomName ?? "")
+            .toString()
+            .toLowerCase();
+        const nameMatches = name.includes(q);
+
+        const roomKey = String(r.roomId ?? r.room_id ?? r.id ?? r.room ?? "");
+        const notes = notesByRoom[roomKey] || [];
+        const noteMatches = notes.some((n) => {
+            const text = (n.noteText ?? n.note_text ?? "").toString().toLowerCase();
+            return text.includes(q);
+        });
+
+        return nameMatches || noteMatches;
     });
 
     if (loading) {
@@ -421,9 +448,9 @@ export function RoomList() {
                             <Input
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="ルーム名で検索"
+                                placeholder="ルーム名またはメモで検索"
                                 className="text-sm bg-white pl-8"
-                                aria-label="ルーム名で検索"
+                                aria-label="ルーム名またはメモで検索"
                             />
                             {searchQuery && (
                                 <button
