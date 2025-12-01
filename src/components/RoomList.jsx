@@ -14,10 +14,18 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, Search, StickyNote, Stamp, MoreHorizontal } from "lucide-react";
 import { ClassStampManagement } from "./ClassStampManagement";
 import { ClassUserManagement } from "./ClassUserManagement";
 import { fetchNoteCounts, fetchNotes } from "@/api/notes.js";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 export function RoomList() {
     const { classId } = useParams();
@@ -104,9 +112,12 @@ export function RoomList() {
         setCountsLoading(true);
         setCountsError(null);
         try {
-            const res = await fetch(`/api/classes/${encodeURIComponent(classId)}/rooms/stamp-counts`, {
-                credentials: "include",
-            });
+            const res = await fetch(
+                `/api/classes/${encodeURIComponent(classId)}/rooms/stamp-counts`,
+                {
+                    credentials: "include",
+                }
+            );
             if (await handleAuthRedirectIfNeeded(res)) return;
             if (!res.ok) {
                 const text = await res.text().catch(() => "");
@@ -187,7 +198,7 @@ export function RoomList() {
         }, delay);
     };
 
-// クリーンアップ（コンポーネントアンマウント時）
+    // クリーンアップ（コンポーネントアンマウント時）
     useEffect(() => {
         return () => {
             if (hideTimeoutRef.current) {
@@ -272,9 +283,12 @@ export function RoomList() {
         setCloseError(null);
 
         try {
-            const res = await fetch(`/api/rooms/${encodeURIComponent(selectedRoom.roomId)}/close`, {
-                method: "PATCH",
-            });
+            const res = await fetch(
+                `/api/rooms/${encodeURIComponent(selectedRoom.roomId)}/close`,
+                {
+                    method: "PATCH",
+                }
+            );
 
             if (res.status === 204) {
                 setRooms((prev) =>
@@ -294,7 +308,8 @@ export function RoomList() {
                     if (contentType.includes("application/json")) {
                         const body = await res.json();
                         message =
-                            (body && (body.error || body.message || JSON.stringify(body))) ||
+                            (body &&
+                                (body.error || body.message || JSON.stringify(body))) ||
                             message;
                     } else {
                         const txt = await res.text();
@@ -338,7 +353,9 @@ export function RoomList() {
             if (await handleAuthRedirectIfNeeded(res)) return;
 
             if (res.status === 204) {
-                setRooms((prev) => prev.filter((r) => r.roomId !== hideSelectedRoom.roomId));
+                setRooms((prev) =>
+                    prev.filter((r) => r.roomId !== hideSelectedRoom.roomId)
+                );
                 setOpenHideDialog(false);
                 setHideSelectedRoom(null);
                 // refresh counts because rooms list changed
@@ -351,7 +368,8 @@ export function RoomList() {
                     if (contentType.includes("application/json")) {
                         const body = await res.json();
                         message =
-                            (body && (body.error || body.message || JSON.stringify(body))) ||
+                            (body &&
+                                (body.error || body.message || JSON.stringify(body))) ||
                             message;
                     } else {
                         const txt = await res.text();
@@ -391,12 +409,32 @@ export function RoomList() {
         const roomKey = String(r.roomId ?? r.room_id ?? r.id ?? r.room ?? "");
         const notes = notesByRoom[roomKey] || [];
         const noteMatches = notes.some((n) => {
-            const text = (n.noteText ?? n.note_text ?? "").toString().toLowerCase();
+            const text = (n.noteText ?? n.note_text ?? "")
+                .toString()
+                .toLowerCase();
             return text.includes(q);
         });
 
         return nameMatches || noteMatches;
     });
+
+    const handleCardClick = (room) => {
+        if (!room) return;
+        if (room.active) {
+            navigate(`/rooms/${room.roomId}`);
+        } else {
+            navigate(
+                `/rooms/${room.roomId}/history`
+            );
+        }
+    };
+
+    const navigateToHistory = (room) => {
+        if (!room || !room.roomId) return;
+        navigate(
+            `/rooms/${room.roomId}/history`
+        );
+    };
 
     if (loading) {
         return (
@@ -470,7 +508,7 @@ export function RoomList() {
                         </div>
                     </div>
 
-                    {/* ★ スタンプ管理ダイアログ */}
+                    {/* スタンプ管理ダイアログ */}
                     <Dialog
                         open={openStampDialog}
                         onOpenChange={(open) => setOpenStampDialog(open)}
@@ -492,7 +530,6 @@ export function RoomList() {
                                 </DialogDescription>
                             </DialogHeader>
 
-                            {/* 中身はコンポーネントに委譲 */}
                             <ClassStampManagement
                                 classId={classId}
                                 open={openStampDialog}
@@ -500,7 +537,7 @@ export function RoomList() {
                         </DialogContent>
                     </Dialog>
 
-                    {/* ★ ユーザー管理ダイアログ */}
+                    {/* ユーザー管理ダイアログ */}
                     <Dialog
                         open={openUserDialog}
                         onOpenChange={(open) => {
@@ -543,7 +580,9 @@ export function RoomList() {
                         }}
                     >
                         <DialogTrigger asChild>
-                            <Button className="text-xs font-medium">ルームを作成</Button>
+                            <Button className="text-xs font-medium">
+                                ルームを作成
+                            </Button>
                         </DialogTrigger>
 
                         <DialogContent className="sm:max-w-md">
@@ -567,14 +606,20 @@ export function RoomList() {
                                         type="text"
                                         placeholder="例: 1限目 / 2限目"
                                         value={createRoomName}
-                                        onChange={(e) => setCreateRoomName(e.target.value)}
+                                        onChange={(e) =>
+                                            setCreateRoomName(e.target.value)
+                                        }
                                         className="text-sm"
                                     />
                                     {createError && (
-                                        <p className="text-[11px] text-red-600">{createError}</p>
+                                        <p className="text-[11px] text-red-600">
+                                            {createError}
+                                        </p>
                                     )}
                                     {createSuccess && (
-                                        <p className="text-[11px] text-emerald-600">{createSuccess}</p>
+                                        <p className="text-[11px] text-emerald-600">
+                                            {createSuccess}
+                                        </p>
                                     )}
                                 </div>
 
@@ -591,7 +636,11 @@ export function RoomList() {
                                     >
                                         キャンセル
                                     </Button>
-                                    <Button type="submit" disabled={creating} className="text-xs font-medium">
+                                    <Button
+                                        type="submit"
+                                        disabled={creating}
+                                        className="text-xs font-medium"
+                                    >
                                         {creating ? "作成中..." : "作成"}
                                     </Button>
                                 </DialogFooter>
@@ -602,38 +651,50 @@ export function RoomList() {
             </div>
 
             {(!filteredRooms || filteredRooms.length === 0) ? (
-                <p className="text-sm text-slate-500">このクラスに紐づくルームは登録されていません。</p>
+                <p className="text-sm text-slate-500">
+                    ルームが見つかりません
+                </p>
             ) : (
-                <div className="space-y-4">
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                     {filteredRooms.map((r) => {
-                        const roomKey = String(r.roomId ?? r.room_id ?? r.id ?? r.room ?? "");
-                        const total = countsLoading ? "-" : (countsMap[roomKey] ?? 0);
+                        const roomKey = String(
+                            r.roomId ?? r.room_id ?? r.id ?? r.room ?? ""
+                        );
+                        const total = countsLoading
+                            ? "-"
+                            : countsMap[roomKey] ?? 0;
+
+                        const isActive = !!r.active;
+                        const cardBase =
+                            "group rounded-3xl border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-400";
+                        const cardColor = isActive
+                            ? "bg-orange-50/95 hover:bg-orange-100"
+                            : "bg-white/95 hover:bg-slate-50";
 
                         return (
                             <Card
                                 key={r.roomId}
-                                className="rounded-3xl border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] bg-white/95"
+                                className={`${cardBase} ${cardColor}`}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => handleCardClick(r)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        handleCardClick(r);
+                                    }
+                                }}
                             >
-                                <CardContent className="flex items-center justify-between px-8 py-5">
-                                    {/* 左側：アイコン + 情報 */}
-                                    <div className="flex items-center gap-4">
-                                        <div
-                                            className={`flex h-10 w-10 items-center justify-center rounded-full text-xl ${
-                                                r.active
-                                                    ? "bg-orange-100 text-orange-500"
-                                                    : "bg-slate-100 text-slate-400"
-                                            }`}
-                                        >
-                                            ⌂
-                                        </div>
-
+                                <CardContent className="flex h-32 flex-col justify-between px-8 py-5">
+                                    {/* 上段：ルーム名とステータス */}
+                                    <div className="flex items-start justify-between gap-4">
                                         <div className="text-left">
                                             <div className="flex items-center gap-2">
                                                 <p className="text-sm font-medium text-slate-800">
                                                     {r.roomName}
                                                 </p>
 
-                                                {!r.active && (
+                                                {!isActive && (
                                                     <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-500 border border-red-100">
                                                         終了
                                                     </span>
@@ -643,132 +704,191 @@ export function RoomList() {
                                             {r.createdAt && (
                                                 <p className="mt-1 text-[11px] text-slate-400">
                                                     作成日時:{" "}
-                                                    {new Date(r.createdAt).toLocaleString("ja-JP")}
+                                                    {new Date(
+                                                        r.createdAt
+                                                    ).toLocaleString("ja-JP")}
                                                 </p>
                                             )}
                                         </div>
-                                    </div>
 
-                                    {/* メモ数（ポップオーバー表示） */}
-                                    <div className="relative text-right mr-4">
-                                        <div className="text-sm text-slate-500">メモ</div>
-
+                                        {/* 右上：ドロップダウンメニュー（カードクリックと分離） */}
                                         <div
-                                            className="text-2xl font-bold"
-                                            onMouseEnter={() => {
-                                                openPopover(roomKey);
-                                                fetchNotesForRoom(roomKey);
-                                            }}
-                                            onMouseLeave={() => scheduleClosePopover()}
-                                            onFocus={() => {
-                                                openPopover(roomKey);
-                                                fetchNotesForRoom(roomKey);
-                                            }}
-                                            onBlur={() => scheduleClosePopover()}
-                                            role="button"
-                                            tabIndex={0}
-                                            aria-describedby={`notes-tooltip-${roomKey}`}
-                                        >
-                                            {noteCountsLoading ? "…" : (noteCountsMap[roomKey] ?? 0)}
-                                        </div>
-
-                                        {/* Popover: hoveredRoom がこの roomKey と一致する時に表示 */}
-                                        {hoveredRoom === roomKey && (
-                                            <div
-                                                id={`notes-tooltip-${roomKey}`}
-                                                className="absolute z-50 mt-2 right-0 w-72 max-h-64 overflow-auto rounded-md border border-slate-100 bg-white p-3 text-sm text-slate-700 shadow-lg"
-                                                onMouseEnter={() => openPopover(roomKey)}    // ポップオーバー上に入ったら閉じるタイマーをキャンセル
-                                                onMouseLeave={() => scheduleClosePopover()}   // ポップオーバーを離れたら閉じる
-                                            >
-                                                {notesLoadingMap[roomKey] ? (
-                                                    <div className="text-xs text-slate-500">読み込み中...</div>
-                                                ) : (notesByRoom[roomKey] && notesByRoom[roomKey].length > 0) ? (
-                                                    // 最新のメモを上から表示。長いテキストは切り詰めて表示。
-                                                    notesByRoom[roomKey].map((n) => (
-                                                        <div key={n.noteId ?? `${n.createdAt}-${Math.random()}`} className="mb-2 last:mb-0">
-                                                            <div className="whitespace-pre-wrap break-words text-[13px]">{n.noteText ?? n.note_text ?? ""}</div>
-                                                            {/* createdAt があるなら日付表示するならここに追加 */}
-                                                            {/* <div className="mt-1 text-[11px] text-slate-400">{n.createdAt}</div> */}
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <div className="text-xs text-slate-500">メモはありません</div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* 右側：ボタン／合計スタンプ／矢印 */}
-                                    <div className="flex items-center gap-3">
-                                        <div className="text-right mr-4">
-                                            <div className="text-sm text-slate-500">合計スタンプ</div>
-                                            <div className="text-2xl font-bold">{total}</div>
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <Button
-                                                size="sm"
-                                                className={
-                                                    r.active
-                                                        ? "text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white px-4"
-                                                        : "text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 px-4"
-                                                }
-                                                onClick={() => {
-                                                    if (r.active) {
-                                                        // pass roomName as query for easier history search
-                                                        navigate(`/rooms/${r.roomId}`);
-                                                    } else {
-                                                        navigate(
-                                                            `/rooms/${r.roomId}/history?q=${encodeURIComponent(
-                                                                r.roomName ?? ""
-                                                            )}`
-                                                        );
-                                                    }
-                                                }}
-                                            >
-                                                {r.active ? "入室" : "履歴"}
-                                            </Button>
-
-                                            {r.active ? (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="text-xs font-medium px-4"
-                                                    onClick={() =>
-                                                        openCloseRoomDialog({
-                                                            roomId: r.roomId,
-                                                            roomName: r.roomName,
-                                                        })
-                                                    }
-                                                >
-                                                    終了
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    className="text-xs font-medium px-4"
-                                                    onClick={() =>
-                                                        openHideRoomDialog({
-                                                            roomId: r.roomId,
-                                                            roomName: r.roomName,
-                                                        })
-                                                    }
-                                                >
-                                                    削除
-                                                </Button>
-                                            )}
-                                        </div>
-
-                                        <span
-                                            className={
-                                                r.active
-                                                    ? "text-orange-400 text-lg"
-                                                    : "text-slate-300 text-lg"
+                                            className="flex items-center gap-2"
+                                            onClick={(e) =>
+                                                e.stopPropagation()
+                                            }
+                                            onKeyDown={(e) =>
+                                                e.stopPropagation()
                                             }
                                         >
-                                            →
-                                        </span>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                                                    >
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent
+                                                    align="end"
+                                                    className="w-44"
+                                                >
+                                                    <DropdownMenuLabel className="text-xs">
+                                                        ルーム操作
+                                                    </DropdownMenuLabel>
+                                                    <DropdownMenuSeparator />
+                                                        <>
+                                                            {isActive && (
+                                                                <DropdownMenuItem
+                                                                    className="text-[11px] text-slate-700"
+                                                                    onClick={() =>
+                                                                        navigate(
+                                                                            `/rooms/${r.roomId}`
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    ルームに入室
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            <DropdownMenuItem
+                                                                className="text-[11px] text-slate-700"
+                                                                onClick={() =>
+                                                                    navigateToHistory(
+                                                                        r
+                                                                    )
+                                                                }
+                                                            >
+                                                                ルーム履歴
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                        </>
+
+                                                    {isActive ? (
+                                                        <DropdownMenuItem
+                                                            className="text-[11px] text-red-600 focus:text-red-600"
+                                                            onClick={() =>
+                                                                openCloseRoomDialog({
+                                                                    roomId: r.roomId,
+                                                                    roomName:
+                                                                    r.roomName,
+                                                                })
+                                                            }
+                                                        >
+                                                            ルームを終了
+                                                        </DropdownMenuItem>
+                                                    ) : (
+                                                        <DropdownMenuItem
+                                                            className="text-[11px] text-red-600 focus:text-red-600"
+                                                            onClick={() =>
+                                                                openHideRoomDialog({
+                                                                    roomId: r.roomId,
+                                                                    roomName:
+                                                                    r.roomName,
+                                                                })
+                                                            }
+                                                        >
+                                                            ルームを削除
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                    </div>
+
+                                    {/* 下段 */}
+                                    <div className="mt-3 flex items-end gap-6">
+                                        {/* 合計スタンプ数 */}
+                                        <div className="flex items-center gap-1 text-xs text-slate-600">
+                                            <Stamp className="h-5 w-5" />
+                                            <span className="font-semibold text-sm">
+                                                {total}
+                                            </span>
+                                        </div>
+                                        {/* メモ数 */}
+                                        <div className="relative">
+                                            <div
+                                                className="flex items-center gap-1 text-xs text-slate-600"
+                                                onMouseEnter={() => {
+                                                    openPopover(roomKey);
+                                                    fetchNotesForRoom(roomKey);
+                                                }}
+                                                onMouseLeave={() =>
+                                                    scheduleClosePopover()
+                                                }
+                                                onFocus={() => {
+                                                    openPopover(roomKey);
+                                                    fetchNotesForRoom(roomKey);
+                                                }}
+                                                onBlur={() =>
+                                                    scheduleClosePopover()
+                                                }
+                                                role="button"
+                                                tabIndex={-1}
+                                                aria-describedby={`notes-tooltip-${roomKey}`}
+                                                onClick={(e) =>
+                                                    e.stopPropagation()
+                                                }
+                                            >
+                                                <StickyNote className="h-5 w-5" />
+                                                <span className="font-semibold text-sm">
+                                                    {noteCountsLoading
+                                                        ? "…"
+                                                        : noteCountsMap[
+                                                        roomKey
+                                                        ] ?? 0}
+                                                </span>
+                                            </div>
+
+                                            {/* Popover */}
+                                            {hoveredRoom === roomKey && (
+                                                <div
+                                                    id={`notes-tooltip-${roomKey}`}
+                                                    className="absolute z-50 mt-2 left-0 w-72 max-h-64 overflow-auto rounded-md border border-slate-100 bg-white p-3 text-sm text-slate-700 shadow-lg"
+                                                    onMouseEnter={() =>
+                                                        openPopover(roomKey)
+                                                    }
+                                                    onMouseLeave={() =>
+                                                        scheduleClosePopover()
+                                                    }
+                                                >
+                                                    {notesLoadingMap[
+                                                        roomKey
+                                                        ] ? (
+                                                        <div className="text-xs text-slate-500">
+                                                            読み込み中...
+                                                        </div>
+                                                    ) : notesByRoom[
+                                                        roomKey
+                                                        ] &&
+                                                    notesByRoom[roomKey]
+                                                        .length > 0 ? (
+                                                        notesByRoom[
+                                                            roomKey
+                                                            ].map((n) => (
+                                                            <div
+                                                                key={
+                                                                    n.noteId ??
+                                                                    `${n.createdAt}-${Math.random()}`
+                                                                }
+                                                                className="mb-2 last:mb-0"
+                                                            >
+                                                                <div className="whitespace-pre-wrap break-words text-[13px]">
+                                                                    {n.noteText ??
+                                                                        n.note_text ??
+                                                                        ""}
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="text-xs text-slate-500">
+                                                            メモはありません
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -800,7 +920,9 @@ export function RoomList() {
                     </DialogHeader>
 
                     {closeError && (
-                        <p className="text-sm text-red-600 mb-2">{closeError}</p>
+                        <p className="text-sm text-red-600 mb-2">
+                            {closeError}
+                        </p>
                     )}
 
                     <DialogFooter className="flex justify-end gap-2">
@@ -815,7 +937,7 @@ export function RoomList() {
                             }}
                             disabled={closeProcessing}
                         >
-                            戻る
+                            キャンセル
                         </Button>
                         <Button
                             type="button"
@@ -823,7 +945,7 @@ export function RoomList() {
                             onClick={handleConfirmClose}
                             disabled={closeProcessing}
                         >
-                            {closeProcessing ? "終了中..." : "終了する"}
+                            {closeProcessing ? "終了中..." : "終了"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -852,7 +974,9 @@ export function RoomList() {
                     </DialogHeader>
 
                     {hideError && (
-                        <p className="text-sm text-red-600 mb-2">{hideError}</p>
+                        <p className="text-sm text-red-600 mb-2">
+                            {hideError}
+                        </p>
                     )}
 
                     <DialogFooter className="flex justify-end gap-2">
