@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import UserList from './components/UserList'
 import LoginPage from './components/LoginPage';
+import { DbAdminPage } from "@/components/DbAdminPage";
 import { ClassList } from './components/ClassList';
 import StampList from './components/StampList';
 import { RoomList } from "@/components/RoomList";
@@ -78,6 +79,18 @@ function App() {
                     element={<LoginPage onLogin={handleLogin} error={error} />}
                 />
 
+                {/* ★ ADMIN専用 DB 管理ページ */}
+                <Route
+                    path="/admin/db"
+                    element={
+                        appData ? (
+                            <DbAdminPage currentUserRole={appData.user?.role} />
+                        ) : (
+                            <Navigate to="/login" replace />
+                        )
+                    }
+                />
+
                 {/* それ以外はダッシュボード（認証が必要）またはログインへ */}
                 <Route
                     path="/*"
@@ -131,14 +144,26 @@ function Dashboard({ appData, onLogout }) {
                         </p>
                         <p className="text-xs text-slate-500">{appData.user?.role}</p>
                     </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={onLogout}
-                        className="text-xs"
-                    >
-                        ログアウト
-                    </Button>
+
+                    {/* ここでログアウトの隣に DB 管理へのボタンを表示（ADMIN のみ） */}
+                    <div className="flex items-center gap-2">
+                        {String(appData.user?.role).toUpperCase() === "ADMIN" && (
+                            <Link to="/admin/db">
+                                <Button variant="outline" size="sm" className="text-xs">
+                                    DB 管理
+                                </Button>
+                            </Link>
+                        )}
+
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={onLogout}
+                            className="text-xs"
+                        >
+                            ログアウト
+                        </Button>
+                    </div>
                 </div>
             </header>
 

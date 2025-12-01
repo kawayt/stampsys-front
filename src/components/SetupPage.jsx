@@ -220,65 +220,65 @@ export default function SetupPage() {
                         </p>
                     </div>
 
-                    <div className="mb-4">
-                        <label className="text-sm font-medium block mb-2">
-                            接続情報
-                        </label>
+                    {/*<div className="mb-4">*/}
+                    {/*    <label className="text-sm font-medium block mb-2">*/}
+                    {/*        接続情報*/}
+                    {/*    </label>*/}
 
-                        <label className="flex items-center gap-2 mb-2 text-sm">
-                            <Checkbox
-                                id="use-server-defaults"
-                                checked={useServerDefaults}
-                                onCheckedChange={(v) =>
-                                    setUseServerDefaults(Boolean(v))
-                                }
-                                className="h-4 w-4"
-                            />
-                            <span>
-                                サーバのデフォルト接続情報を使う
-                                (app.setup.default-* が設定されている場合)
-                            </span>
-                        </label>
+                    {/*    <label className="flex items-center gap-2 mb-2 text-sm">*/}
+                    {/*        <Checkbox*/}
+                    {/*            id="use-server-defaults"*/}
+                    {/*            checked={useServerDefaults}*/}
+                    {/*            onCheckedChange={(v) =>*/}
+                    {/*                setUseServerDefaults(Boolean(v))*/}
+                    {/*            }*/}
+                    {/*            className="h-4 w-4"*/}
+                    {/*        />*/}
+                    {/*        <span>*/}
+                    {/*            サーバのデフォルト接続情報を使う*/}
+                    {/*            (app.setup.default-* が設定されている場合)*/}
+                    {/*        </span>*/}
+                    {/*    </label>*/}
 
-                        {!useServerDefaults && (
-                            <div className="space-y-2">
-                                <div>
-                                    <label className="text-xs">JDBC URL</label>
-                                    <Input
-                                        value={jdbcUrl}
-                                        onChange={(e) => setJdbcUrl(e.target.value)}
-                                        placeholder="例: jdbc:postgresql://host:5432/springdb"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs">
-                                        データベース ユーザー
-                                    </label>
-                                    <Input
-                                        value={dbUser}
-                                        onChange={(e) => setDbUser(e.target.value)}
-                                        placeholder="例: springuser (省略可)"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs">
-                                        データベース パスワード
-                                    </label>
-                                    <Input
-                                        type="password"
-                                        value={dbPassword}
-                                        onChange={(e) =>
-                                            setDbPassword(e.target.value)
-                                        }
-                                        placeholder="省略可"
-                                    />
-                                </div>
-                                <p className="text-xs text-slate-500 mt-1">
-                                    JDBC URL を省略すると実行できません。URL を正しく指定してください。
-                                </p>
-                            </div>
-                        )}
-                    </div>
+                    {/*    {!useServerDefaults && (*/}
+                    {/*        <div className="space-y-2">*/}
+                    {/*            <div>*/}
+                    {/*                <label className="text-xs">JDBC URL</label>*/}
+                    {/*                <Input*/}
+                    {/*                    value={jdbcUrl}*/}
+                    {/*                    onChange={(e) => setJdbcUrl(e.target.value)}*/}
+                    {/*                    placeholder="例: jdbc:postgresql://host:5432/springdb"*/}
+                    {/*                />*/}
+                    {/*            </div>*/}
+                    {/*            <div>*/}
+                    {/*                <label className="text-xs">*/}
+                    {/*                    データベース ユーザー*/}
+                    {/*                </label>*/}
+                    {/*                <Input*/}
+                    {/*                    value={dbUser}*/}
+                    {/*                    onChange={(e) => setDbUser(e.target.value)}*/}
+                    {/*                    placeholder="例: springuser (省略可)"*/}
+                    {/*                />*/}
+                    {/*            </div>*/}
+                    {/*            <div>*/}
+                    {/*                <label className="text-xs">*/}
+                    {/*                    データベース パスワード*/}
+                    {/*                </label>*/}
+                    {/*                <Input*/}
+                    {/*                    type="password"*/}
+                    {/*                    value={dbPassword}*/}
+                    {/*                    onChange={(e) =>*/}
+                    {/*                        setDbPassword(e.target.value)*/}
+                    {/*                    }*/}
+                    {/*                    placeholder="省略可"*/}
+                    {/*                />*/}
+                    {/*            </div>*/}
+                    {/*            <p className="text-xs text-slate-500 mt-1">*/}
+                    {/*                JDBC URL を省略すると実行できません。URL を正しく指定してください。*/}
+                    {/*            </p>*/}
+                    {/*        </div>*/}
+                    {/*    )}*/}
+                    {/*</div>*/}
 
                     <div className="flex gap-2">
                         <Button onClick={handleInit} disabled={loading}>
