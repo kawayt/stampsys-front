@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Search } from "lucide-react";
 import { ClassStampManagement } from "./ClassStampManagement";
 import { ClassUserManagement } from "./ClassUserManagement";
+import { fetchNoteCounts, fetchNotes } from "@/api/notes.js";
 
 export function RoomList() {
     const { classId } = useParams();
@@ -32,6 +33,18 @@ export function RoomList() {
     const [countsMap, setCountsMap] = useState({}); // { [roomId]: count }
     const [countsLoading, setCountsLoading] = useState(true);
     const [countsError, setCountsError] = useState(null);
+
+    //追加: ルームごとのメモ件数（クラス単位で一括取得） ---
+    const [noteCountsMap, setNoteCountsMap] = useState({}); // { [roomId]: noteCount }
+    const [noteCountsLoading, setNoteCountsLoading] = useState(true);
+    const [noteCountsError, setNoteCountsError] = useState(null);
+
+    //追加: 個別ルームのメモ本文を遅延取得してキャッシュするための state ---
+    const [notesByRoom, setNotesByRoom] = useState({}); // { [roomId]: [{noteId,noteText,...}] }
+    const [notesLoadingMap, setNotesLoadingMap] = useState({}); // { [roomId]: boolean }
+
+    // 追加: 現在ホバーしているルームのキー
+    const [hoveredRoom, setHoveredRoom] = useState(null);
 
     // ルーム作成用 state
     const [creating, setCreating] = useState(false);
@@ -116,6 +129,73 @@ export function RoomList() {
         }
     };
 
+    // --- 追加: クラス内のルームごとのメモ件数を一括取得 ---
+    const fetchNoteCountsForClass = async () => {
+        setNoteCountsLoading(true);
+        setNoteCountsError(null);
+        try {
+            const arr = await fetchNoteCounts(classId);
+            const map = {};
+            (arr || []).forEach((it) => {
+                const id = it.roomId ?? it.room_id ?? it.room ?? it.id;
+                const cnt = it.noteCount ?? it.count ?? 0;
+                if (id != null) map[String(id)] = Number(cnt);
+            });
+            setNoteCountsMap(map);
+        } catch (err) {
+            console.error("fetchNoteCountsForClass error:", err);
+            setNoteCountsError(err.message ?? "メモ数取得時にエラーが発生しました");
+            setNoteCountsMap({});
+        } finally {
+            setNoteCountsLoading(false);
+        }
+    };
+
+    // --- 追加: ホバーで個別ルームのメモ一覧を遅延取得してキャッシュする ---
+    const fetchNotesForRoom = async (roomId) => {
+        const key = String(roomId);
+        if (!key) return;
+        if (notesByRoom[key] || notesLoadingMap[key]) return; // キャッシュ済み or 読み込み中ならスキップ
+        setNotesLoadingMap((prev) => ({ ...prev, [key]: true }));
+        try {
+            const arr = await fetchNotes(roomId, false); // includeHidden = false
+            setNotesByRoom((prev) => ({ ...prev, [key]: arr || [] }));
+        } catch (err) {
+            console.error("fetchNotesForRoom error:", err);
+            setNotesByRoom((prev) => ({ ...prev, [key]: [] }));
+        } finally {
+            setNotesLoadingMap((prev) => ({ ...prev, [key]: false }));
+        }
+    };
+
+    const hideTimeoutRef = useRef(null);
+
+    const openPopover = (key) => {
+        if (hideTimeoutRef.current) {
+            clearTimeout(hideTimeoutRef.current);
+            hideTimeoutRef.current = null;
+        }
+        setHoveredRoom(key);
+    };
+
+    const scheduleClosePopover = (delay = 150) => {
+        if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+        hideTimeoutRef.current = setTimeout(() => {
+            setHoveredRoom(null);
+            hideTimeoutRef.current = null;
+        }, delay);
+    };
+
+// クリーンアップ（コンポーネントアンマウント時）
+    useEffect(() => {
+        return () => {
+            if (hideTimeoutRef.current) {
+                clearTimeout(hideTimeoutRef.current);
+                hideTimeoutRef.current = null;
+            }
+        };
+    }, []);
+
     // ルーム作成関数
     const handleCreateRoom = async (e) => {
         e.preventDefault();
@@ -153,6 +233,7 @@ export function RoomList() {
             setOpenCreateDialog(false);
             await fetchRooms();
             await fetchCounts();
+            await fetchNoteCountsForClass();
         } catch (err) {
             console.error(err);
             setCreateError(err.message ?? "ルーム作成時にエラーが発生しました");
@@ -189,6 +270,7 @@ export function RoomList() {
                 setSelectedRoom(null);
                 // refresh counts because active state change may affect UI
                 await fetchCounts();
+                await fetchNoteCountsForClass();
             } else {
                 let message = `ルームの終了に失敗しました: ${res.status}`;
                 try {
@@ -245,6 +327,7 @@ export function RoomList() {
                 setHideSelectedRoom(null);
                 // refresh counts because rooms list changed
                 await fetchCounts();
+                await fetchNoteCountsForClass();
             } else {
                 let message = `ルームの削除（非表示）に失敗しました: ${res.status}`;
                 try {
@@ -272,9 +355,10 @@ export function RoomList() {
     };
 
     useEffect(() => {
-        // load both rooms and counts when classId changes
+        // load rooms / stamp counts / note counts when classId changes
         fetchRooms();
         fetchCounts();
+        fetchNoteCountsForClass();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [classId]);
 
@@ -530,6 +614,55 @@ export function RoomList() {
                                                 </p>
                                             )}
                                         </div>
+                                    </div>
+
+                                    {/* メモ数（ポップオーバー表示） */}
+                                    <div className="relative text-right mr-4">
+                                        <div className="text-sm text-slate-500">メモ</div>
+
+                                        <div
+                                            className="text-2xl font-bold"
+                                            onMouseEnter={() => {
+                                                openPopover(roomKey);
+                                                fetchNotesForRoom(roomKey);
+                                            }}
+                                            onMouseLeave={() => scheduleClosePopover()}
+                                            onFocus={() => {
+                                                openPopover(roomKey);
+                                                fetchNotesForRoom(roomKey);
+                                            }}
+                                            onBlur={() => scheduleClosePopover()}
+                                            role="button"
+                                            tabIndex={0}
+                                            aria-describedby={`notes-tooltip-${roomKey}`}
+                                        >
+                                            {noteCountsLoading ? "…" : (noteCountsMap[roomKey] ?? 0)}
+                                        </div>
+
+                                        {/* Popover: hoveredRoom がこの roomKey と一致する時に表示 */}
+                                        {hoveredRoom === roomKey && (
+                                            <div
+                                                id={`notes-tooltip-${roomKey}`}
+                                                className="absolute z-50 mt-2 right-0 w-72 max-h-64 overflow-auto rounded-md border border-slate-100 bg-white p-3 text-sm text-slate-700 shadow-lg"
+                                                onMouseEnter={() => openPopover(roomKey)}    // ポップオーバー上に入ったら閉じるタイマーをキャンセル
+                                                onMouseLeave={() => scheduleClosePopover()}   // ポップオーバーを離れたら閉じる
+                                            >
+                                                {notesLoadingMap[roomKey] ? (
+                                                    <div className="text-xs text-slate-500">読み込み中...</div>
+                                                ) : (notesByRoom[roomKey] && notesByRoom[roomKey].length > 0) ? (
+                                                    // 最新のメモを上から表示。長いテキストは切り詰めて表示。
+                                                    notesByRoom[roomKey].map((n) => (
+                                                        <div key={n.noteId ?? `${n.createdAt}-${Math.random()}`} className="mb-2 last:mb-0">
+                                                            <div className="whitespace-pre-wrap break-words text-[13px]">{n.noteText ?? n.note_text ?? ""}</div>
+                                                            {/* createdAt があるなら日付表示するならここに追加 */}
+                                                            {/* <div className="mt-1 text-[11px] text-slate-400">{n.createdAt}</div> */}
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="text-xs text-slate-500">メモはありません</div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* 右側：ボタン／合計スタンプ／矢印 */}

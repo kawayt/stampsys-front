@@ -28,3 +28,11 @@ export async function setHidden(noteId, hidden) {
     });
     return handleResponse(res);
 }
+
+// クラスに紐づくルームごとのメモ件数を一括取得
+export async function fetchNoteCounts(classId) {
+    const res = await fetch(`${API_BASE}/classes/${encodeURIComponent(classId)}/rooms/note-counts`, {
+        credentials: "include",
+    });
+    return handleResponse(res);
+}
