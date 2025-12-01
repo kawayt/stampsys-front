@@ -58,9 +58,9 @@ function App() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center gap-2 text-sm text-slate-600">
-                <Spinner className="h-5 w-5" />
-                <span>読み込み中...</span>
+            <div className="flex flex-col items-center justify-center gap-2 mt-20 text-sm text-slate-600">
+                <Spinner className="size-8" />
+                <span>読み込み中</span>
             </div>
         );
     }

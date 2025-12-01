@@ -18,6 +18,7 @@ import {
     SelectItem,
     SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { Search } from "lucide-react";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition.js";
 import { notifySuccess, notifyError } from "@/utils/notify";
@@ -349,7 +350,10 @@ function StampList() {
 
             {/* 本文部分 */}
             {loading && (
-                <div className="text-xs text-slate-500">読み込み中...</div>
+                <div className="flex flex-col items-center justify-center gap-2 mt-20 text-sm text-slate-600">
+                    <Spinner className="size-8" />
+                    <span>読み込み中</span>
+                </div>
             )}
 
             {!loading && error && !openAddDialog && (

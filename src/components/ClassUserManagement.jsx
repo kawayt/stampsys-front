@@ -1,7 +1,7 @@
-// src/components/ClassUserManagement.jsx
 import { useEffect, useState } from "react";
-import { Trash2, Plus, Search } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
+import { Trash2, Plus, Search } from "lucide-react";
 
 export function ClassUserManagement({ classId, open }) {
     const [usersInClass, setUsersInClass] = useState([]);
@@ -167,9 +167,10 @@ export function ClassUserManagement({ classId, open }) {
             )}
 
             {loading ? (
-                <p className="text-xs text-slate-500">
-                    ユーザー情報を読み込み中です...
-                </p>
+                <div className="flex flex-col items-center justify-center gap-2 text-sm text-slate-600">
+                    <Spinner className="size-8" />
+                    <span>読み込み中</span>
+                </div>
             ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                     <div>

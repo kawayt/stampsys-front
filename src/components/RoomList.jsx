@@ -13,6 +13,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import { ArrowLeft, Search } from "lucide-react";
 import { ClassStampManagement } from "./ClassStampManagement";
 import { ClassUserManagement } from "./ClassUserManagement";
@@ -398,7 +399,12 @@ export function RoomList() {
     });
 
     if (loading) {
-        return <div className="py-8 text-sm text-slate-600">読み込み中...</div>;
+        return (
+            <div className="flex flex-col items-center justify-center gap-2 mt-20 text-sm text-slate-600">
+                <Spinner className="size-8" />
+                <span>読み込み中</span>
+            </div>
+        );
     }
 
     if (error) {
@@ -601,7 +607,7 @@ export function RoomList() {
                 <div className="space-y-4">
                     {filteredRooms.map((r) => {
                         const roomKey = String(r.roomId ?? r.room_id ?? r.id ?? r.room ?? "");
-                        const total = countsLoading ? "読み込み中…" : (countsMap[roomKey] ?? 0);
+                        const total = countsLoading ? "-" : (countsMap[roomKey] ?? 0);
 
                         return (
                             <Card

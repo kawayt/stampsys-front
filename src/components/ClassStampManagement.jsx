@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition";
 import { Trash2, Plus } from "lucide-react";
 
@@ -135,9 +136,10 @@ export function ClassStampManagement({ classId, open }) {
             )}
 
             {stampLoading ? (
-                <p className="text-xs text-slate-500">
-                    スタンプ情報を読み込み中...
-                </p>
+                <div className="flex flex-col items-center justify-center gap-2 text-sm text-slate-600">
+                    <Spinner className="size-8" />
+                    <span>読み込み中</span>
+                </div>
             ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                     {/* 使用中のスタンプ */}

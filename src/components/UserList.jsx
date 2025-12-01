@@ -20,6 +20,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
+import { Spinner } from "@/components/ui/spinner";
 import { restoreHiddenUser } from '@/api/user.js';
 import { Search } from 'lucide-react';
 
@@ -623,7 +624,12 @@ function UserList() {
                                     </DialogHeader>
 
                                     <div className="mt-2">
-                                        {hiddenLoading && <div className="py-4 text-sm text-slate-500">読み込み中...</div>}
+                                        {hiddenLoading &&
+                                            <div className="flex flex-col items-center justify-center gap-2 text-sm text-slate-600">
+                                                <Spinner className="size-8" />
+                                                <span>読み込み中</span>
+                                            </div>
+                                        }
                                         {hiddenError && <div className="py-2 text-sm text-red-600">{hiddenError}</div>}
                                         {!hiddenLoading && !hiddenError && (
                                             <>
@@ -688,10 +694,6 @@ function UserList() {
                                             </>
                                         )}
                                     </div>
-
-                                    <DialogFooter className="flex justify-end gap-2 mt-4">
-                                        <Button variant="outline" onClick={() => setOpenHiddenDialog(false)} aria-label="非表示ダイアログを閉じる">閉じる</Button>
-                                    </DialogFooter>
                                 </DialogContent>
                             </Dialog>
                         </div>

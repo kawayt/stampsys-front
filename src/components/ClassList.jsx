@@ -21,6 +21,7 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
 import { MoreHorizontal, Search } from "lucide-react";
 import { ClassUserManagement } from "@/components/ClassUserManagement";
 import { ClassStampManagement } from "@/components/ClassStampManagement";
@@ -256,7 +257,7 @@ export function ClassList({ role }) {
                 prev.filter((c) => c.classId !== deleteTargetClass.classId)
             );
 
-            // ✅ Success トースト
+            // Success トースト
             notifySuccess("クラスを削除しました", `クラス名: ${deleteTargetClass.className}`);
 
             setDeleteTargetClass(null);
@@ -282,8 +283,9 @@ export function ClassList({ role }) {
 
     if (loading) {
         return (
-            <div className="py-8 text-sm text-slate-600">
-                読み込み中...
+            <div className="flex flex-col items-center justify-center gap-2 mt-20 text-sm text-slate-600">
+                <Spinner className="size-8" />
+                <span>読み込み中</span>
             </div>
         );
     }
