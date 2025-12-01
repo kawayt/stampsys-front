@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,6 +18,7 @@ import {
     SelectItem,
     SelectValue,
 } from "@/components/ui/select";
+import { Search } from "lucide-react";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition.js";
 import { notifySuccess, notifyError } from "@/utils/notify";
 
@@ -26,6 +26,9 @@ function StampList() {
     const [stamps, setStamps] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // スタンプ検索用
+    const [searchQuery, setSearchQuery] = useState("");
 
     // 追加フォーム用
     const [newStampName, setNewStampName] = useState("");
@@ -179,24 +182,53 @@ function StampList() {
     const colorOptions = Array.from({ length: 10 }, (_, i) => i + 1);
     const iconOptions = Array.from({ length: 20 }, (_, i) => i + 1);
 
+    // スタンプ名検索フィルタ
+    const filteredStamps = (stamps || []).filter((s) => {
+        if (!searchQuery || !searchQuery.trim()) return true;
+        const q = searchQuery.trim().toLowerCase();
+        const name = (s.stampName ?? "").toString().toLowerCase();
+        return name.includes(q);
+    });
+
     return (
         <section className="py-4">
-            <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
-                <CardHeader className="pb-2 flex flex-row items-center justify-between gap-3">
-                    <div>
-                        <CardTitle className="text-base text-slate-800">
-                            スタンプ一覧
-                        </CardTitle>
-                        <CardDescription className="text-xs text-slate-500">
-                            登録されているスタンプの情報を確認・編集できます。
-                        </CardDescription>
+            {/* ヘッダー */}
+            <div className="mb-6 flex items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-lg font-semibold text-slate-800">
+                        スタンプ一覧
+                    </h2>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    {/* 検索ボックス */}
+                    <div className="mr-2 w-full max-w-xs">
+                        <div className="relative">
+                            <Search className="absolute left-2 top-1/2 w-4 h-4 text-slate-400 -translate-y-1/2 pointer-events-none" />
+                            <Input
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="スタンプ名で検索"
+                                className="text-sm bg-white pl-8"
+                                aria-label="スタンプ名で検索"
+                            />
+                            {searchQuery && (
+                                <button
+                                    aria-label="検索クリア"
+                                    onClick={() => setSearchQuery("")}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-[11px]"
+                                >
+                                    クリア
+                                </button>
+                            )}
+                        </div>
                     </div>
 
-                    {/* 新規追加ダイアログ */}
+                    {/* 新規追加ダイアログトリガー */}
                     <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
                         <DialogTrigger asChild>
                             <Button className="text-xs font-medium">
-                                新しいスタンプを追加
+                                スタンプを追加
                             </Button>
                         </DialogTrigger>
 
@@ -243,7 +275,7 @@ function StampList() {
                                                 return (
                                                     <SelectItem key={code} value={String(code)}>
                                                         <span
-                                                            className="h-3 w-3 rounded-full border border-slate-200"
+                                                            className="mr-2 h-3 w-3 rounded-full border border-slate-200 inline-block"
                                                             style={{ backgroundColor: color.bg }}
                                                         />
                                                         <span className="text-xs">
@@ -272,7 +304,7 @@ function StampList() {
                                                 const icon = getStampIconByCode(code);
                                                 return (
                                                     <SelectItem key={code} value={String(code)}>
-                                                        <span className="text-base">{icon}</span>
+                                                        <span className="mr-2 text-base">{icon}</span>
                                                         <span className="text-[11px] text-slate-500">
                                                             ({code})
                                                         </span>
@@ -312,126 +344,123 @@ function StampList() {
                             </form>
                         </DialogContent>
                     </Dialog>
+                </div>
+            </div>
 
-                    {/* 削除確認ダイアログ */}
-                    <Dialog open={openDeleteDialog} onOpenChange={(open) => {
-                        setOpenDeleteDialog(open);
-                        if (!open) {
-                            setDeleteTargetStamp(null);
-                        }
-                    }}>
-                        <DialogContent className="sm:max-w-md">
-                            <DialogHeader>
-                                <DialogTitle>このスタンプを削除しますか？</DialogTitle>
-                                <DialogDescription className="text-xs">
-                                    {deleteTargetStamp && (
-                                        <>
-                                            「{deleteTargetStamp.stampName}」を削除します。
-                                            この操作は取り消せません。
-                                        </>
-                                    )}
-                                </DialogDescription>
-                            </DialogHeader>
+            {/* 本文部分 */}
+            {loading && (
+                <div className="text-xs text-slate-500">読み込み中...</div>
+            )}
 
-                            <DialogFooter className="flex justify-end gap-2">
-                                <Button
+            {!loading && error && !openAddDialog && (
+                <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                    {error}
+                </div>
+            )}
+
+            {!loading && filteredStamps.length === 0 && (
+                <div className="text-xs text-slate-500">
+                    スタンプが見つかりませんでした。
+                </div>
+            )}
+
+            {!loading && filteredStamps.length > 0 && (
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    {filteredStamps.map((stamp) => {
+                        const color = getStampColorByCode(stamp.stampColor);
+                        const icon = getStampIconByCode(stamp.stampIcon);
+
+                        return (
+                            <div
+                                key={stamp.stampId}
+                                className="
+                                    relative flex h-28 flex-col items-center justify-center
+                                    rounded-2xl border border-slate-100 bg-slate-50/60
+                                    text-slate-700 shadow-sm
+                                    hover:bg-orange-50 hover:border-orange-200 hover:text-orange-600
+                                    transition-all
+                                "
+                                style={{ backgroundColor: color.bg }}
+                            >
+                                {/* 削除ボタン */}
+                                <button
                                     type="button"
-                                    variant="outline"
-                                    className="text-xs"
                                     onClick={() => {
-                                        setOpenDeleteDialog(false);
-                                        setDeleteTargetStamp(null);
+                                        setDeleteTargetStamp(stamp);
+                                        setOpenDeleteDialog(true);
                                     }}
-                                    disabled={deleteLoading}
+                                    className="absolute right-2 top-2 rounded-full bg-white/80 px-2 text-[10px] text-red-500 border border-red-100 hover:bg-red-50"
                                 >
-                                    キャンセル
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="destructive"
-                                    className="text-xs font-medium"
-                                    onClick={() => {
-                                        if (deleteTargetStamp) {
-                                            handleDeleteStamp(deleteTargetStamp.stampId);
-                                        }
-                                    }}
-                                    disabled={deleteLoading}
-                                >
-                                    {deleteLoading ? "削除中..." : "削除"}
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-                </CardHeader>
+                                    削除
+                                </button>
 
-                <CardContent className="pt-4">
-                    {loading && (
-                        <div className="text-xs text-slate-500">読み込み中...</div>
-                    )}
+                                {/* アイコン */}
+                                <span className="mb-1 text-3xl">
+                                    {icon}
+                                </span>
 
-                    {!loading && error && !openAddDialog && (
-                        <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 mb-3">
-                            {error}
-                        </div>
-                    )}
+                                {/* ラベル */}
+                                <span className="text-xs font-medium">
+                                    {stamp.stampName}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
 
-                    {/* 一覧表示 */}
-                    {!loading && stamps.length === 0 && (
-                        <div className="text-xs text-slate-500">
-                            スタンプが登録されていません。
-                        </div>
-                    )}
+            {/* 削除確認ダイアログ */}
+            <Dialog
+                open={openDeleteDialog}
+                onOpenChange={(open) => {
+                    setOpenDeleteDialog(open);
+                    if (!open) {
+                        setDeleteTargetStamp(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>このスタンプを削除しますか？</DialogTitle>
+                        <DialogDescription className="text-xs">
+                            {deleteTargetStamp && (
+                                <>
+                                    「{deleteTargetStamp.stampName}」を削除します。
+                                    この操作は取り消せません。
+                                </>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
 
-                    {!loading && stamps.length > 0 && (
-                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                            {stamps.map((stamp) => {
-                                const color = getStampColorByCode(stamp.stampColor);
-                                const icon = getStampIconByCode(stamp.stampIcon);
-
-                                return (
-                                    <div
-                                        key={stamp.stampId}
-                                        className="
-                                            flex h-28 flex-col items-center justify-center rounded-2xl
-                                            border border-slate-100 bg-slate-50/60
-                                            text-slate-700 shadow-sm
-                                            hover:bg-orange-50 hover:border-orange-200 hover:text-orange-600
-                                            transition-all relative
-                                        "
-                                        style={{ backgroundColor: color.bg }}
-                                    >
-                                        {/* 削除ボタン */}
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setDeleteTargetStamp(stamp);
-                                                setOpenDeleteDialog(true);
-                                            }}
-                                            className="absolute right-2 top-2 rounded-full bg-white/80 px-2 text-[10px] text-red-500 border border-red-100 hover:bg-red-50"
-                                        >
-                                            削除
-                                        </button>
-
-                                        {/* アイコン */}
-                                        <span className="text-3xl mb-1">
-                                            {icon}
-                                        </span>
-
-                                        {/* ラベル */}
-                                        <span className="text-xs font-medium">
-                                            {stamp.stampName}
-                                        </span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    <p className="mt-3 text-[11px] text-slate-400">
-                        スタンプは授業のリアクションに利用されます。変更内容はアプリ全体に反映されます。
-                    </p>
-                </CardContent>
-            </Card>
+                    <DialogFooter className="flex justify-end gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="text-xs"
+                            onClick={() => {
+                                setOpenDeleteDialog(false);
+                                setDeleteTargetStamp(null);
+                            }}
+                            disabled={deleteLoading}
+                        >
+                            キャンセル
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            className="text-xs font-medium"
+                            onClick={() => {
+                                if (deleteTargetStamp) {
+                                    handleDeleteStamp(deleteTargetStamp.stampId);
+                                }
+                            }}
+                            disabled={deleteLoading}
+                        >
+                            {deleteLoading ? "削除中..." : "削除"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </section>
     );
 }
