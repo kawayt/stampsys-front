@@ -867,15 +867,16 @@ export function RoomList() {
                             }}
                             disabled={hideProcessing}
                         >
-                            戻る
+                            キャンセル
                         </Button>
                         <Button
                             type="button"
+                            variant="destructive"
                             className="text-xs font-medium"
                             onClick={handleConfirmHide}
                             disabled={hideProcessing}
                         >
-                            {hideProcessing ? "削除中..." : "削除"}
+                            {hideProcessing ? "削除中…" : "削除"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
