@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { createNote } from "../api/notes";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 
 /**
  * Props:
- * - roomId: number (required)
- * - onCreated: function(note) optional callback when note created
+ * \- roomId: number (required)
+ * \- onCreated: function(note) optional callback when note created
  */
 export default function NoteForm({ roomId, onCreated }) {
     const [text, setText] = useState("");
@@ -31,18 +33,27 @@ export default function NoteForm({ roomId, onCreated }) {
     };
 
     return (
-        <form className="notes-form" onSubmit={submit}>
-      <textarea
-          className="notes-textarea"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={4}
-          placeholder="授業メモを入力（例: 今日の板書・補足事項）"
-      />
-            <div className="notes-actions">
-                <button type="submit" disabled={loading || !text.trim()}>
+        <form
+            className="space-y-3"
+            onSubmit={submit}
+        >
+            <div className="space-y-2">
+                <Textarea
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    rows={4}
+                    placeholder="例: 今日の板書・補足事項"
+                    className="resize-none"
+                />
+            </div>
+
+            <div className="flex justify-end">
+                <Button
+                    type="submit"
+                    disabled={loading || !text.trim()}
+                >
                     {loading ? "保存中..." : "保存"}
-                </button>
+                </Button>
             </div>
         </form>
     );
