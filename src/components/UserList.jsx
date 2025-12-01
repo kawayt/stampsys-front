@@ -21,6 +21,7 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import { restoreHiddenUser } from '@/api/user.js';
+import { Search } from 'lucide-react';
 
 /**
  * roleLabel: map role code to Japanese label
@@ -766,9 +767,30 @@ function UserList() {
 
                     <form onSubmit={handleSearch} className="search-form flex flex-wrap gap-2 items-center mb-4" aria-labelledby="userlist-heading">
                         <label htmlFor="search-input" className="sr-only">名前またはメールアドレスで検索</label>
-                        <Input id="search-input" type="text" placeholder="名前またはメールアドレスで検索" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="search-input max-w-xs" aria-label="名前またはメールアドレスで検索" />
-                        <Button type="submit" className="search-button focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400" aria-label="検索">検索</Button>
-                        <Button type="button" variant="outline" onClick={() => { setSearchQuery(''); fetchUsers(0, pageSize); fetchCounts(); }} className="reset-button focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400" aria-label="検索をリセット">リセット</Button>
+                        <div className="mr-2 w-full max-w-xs">
+                            <div className="relative">
+                                <Search className="absolute left-2 top-1/2 w-4 h-4 text-slate-400 -translate-y-1/2 pointer-events-none" />
+                                <Input
+                                    id="search-input"
+                                    type="text"
+                                    placeholder="名前またはメールアドレスで検索"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="search-input text-sm bg-white pl-8"
+                                    aria-label="名前またはメールアドレスで検索"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        type="button"
+                                        aria-label="検索クリア"
+                                        onClick={() => setSearchQuery('')}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-[11px]"
+                                    >
+                                        クリア
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     </form>
 
                     <div role="region" aria-labelledby="userlist-heading">
