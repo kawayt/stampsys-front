@@ -72,6 +72,11 @@ export function RoomDetail({ userId, role }) {
     const [sending, setSending] = useState(false);
     const [message, setMessage] = useState("");
 
+    // 履歴（自身の送信履歴）
+    const [history, setHistory] = useState([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyError, setHistoryError] = useState(null);
+
     // スタンプ集計用の状態（教員・管理者用）
     const [summary, setSummary] = useState([]);
     const [summaryLoading, setSummaryLoading] = useState(false);
@@ -94,6 +99,33 @@ export function RoomDetail({ userId, role }) {
             setError(err.message ?? "スタンプ一覧取得時にエラーが発生しました");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchHistory = async () => {
+        // 履歴は STUDENT（非教師）向けに表示
+        if (!userId) {
+            setHistory([]);
+            return;
+        }
+
+        setHistoryLoading(true);
+        setHistoryError(null);
+        try {
+            const url = `/api/rooms/${encodeURIComponent(roomId)}/users/${encodeURIComponent(userId)}/stamp-logs`;
+            const res = await fetch(url);
+            if (!res.ok) {
+                throw new Error(`履歴の取得に失敗しました: ${res.status}`);
+            }
+            const data = await res.json();
+            // data should be array of { stampId, stampName, stampColor, stampIcon, sentAt }
+            // 最新何件表示するか設定
+            setHistory((data || []).slice(0, 10));
+        } catch (err) {
+            console.error("fetchHistory error:", err);
+            setHistoryError(err.message ?? "履歴取得時にエラーが発生しました");
+        } finally {
+            setHistoryLoading(false);
         }
     };
 
@@ -143,8 +175,13 @@ export function RoomDetail({ userId, role }) {
     useEffect(() => {
         fetchStamps();
         fetchStampSummary();
+
+        // 非教師（STUDENT）向けに履歴を取得
+        if (!isTeacherView) {
+            fetchHistory();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [roomId, isTeacherView]);
+    }, [roomId, isTeacherView, userId]);
 
     // ポーリング
     useEffect(() => {
@@ -177,6 +214,10 @@ export function RoomDetail({ userId, role }) {
             if (result.success) {
                 setMessage("✓ スタンプを送信しました！");
                 setTimeout(() => setMessage(""), 3000);
+                // 履歴を再取得（学生ユーザーが送信した直後に履歴に反映させる）
+                if (!isTeacherView) {
+                    fetchHistory().catch((e) => console.error("refresh history failed", e));
+                }
                 if (isTeacherView) {
                     fetchStampSummary();
                 }
@@ -260,17 +301,17 @@ export function RoomDetail({ userId, role }) {
                     <CardContent>
                         {/* STUDENT のとき: スタンプ送信ボタンのみ */}
                         {!isTeacherView && (
-                        <>
-                            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                                {stamps.map((s) => {
-                                    const color = getStampColorByCode(s.stampColor);
-                                    const icon = getStampIconByCode(s.stampIcon);
+                            <>
+                                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                                    {stamps.map((s) => {
+                                        const color = getStampColorByCode(s.stampColor);
+                                        const icon = getStampIconByCode(s.stampIcon);
 
-                                    return (
-                                        <button
-                                            type="button"
-                                            key={s.stampId ?? `${s.stampName}-${s.stampColor}-${s.stampIcon}`}
-                                            className="
+                                        return (
+                                            <button
+                                                type="button"
+                                                key={s.stampId ?? `${s.stampName}-${s.stampColor}-${s.stampIcon}`}
+                                                className="
                                                     flex h-28 flex-col items-center justify-center rounded-2xl
                                                     border border-slate-100 bg-slate-50/60
                                                     text-slate-700 shadow-sm
@@ -278,39 +319,76 @@ export function RoomDetail({ userId, role }) {
                                                     transition-all relative
                                                     disabled:opacity-50 disabled:cursor-not-allowed
                                                 "
-                                            style={{ backgroundColor: color.bg }}
-                                            onClick={() => handleStampClick(s.stampId)}
-                                            disabled={sending || !userId}
-                                        >
+                                                style={{ backgroundColor: color.bg }}
+                                                onClick={() => handleStampClick(s.stampId)}
+                                                disabled={sending || !userId}
+                                            >
                                                 <span className="text-3xl mb-1">
                                                     {icon}
                                                 </span>
-                                            <span className="text-xs font-medium">
+                                                <span className="text-xs font-medium">
                                                     {s.stampName}
                                                 </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-
-                            {/* 送信結果メッセージ */}
-                            {message && (
-                                <div
-                                    className={[
-                                        "mt-4 rounded-xl px-3 py-2 text-xs font-medium",
-                                        isSuccess
-                                            ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                                            : "bg-red-50 text-red-700 border border-red-100",
-                                    ].join(" ")}
-                                >
-                                    {message}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                            )}
 
-                            <p className="mt-3 text-[11px] text-slate-400">
-                                スタンプは即時に送信されます。連打しすぎないように注意してください。
-                            </p>
-                        </>
+                                {/* 送信結果メッセージ */}
+                                {message && (
+                                    <div
+                                        className={[
+                                            "mt-4 rounded-xl px-3 py-2 text-xs font-medium",
+                                            isSuccess
+                                                ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                                : "bg-red-50 text-red-700 border border-red-100",
+                                        ].join(" ")}
+                                    >
+                                        {message}
+                                    </div>
+                                )}
+
+                                <p className="mt-3 text-[11px] text-slate-400">
+                                    スタンプは即時に送信されます。連打しすぎないように注意してください。
+                                </p>
+
+                                {/* ------- ここから：送信履歴表示（自分が送信したもの） - アイコンのみの表示（最新10件） ------- */}
+                                <div className="mt-4">
+                                    <h3 className="text-sm font-medium text-slate-700 mb-2">送信履歴（あなた）</h3>
+
+                                    {historyLoading ? (
+                                        <p className="text-xs text-slate-500">履歴を読み込み中...</p>
+                                    ) : historyError ? (
+                                        <p className="text-xs text-red-500">履歴の取得に失敗しました: {historyError}</p>
+                                    ) : history.length === 0 ? (
+                                        <p className="text-xs text-slate-500">まだ送信したスタンプはありません。</p>
+                                    ) : (
+                                        // アイコンのみ（丸背景）の小さい一覧表示（最新10件）
+                                        <div className="grid grid-cols-6 gap-3 gap-y-3 sm:grid-cols-8">
+                                            {history.map((h, idx) => {
+                                                const color = getStampColorByCode(h.stampColor);
+                                                const icon = getStampIconByCode(h.stampIcon);
+
+                                                return (
+                                                    <div
+                                                        key={`${h.stampId}-${idx}-${h.sentAt}`}
+                                                        className="flex items-center justify-center"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <div
+                                                            className="h-10 w-10 rounded-full flex items-center justify-center"
+                                                            style={{ backgroundColor: color.bg, color: color.fg ?? "#000" }}
+                                                        >
+                                                            <span className="text-lg leading-none">{icon}</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                                {/* ------- ここまで：送信履歴表示 ------- */}
+                            </>
                         )}
 
                         {/* ADMIN / TEACHER のとき: スタンプ集計表示 */}
