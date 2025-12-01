@@ -21,7 +21,7 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Search } from "lucide-react";
 import { ClassUserManagement } from "@/components/ClassUserManagement";
 import { ClassStampManagement } from "@/components/ClassStampManagement";
 import { notifySuccess, notifyError } from "@/utils/notify";
@@ -31,6 +31,9 @@ export function ClassList({ role }) {
     const [classes, setClasses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // クラス名検索用
+    const [searchQuery, setSearchQuery] = useState("");
 
     // 新規作成用
     const [newClassName, setNewClassName] = useState("");
@@ -269,6 +272,14 @@ export function ClassList({ role }) {
         }
     };
 
+    // クラス名検索フィルタ
+    const filteredClasses = (classes || []).filter((c) => {
+        if (!searchQuery || !searchQuery.trim()) return true;
+        const q = searchQuery.trim().toLowerCase();
+        const name = (c.className ?? "").toString().toLowerCase();
+        return name.includes(q);
+    });
+
     if (loading) {
         return (
             <div className="py-8 text-sm text-slate-600">
@@ -299,77 +310,102 @@ export function ClassList({ role }) {
                     クラス一覧
                 </h2>
 
-                {/* クラス新規作成ダイアログ */}
-                <Dialog open={openCreateDialog} onOpenChange={setOpenCreateDialog}>
-                    <DialogTrigger asChild>
-                        <Button className="text-xs font-medium">
-                            新しいクラスを作成
-                        </Button>
-                    </DialogTrigger>
-
-                    <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>新しいクラスを作成</DialogTitle>
-                            <DialogDescription className="text-xs">
-                                授業で使用するクラスを登録します。クラス名は後から変更できます。
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        <form onSubmit={handleCreateClass} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label
-                                    htmlFor="new-class-name"
-                                    className="text-xs font-medium text-slate-700"
+                <div className="flex items-center gap-2">
+                    {/* 検索ボックス */}
+                    <div className="mr-2 w-full max-w-xs">
+                        <div className="relative">
+                            <Search className="absolute left-2 top-1/2 w-4 h-4 text-slate-400 -translate-y-1/2 pointer-events-none" />
+                            <Input
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="クラス名で検索"
+                                className="text-sm bg-white pl-8"
+                                aria-label="クラス名で検索"
+                            />
+                            {searchQuery && (
+                                <button
+                                    aria-label="検索クリア"
+                                    onClick={() => setSearchQuery("")}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-[11px]"
                                 >
-                                    クラス名
-                                </Label>
-                                <Input
-                                    id="new-class-name"
-                                    type="text"
-                                    placeholder="例: 情報処理Ⅰ"
-                                    value={newClassName}
-                                    onChange={(e) => setNewClassName(e.target.value)}
-                                    className="text-sm"
-                                />
-                                {createError && (
-                                    <p className="text-[11px] text-red-600">
-                                        {createError}
-                                    </p>
-                                )}
-                            </div>
+                                    クリア
+                                </button>
+                            )}
+                        </div>
+                    </div>
 
-                            <DialogFooter className="flex justify-end gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="text-xs"
-                                    onClick={() => {
-                                        setOpenCreateDialog(false);
-                                        setCreateError(null);
-                                    }}
-                                >
-                                    キャンセル
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    disabled={createLoading}
-                                    className="text-xs font-medium"
-                                >
-                                    {createLoading ? "作成中..." : "作成"}
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
+                    {/* クラス新規作成ダイアログ */}
+                    <Dialog open={openCreateDialog} onOpenChange={setOpenCreateDialog}>
+                        <DialogTrigger asChild>
+                            <Button className="text-xs font-medium">
+                                クラスを作成
+                            </Button>
+                        </DialogTrigger>
+
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>新しいクラスを作成</DialogTitle>
+                                <DialogDescription className="text-xs">
+                                    授業で使用するクラスを登録します。クラス名は後から変更できます。
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <form onSubmit={handleCreateClass} className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label
+                                        htmlFor="new-class-name"
+                                        className="text-xs font-medium text-slate-700"
+                                    >
+                                        クラス名
+                                    </Label>
+                                    <Input
+                                        id="new-class-name"
+                                        type="text"
+                                        placeholder="例: 情報処理Ⅰ"
+                                        value={newClassName}
+                                        onChange={(e) => setNewClassName(e.target.value)}
+                                        className="text-sm"
+                                    />
+                                    {createError && (
+                                        <p className="text-[11px] text-red-600">
+                                            {createError}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <DialogFooter className="flex justify-end gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="text-xs"
+                                        onClick={() => {
+                                            setOpenCreateDialog(false);
+                                            setCreateError(null);
+                                        }}
+                                    >
+                                        キャンセル
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={createLoading}
+                                        className="text-xs font-medium"
+                                    >
+                                        {createLoading ? "作成中..." : "作成"}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
 
-            {(!classes || classes.length === 0) ? (
+            {(!filteredClasses || filteredClasses.length === 0) ? (
                 <p className="text-sm text-slate-500">
-                    クラスが登録されていません。
+                    クラスが見つかりませんでした。
                 </p>
             ) : (
                 <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                    {classes.map((c) => (
+                    {filteredClasses.map((c) => (
                         <Card
                             key={c.classId}
                             className="group rounded-3xl border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] bg-white/95 cursor-pointer transition hover:bg-slate-50"
