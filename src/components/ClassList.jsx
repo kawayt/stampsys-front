@@ -24,6 +24,7 @@ import {
 import { MoreHorizontal } from "lucide-react";
 import { ClassUserManagement } from "@/components/ClassUserManagement";
 import { ClassStampManagement } from "@/components/ClassStampManagement";
+import { notifySuccess, notifyError } from "@/utils/notify";
 
 export function ClassList({ role }) {
     const navigate = useNavigate();
@@ -174,7 +175,9 @@ export function ClassList({ role }) {
         setCreateError(null);
 
         if (!newClassName.trim()) {
-            setCreateError("クラス名を入力してください");
+            const msg = "クラス名を入力してください";
+            setCreateError(msg);
+            notifyError("クラスを作成できませんでした", msg);
             return;
         }
 
@@ -193,7 +196,7 @@ export function ClassList({ role }) {
 
             if (!res.ok) {
                 // バリデーションエラーなど、バックエンドからメッセージが返ってくる場合はそれを優先
-                let msg = `クラスの作成に失敗しました: ${res.status}`;
+                let msg = `クラスを作成できませんでした: ${res.status}`;
                 try {
                     const errJson = await res.json();
                     if (errJson.message) msg = errJson.message;
@@ -209,9 +212,13 @@ export function ClassList({ role }) {
             setClasses((prev) => [...prev, created]);
             setNewClassName("");
             setOpenCreateDialog(false);
+
+            notifySuccess("クラスを作成しました", `クラス名: ${created.className ?? newClassName.trim()}`);
         } catch (err) {
             console.error(err);
-            setCreateError(err.message ?? "クラス作成時にエラーが発生しました");
+            const msg = err.message ?? "クラス作成時にエラーが発生しました";
+            setCreateError(msg);
+            notifyError("クラスを作成できませんでした", msg);
         } finally {
             setCreateLoading(false);
         }
@@ -231,7 +238,7 @@ export function ClassList({ role }) {
             });
 
             if (!res.ok) {
-                let msg = `クラスの削除に失敗しました: ${res.status}`;
+                let msg = `クラスを削除できませんでした: ${res.status}`;
                 try {
                     const text = await res.text();
                     if (text) msg = text;
@@ -245,10 +252,18 @@ export function ClassList({ role }) {
             setClasses((prev) =>
                 prev.filter((c) => c.classId !== deleteTargetClass.classId)
             );
+
+            // ✅ Success トースト
+            notifySuccess("クラスを削除しました", `クラス名: ${deleteTargetClass.className}`);
+
             setDeleteTargetClass(null);
         } catch (err) {
             console.error(err);
-            setDeleteError(err.message ?? "クラス削除時にエラーが発生しました");
+            const msg = err.message ?? "クラス削除時にエラーが発生しました";
+            setDeleteError(msg);
+
+            // Error トースト
+            notifyError("クラスを削除できませんでした", msg);
         } finally {
             setDeleteLoadingId(null);
         }

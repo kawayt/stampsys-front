@@ -6,6 +6,7 @@ import StampList from './components/StampList';
 import { RoomList } from "@/components/RoomList";
 import { RoomDetail } from "@/components/RoomDetail";
 import RoomHistory from "./components/RoomHistory";
+import { Toaster } from "@/components/ui/sonner";
 import {
     BrowserRouter,
     Routes,
@@ -188,6 +189,7 @@ function Dashboard({ appData, onLogout }) {
                     </Routes>
                 </section>
             </main>
+            <Toaster richColors position="top-center" closeButton />
         </div>
     );
 }
