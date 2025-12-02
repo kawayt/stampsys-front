@@ -481,35 +481,13 @@ export function RoomList() {
                 </Button>
             </div>
 
-            <div className="mb-6 flex items-center justify-between gap-4">
-                <h2 className="text-lg font-semibold text-slate-800">
-                    ルーム一覧（{classInfo?.className}）
-                </h2>
+            {/* クラス名の見出し＋スタンプ/ユーザー管理ボタン */}
+            <div className="mb-12 flex items-center justify-between gap-4">
+                <h1 className="text-3xl font-bold text-slate-900">
+                    {classInfo?.className ?? "-"}
+                </h1>
 
                 <div className="flex items-center gap-2">
-                    {/* search input */}
-                    <div className="mr-2 w-full max-w-xs">
-                        <div className="relative">
-                            <Search className="absolute left-2 top-1/2 w-4 h-4 text-slate-400 -translate-y-1/2 pointer-events-none" />
-                            <Input
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="ルーム名またはメモで検索"
-                                className="text-sm bg-white pl-8"
-                                aria-label="ルーム名またはメモで検索"
-                            />
-                            {searchQuery && (
-                                <button
-                                    aria-label="検索クリア"
-                                    onClick={() => setSearchQuery("")}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-[11px]"
-                                >
-                                    クリア
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
                     {/* スタンプ管理ダイアログ */}
                     <Dialog
                         open={openStampDialog}
@@ -569,6 +547,38 @@ export function RoomList() {
                             />
                         </DialogContent>
                     </Dialog>
+                </div>
+            </div>
+
+            {/* ルーム一覧タイトル＋検索＋ルーム作成 */}
+            <div className="mb-6 flex items-center justify-between gap-4">
+                <h2 className="text-lg font-semibold text-slate-800">
+                    ルーム一覧
+                </h2>
+
+                <div className="flex items-center gap-2">
+                    {/* search input */}
+                    <div className="mr-2 w-full max-w-xs">
+                        <div className="relative">
+                            <Search className="absolute left-2 top-1/2 w-4 h-4 text-slate-400 -translate-y-1/2 pointer-events-none" />
+                            <Input
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="ルーム名またはメモで検索"
+                                className="text-sm bg-white pl-8"
+                                aria-label="ルーム名またはメモで検索"
+                            />
+                            {searchQuery && (
+                                <button
+                                    aria-label="検索クリア"
+                                    onClick={() => setSearchQuery("")}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-[11px]"
+                                >
+                                    クリア
+                                </button>
+                            )}
+                        </div>
+                    </div>
 
                     {/* ルーム新規作成ダイアログ */}
                     <Dialog
