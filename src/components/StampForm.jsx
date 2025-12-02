@@ -26,10 +26,20 @@ function StampPanel({ userId, roomId }) {
                 setMessage("✓ スタンプを送信しました！");
                 setTimeout(() => setMessage(""), 3000);
             } else {
-                setMessage("× 送信に失敗しました");
+                // success=false の場合、サーバが message を返していればそれを優先表示
+                const errMsg = result?.message ? `× ${result.message}` : "× 送信に失敗しました";
+                setMessage(errMsg);
             }
         } catch (err) {
-            setMessage("× エラーが発生しました");
+            console.error(err);
+            // サーバが投げたエラーメッセージ（例: "このルームは既に閉じています"）を表示
+            console.error("stamp send catch err:", err);
+            try { console.log("err keys:", err && Object.keys(err)); } catch (e) { /* ignore */ }
+            console.log("err.message:", err && err.message);
+
+            const serverMsg = extractMessage(err);
+            const userMessage = serverMsg ? `× ${serverMsg}` : "× エラーが発生しました";
+            setMessage(userMessage);
         } finally {
             setLoading(false);
         }

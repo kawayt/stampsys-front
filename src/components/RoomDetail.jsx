@@ -198,6 +198,22 @@ export function RoomDetail({ userId, role }) {
         return () => clearInterval(id);
     }, [roomId, isTeacherView]);
 
+    function extractMessage(err) {
+        if (!err) return null;
+        if (typeof err === "string") return err;
+        if (err.message) return err.message;
+        // axios 風の構造や response.data を持つケースに対応
+        if (err.response && err.response.data) {
+            try {
+                const d = typeof err.response.data === "string" ? JSON.parse(err.response.data) : err.response.data;
+                return d?.message || d?.error || JSON.stringify(d);
+            } catch {
+                return String(err.response.data);
+            }
+        }
+        return null;
+    }
+
     // スタンプをクリックしたときに送信する処理
     const handleStampClick = async (stampId) => {
         if (!userId) {
@@ -225,8 +241,13 @@ export function RoomDetail({ userId, role }) {
                 setMessage("× 送信に失敗しました");
             }
         } catch (err) {
-            console.error(err);
-            setMessage("× エラーが発生しました");
+            console.error("room detail stamp send catch err:", err);
+            try { console.log("err keys:", err && Object.keys(err)); } catch (e) { /* ignore */ }
+            console.log("err.message:", err && err.message);
+
+            const serverMsg = extractMessage(err);
+            const userMessage = serverMsg ? `× ${serverMsg}` : "× エラーが発生しました";
+            setMessage(userMessage);
         } finally {
             setSending(false);
         }
