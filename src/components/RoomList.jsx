@@ -34,6 +34,7 @@ export function RoomList() {
     const [rooms, setRooms] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [classInfo, setClassInfo] = useState(null);
 
     // search
     const [searchQuery, setSearchQuery] = useState("");
@@ -99,7 +100,8 @@ export function RoomList() {
                 throw new Error(`ルーム一覧の取得に失敗しました: ${res.status}`);
             }
             const data = await res.json();
-            setRooms(data || []);
+            setClassInfo(data?.classInfo ?? null);
+            setRooms(data?.rooms ?? []);
         } catch (err) {
             console.error(err);
             setError(err.message ?? "ルーム一覧取得時にエラーが発生しました");
@@ -481,7 +483,7 @@ export function RoomList() {
 
             <div className="mb-6 flex items-center justify-between gap-4">
                 <h2 className="text-lg font-semibold text-slate-800">
-                    ルーム一覧（クラスID: {classId}）
+                    ルーム一覧（{classInfo?.className}）
                 </h2>
 
                 <div className="flex items-center gap-2">
@@ -733,7 +735,7 @@ export function RoomList() {
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent
                                                     align="end"
-                                                    className="w-44"
+                                                    className="w-40"
                                                 >
                                                     <DropdownMenuLabel className="text-xs">
                                                         ルーム操作
