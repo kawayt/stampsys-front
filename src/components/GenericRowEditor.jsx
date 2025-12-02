@@ -12,20 +12,7 @@ import { Button } from "@/components/ui/button";
 import { fetchDbTableRows, fetchDbTableColumns } from "@/api/adminDb";
 
 /**
- * GenericRowEditor (改善版)
- *
- * Props:
- * - open
- * - mode: "create" | "update"
- * - row: object | null
- * - tableName: string (必須 — 編集対象のテーブル名)
- * - columns: [{ name, dataType, isNullable, isPrimaryKey, columnDefault }, ...]
- * - onCancel, onSubmit, submitting, error
- *
- * 特徴:
- * - tableName を使って dbAdminConfig の設定 (readonly / editable / lookups) を反映する
- * - lookups では table/label を優先的に使用し、選択肢ラベルは "id — label" の形で表示
- * - *_id の数値変換は列の dataType を参照して行う
+ * GenericRowEditor (日本語ラベル対応 & 自動カラム除外版)
  */
 export function GenericRowEditor({
                                      open,
@@ -46,11 +33,17 @@ export function GenericRowEditor({
     const readonlyFromCfg = new Set(tableCfg.readonly || []);
     const explicitEditableSet = tableCfg.editable ? new Set(tableCfg.editable) : null;
     const lookupCfg = tableCfg.lookups || {}; // colName -> { table, label }
+    const labelMap = tableCfg.labels || {};   // 日本語ラベル定義
 
     const editableColumns = useMemo(() => {
         return columns.filter((c) => {
             // PK always not editable
             if (c.isPrimaryKey) return false;
+
+            // 【重要】created_at, updated_at はDB自動設定なので編集画面に出さない（エラー回避）
+            // deleted_at は論理削除の復元に使うため編集を許可する
+            if (["created_at", "updated_at"].includes(c.name)) return false;
+
             // config readonly
             if (readonlyFromCfg.has(c.name)) return false;
             // explicit editable list: only allow those
@@ -84,10 +77,9 @@ export function GenericRowEditor({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, row, columns, tableName]);
 
-    // Fetch options for a lookup table and optionally tie to column name for label preferences
     async function fetchLookupOptions(tableNameToFetch, columnName) {
         try {
-            // Determine label candidate and pk via metadata if possible
+            // Determine label candidate
             let pkKey = null;
             let labelCandidates = ["name", "title", "room_name", "class_name", "user_name", "email", "label"];
             try {
@@ -99,7 +91,7 @@ export function GenericRowEditor({
                     labelCandidates = ["name", "title", "room_name", "class_name", "user_name", "email", "label", ...presentNames];
                 }
             } catch (e) {
-                // ignore meta failure; fallback to defaults
+                // ignore
             }
 
             const data = await fetchDbTableRows(tableNameToFetch, { limit: 500, offset: 0 });
@@ -112,7 +104,6 @@ export function GenericRowEditor({
                 }
                 const value = r[effectivePk];
 
-                // If config provides label column for the columnName, use it
                 let labelText = "";
                 const colLookupCfg = columnName ? lookupCfg[columnName] : null;
                 if (colLookupCfg?.label && typeof colLookupCfg.label === "string" && r.hasOwnProperty(colLookupCfg.label)) {
@@ -153,6 +144,7 @@ export function GenericRowEditor({
         if (!value) return "";
         try {
             const d = new Date(value);
+            // 日本時間等のローカルタイムを考慮してdatetime-local用に整形
             const iso = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
             return iso;
         } catch (e) {
@@ -167,13 +159,14 @@ export function GenericRowEditor({
     }
 
     async function handleSubmit() {
-        // client-side validation for NOT NULL
         const errs = {};
         editableColumns.forEach((c) => {
             if (!c.isNullable) {
                 const v = form[c.name];
                 if (v === null || typeof v === "undefined" || v === "") {
-                    errs[c.name] = "必須項目です";
+                    // 日本語名があればそれを使ってメッセージを作成
+                    const disp = labelMap[c.name] || c.name;
+                    errs[c.name] = `${disp} は必須項目です`;
                 }
             }
         });
@@ -182,7 +175,6 @@ export function GenericRowEditor({
             return;
         }
 
-        // build payload: convert types accordingly
         const payload = {};
         for (const c of editableColumns) {
             let v = form[c.name];
@@ -192,10 +184,7 @@ export function GenericRowEditor({
                 continue;
             }
 
-            // If the column is configured as a lookup, ensure we use numeric when appropriate
-            const cfg = lookupCfg[c.name];
-
-            // foreign key numeric conversion: *_id with integer-like type
+            // lookup foreign keys -> number conversion
             if (/_id$/.test(c.name) && (dt.includes("int") || dt.includes("bigint"))) {
                 const n = typeof v === "number" ? v : Number(v);
                 payload[c.name] = Number.isNaN(n) ? v : n;
@@ -233,7 +222,7 @@ export function GenericRowEditor({
                 <DialogHeader>
                     <DialogTitle className="text-sm">{mode === "create" ? "新規行の追加" : "行の編集"}</DialogTitle>
                     <DialogDescription className="text-xs">
-                        フォームで値を編集してください。自動管理カラム（created_at 等）は編集不可です。
+                        値を編集してください。自動管理カラム（created_at等）は表示されません。
                     </DialogDescription>
                 </DialogHeader>
 
@@ -242,8 +231,10 @@ export function GenericRowEditor({
                         const dt = (c.dataType || "").toLowerCase();
                         const value = form[c.name];
                         const key = c.name;
+                        // 日本語ラベルを取得
+                        const displayName = labelMap[key] || key;
 
-                        // lookup select for foreign keys (respect config)
+                        // lookup select for foreign keys
                         if (/_id$/.test(key) || lookupCfg[key]) {
                             const cfg = lookupCfg[key];
                             const inferred = key.replace(/_id$/, "");
@@ -251,7 +242,7 @@ export function GenericRowEditor({
                             const opts = lookupOptions[table] || [];
                             return (
                                 <label className="flex flex-col gap-1 text-xs" key={key}>
-                                    <span className="font-medium text-sm">{key}</span>
+                                    <span className="font-medium text-sm">{displayName}</span>
                                     <div className="flex gap-2">
                                         <select
                                             className="border rounded px-2 py-1 flex-1 text-sm"
@@ -282,7 +273,7 @@ export function GenericRowEditor({
                             return (
                                 <label key={key} className="flex items-center gap-2 text-xs">
                                     <input type="checkbox" checked={!!value} onChange={(e) => handleChange(key, e.target.checked)} disabled={submitting} />
-                                    <span>{key}</span>
+                                    <span>{displayName}</span>
                                 </label>
                             );
                         }
@@ -290,7 +281,7 @@ export function GenericRowEditor({
                         if (dt.includes("timestamp") || dt.includes("date") || dt.includes("time")) {
                             return (
                                 <label className="flex flex-col gap-1 text-xs" key={key}>
-                                    <span className="font-medium text-sm">{key}</span>
+                                    <span className="font-medium text-sm">{displayName}</span>
                                     <input type="datetime-local" className="border rounded px-2 py-1 text-sm" value={toLocalDatetimeInput(value)} onChange={(e) => handleChange(key, e.target.value)} disabled={submitting} />
                                     {fieldErrors[key] && <p className="text-xs text-red-600">{fieldErrors[key]}</p>}
                                 </label>
@@ -300,7 +291,7 @@ export function GenericRowEditor({
                         if (dt.includes("json")) {
                             return (
                                 <label className="flex flex-col gap-1 text-xs" key={key}>
-                                    <span className="font-medium text-sm">{key}</span>
+                                    <span className="font-medium text-sm">{displayName}</span>
                                     <textarea className="w-full min-h-[80px] border rounded px-2 py-1 font-mono text-xs" value={typeof value === "object" ? JSON.stringify(value, null, 2) : value ?? ""} onChange={(e) => handleChange(key, e.target.value)} disabled={submitting} />
                                     {fieldErrors[key] && <p className="text-xs text-red-600">{fieldErrors[key]}</p>}
                                 </label>
@@ -310,7 +301,7 @@ export function GenericRowEditor({
                         if (dt.includes("int") || dt.includes("numeric") || dt.includes("decimal") || dt.includes("bigint")) {
                             return (
                                 <label className="flex flex-col gap-1 text-xs" key={key}>
-                                    <span className="font-medium text-sm">{key}</span>
+                                    <span className="font-medium text-sm">{displayName}</span>
                                     <input type="number" className="border rounded px-2 py-1 text-sm" value={value ?? ""} onChange={(e) => handleChange(key, e.target.value)} disabled={submitting} />
                                     {fieldErrors[key] && <p className="text-xs text-red-600">{fieldErrors[key]}</p>}
                                 </label>
@@ -320,7 +311,7 @@ export function GenericRowEditor({
                         // default: text
                         return (
                             <label className="flex flex-col gap-1 text-xs" key={key}>
-                                <span className="font-medium text-sm">{key}</span>
+                                <span className="font-medium text-sm">{displayName}</span>
                                 <input type="text" className="border rounded px-2 py-1 text-sm" value={value ?? ""} onChange={(e) => handleChange(key, e.target.value)} disabled={submitting} />
                                 {fieldErrors[key] && <p className="text-xs text-red-600">{fieldErrors[key]}</p>}
                             </label>
