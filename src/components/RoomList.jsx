@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { ArrowLeft, Search, StickyNote, Stamp, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, Search, StickyNote, MoreHorizontal, Stamp, Users, Plus } from "lucide-react";
 import { ClassStampManagement } from "./ClassStampManagement";
 import { ClassUserManagement } from "./ClassUserManagement";
 import { fetchNoteCounts, fetchNotes } from "@/api/notes.js";
@@ -487,7 +487,8 @@ export function RoomList() {
                     {classInfo?.className ?? "-"}
                 </h1>
 
-                <div className="flex items-center gap-2">
+                {/* スタンプ管理 / ユーザー管理 ボタングループ */}
+                <div className="inline-flex items-center rounded-md border bg-background text-sm shadow-sm overflow-hidden">
                     {/* スタンプ管理ダイアログ */}
                     <Dialog
                         open={openStampDialog}
@@ -495,10 +496,11 @@ export function RoomList() {
                     >
                         <DialogTrigger asChild>
                             <Button
-                                variant="outline"
-                                className="text-xs font-medium"
+                                variant="ghost"
+                                className="rounded-none border-r text-xs font-medium inline-flex items-center gap-1.5"
                             >
-                                スタンプ管理
+                                <Stamp className="h-4 w-4" />
+                                <span>スタンプ管理</span>
                             </Button>
                         </DialogTrigger>
 
@@ -526,10 +528,11 @@ export function RoomList() {
                     >
                         <DialogTrigger asChild>
                             <Button
-                                variant="outline"
-                                className="text-xs font-medium"
+                                variant="ghost"
+                                className="rounded-none text-xs font-medium inline-flex items-center gap-1.5"
                             >
-                                ユーザー管理
+                                <Users className="h-4 w-4" />
+                                <span>ユーザー管理</span>
                             </Button>
                         </DialogTrigger>
 
@@ -592,8 +595,9 @@ export function RoomList() {
                         }}
                     >
                         <DialogTrigger asChild>
-                            <Button className="text-xs font-medium">
-                                ルームを作成
+                            <Button className="text-xs font-medium inline-flex items-center gap-1.5">
+                                <Plus className="h-4 w-4" />
+                                <span>ルームを作成</span>
                             </Button>
                         </DialogTrigger>
 

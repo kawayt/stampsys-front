@@ -19,7 +19,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { Search } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition.js";
 import { notifySuccess, notifyError } from "@/utils/notify";
 
@@ -229,7 +229,8 @@ function StampList() {
                     <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
                         <DialogTrigger asChild>
                             <Button className="text-xs font-medium">
-                                スタンプを追加
+                                <Plus className="h-4 w-4" />
+                                <span>スタンプを追加</span>
                             </Button>
                         </DialogTrigger>
 

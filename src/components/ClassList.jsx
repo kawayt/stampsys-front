@@ -22,7 +22,7 @@ import {
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-import { MoreHorizontal, Search } from "lucide-react";
+import { MoreHorizontal, Search, Plus } from "lucide-react";
 import { ClassUserManagement } from "@/components/ClassUserManagement";
 import { ClassStampManagement } from "@/components/ClassStampManagement";
 import { notifySuccess, notifyError } from "@/utils/notify";
@@ -340,7 +340,8 @@ export function ClassList({ role }) {
                     <Dialog open={openCreateDialog} onOpenChange={setOpenCreateDialog}>
                         <DialogTrigger asChild>
                             <Button className="text-xs font-medium">
-                                クラスを作成
+                                <Plus className="h-4 w-4" />
+                                <span>クラスを作成</span>
                             </Button>
                         </DialogTrigger>
 
