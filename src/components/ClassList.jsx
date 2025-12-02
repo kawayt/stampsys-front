@@ -18,11 +18,11 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-    DropdownMenuLabel,
+    DropdownMenuGroup,
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-import { MoreHorizontal, Search, Plus } from "lucide-react";
+import { MoreHorizontal, Search, Plus, Stamp, Users, Trash } from "lucide-react";
 import { ClassUserManagement } from "@/components/ClassUserManagement";
 import { ClassStampManagement } from "@/components/ClassStampManagement";
 import { notifySuccess, notifyError } from "@/utils/notify";
@@ -451,29 +451,30 @@ export function ClassList({ role }) {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-40">
-                                            <DropdownMenuLabel className="text-xs">
-                                                クラス操作
-                                            </DropdownMenuLabel>
+                                            <DropdownMenuGroup>
+                                                <DropdownMenuItem
+                                                    onClick={() => setUserManagementClass(c)}
+                                                >
+                                                    <Users />
+                                                    ユーザー管理
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onClick={() => setStampManagementClass(c)}
+                                                >
+                                                    <Stamp />
+                                                    スタンプ管理
+                                                </DropdownMenuItem>
+                                            </DropdownMenuGroup>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem
-                                                className="text-[11px] text-slate-700"
-                                                onClick={() => setUserManagementClass(c)}
-                                            >
-                                                ユーザー管理
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                className="text-[11px] text-slate-700"
-                                                onClick={() => setStampManagementClass(c)}
-                                            >
-                                                スタンプ管理
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem
-                                                className="text-[11px] text-red-600 focus:text-red-600"
-                                                onClick={() => setDeleteTargetClass(c)}
-                                            >
-                                                クラスを削除
-                                            </DropdownMenuItem>
+                                            <DropdownMenuGroup>
+                                                <DropdownMenuItem
+                                                    variant="destructive"
+                                                    onClick={() => setDeleteTargetClass(c)}
+                                                >
+                                                    <Trash />
+                                                    クラスを削除
+                                                </DropdownMenuItem>
+                                            </DropdownMenuGroup>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { ArrowLeft, Search, StickyNote, MoreHorizontal, Stamp, Users, Plus } from "lucide-react";
+import { ArrowLeft, Search, StickyNote, MoreHorizontal, Plus, Stamp, Users, DoorOpen, DoorClosed, History, Trash } from "lucide-react";
 import { ClassStampManagement } from "./ClassStampManagement";
 import { ClassUserManagement } from "./ClassUserManagement";
 import { fetchNoteCounts, fetchNotes } from "@/api/notes.js";
@@ -23,7 +23,7 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-    DropdownMenuLabel,
+    DropdownMenuGroup,
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
@@ -747,43 +747,36 @@ export function RoomList() {
                                                         <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent
-                                                    align="end"
-                                                    className="w-40"
-                                                >
-                                                    <DropdownMenuLabel className="text-xs">
-                                                        ルーム操作
-                                                    </DropdownMenuLabel>
-                                                    <DropdownMenuSeparator />
-                                                        <>
-                                                            {isActive && (
-                                                                <DropdownMenuItem
-                                                                    className="text-[11px] text-slate-700"
-                                                                    onClick={() =>
-                                                                        navigate(
-                                                                            `/rooms/${r.roomId}`
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    ルームに入室
-                                                                </DropdownMenuItem>
-                                                            )}
+                                                <DropdownMenuContent align="end" className="w-40">
+                                                    <DropdownMenuGroup>
+                                                        {isActive && (
                                                             <DropdownMenuItem
-                                                                className="text-[11px] text-slate-700"
                                                                 onClick={() =>
-                                                                    navigateToHistory(
-                                                                        r
+                                                                    navigate(
+                                                                        `/rooms/${r.roomId}`
                                                                     )
                                                                 }
                                                             >
-                                                                ルーム履歴
+                                                                <DoorOpen />
+                                                                ルームに入室
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                        </>
-
+                                                        )}
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                navigateToHistory(
+                                                                    r
+                                                                )
+                                                            }
+                                                        >
+                                                            <History />
+                                                            ルーム履歴
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuGroup>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuGroup>
                                                     {isActive ? (
                                                         <DropdownMenuItem
-                                                            className="text-[11px] text-red-600 focus:text-red-600"
+                                                            variant="destructive"
                                                             onClick={() =>
                                                                 openCloseRoomDialog({
                                                                     roomId: r.roomId,
@@ -792,11 +785,12 @@ export function RoomList() {
                                                                 })
                                                             }
                                                         >
+                                                            <DoorClosed />
                                                             ルームを終了
                                                         </DropdownMenuItem>
                                                     ) : (
                                                         <DropdownMenuItem
-                                                            className="text-[11px] text-red-600 focus:text-red-600"
+                                                            variant="destructive"
                                                             onClick={() =>
                                                                 openHideRoomDialog({
                                                                     roomId: r.roomId,
@@ -805,9 +799,11 @@ export function RoomList() {
                                                                 })
                                                             }
                                                         >
+                                                            <Trash />
                                                             ルームを削除
                                                         </DropdownMenuItem>
                                                     )}
+                                                    </DropdownMenuGroup>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </div>
