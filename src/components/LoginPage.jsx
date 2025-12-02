@@ -26,12 +26,11 @@ function LoginPage({ onLogin, error }) {
                     </CardHeader>
 
                     <CardContent className="space-y-4">
-                        {error && (
+                        {error ? (
                             <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
                                 {error}
                             </div>
-                        )}
-
+                        ) :
                         <Button
                             type="button"
                             onClick={onLogin}
@@ -39,6 +38,7 @@ function LoginPage({ onLogin, error }) {
                         >
                             <span className="font-medium">Microsoft 365 でログイン</span>
                         </Button>
+                        }
                     </CardContent>
                 </Card>
             </div>
