@@ -197,7 +197,7 @@ function StampList() {
             <div className="mb-6 flex items-center justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-semibold text-slate-800">
-                        スタンプ一覧
+                        すべてのスタンプ
                     </h2>
                 </div>
 

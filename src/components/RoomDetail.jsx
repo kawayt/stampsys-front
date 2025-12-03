@@ -366,16 +366,8 @@ export function RoomDetail({ userId, role }) {
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-lg font-semibold text-slate-800">
-                        ルーム詳細（ルームID: {roomId}）
+                        ルーム詳細 - ルーム{roomId}
                     </h2>
-                    <p className="mt-1 text-xs text-slate-500">
-                        このルームに紐づくスタンプ一覧を表示しています。
-                    </p>
-                    {isTeacherView && (
-                        <p className="mt-1 text-[11px] text-orange-600">
-                            教員・管理者権限のため、スタンプ送信状況の集計も表示しています。
-                        </p>
-                    )}
                 </div>
             </div>
 

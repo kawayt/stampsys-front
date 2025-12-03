@@ -514,7 +514,7 @@ function RoomHistory() {
     };
 
     return (
-        <div className="flex flex-col gap-4 p-4">
+        <div className="flex flex-col gap-4 py-4">
             <div className="mb-2">
                 <Button
                     variant="ghost"
