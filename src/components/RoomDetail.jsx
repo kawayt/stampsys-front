@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition.js";
 import { sendStamp } from "../api/StampSendApi.js";
 import { ArrowLeft } from "lucide-react";
 import NoteForm from "@/components/NoteForm";
+// import 名を NotesList に統一
+import NotesList from "@/components/NoteList";
 
 function SimpleBarChart({ data }) {
     if (!data || data.length === 0) return null;
@@ -25,7 +27,6 @@ function SimpleBarChart({ data }) {
 
                 return (
                     <div key={d.stampId ?? d.stampName} className="flex items-center gap-3">
-                        {/* アイコン + 名前 */}
                         <div className="flex items-center gap-3 w-44">
                             <div
                                 className="flex items-center justify-center h-10 w-10 rounded-full shrink-0"
@@ -38,7 +39,6 @@ function SimpleBarChart({ data }) {
                             </span>
                         </div>
 
-                        {/* 棒グラフ */}
                         <div className="flex-1">
                             <div className="h-10 w-full rounded-full bg-slate-100 overflow-hidden">
                                 <div
@@ -48,7 +48,6 @@ function SimpleBarChart({ data }) {
                             </div>
                         </div>
 
-                        {/* 数値 */}
                         <div className="w-28 text-right text-slate-600">
                             {d.count}回 / {(d.percentage ?? 0).toFixed(1)}%
                         </div>
@@ -68,19 +67,19 @@ export function RoomDetail({ userId, role }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // スタンプ送信用の状態
     const [sending, setSending] = useState(false);
     const [message, setMessage] = useState("");
 
-    // 履歴（自身の送信履歴）
     const [history, setHistory] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(false);
     const [historyError, setHistoryError] = useState(null);
 
-    // スタンプ集計用の状態（教員・管理者用）
     const [summary, setSummary] = useState([]);
     const [summaryLoading, setSummaryLoading] = useState(false);
     const [summaryError, setSummaryError] = useState(null);
+
+    // メモ一覧再読み込み用 key
+    const [notesKey, setNotesKey] = useState(0);
 
     const isTeacherView = role === "ADMIN" || role === "TEACHER";
 
@@ -103,7 +102,6 @@ export function RoomDetail({ userId, role }) {
     };
 
     const fetchHistory = async () => {
-        // 履歴は STUDENT（非教師）向けに表示
         if (!userId) {
             setHistory([]);
             return;
@@ -118,8 +116,6 @@ export function RoomDetail({ userId, role }) {
                 throw new Error(`履歴の取得に失敗しました: ${res.status}`);
             }
             const data = await res.json();
-            // data should be array of { stampId, stampName, stampColor, stampIcon, sentAt }
-            // 最新何件表示するか設定
             setHistory((data || []).slice(0, 10));
         } catch (err) {
             console.error("fetchHistory error:", err);
@@ -176,33 +172,32 @@ export function RoomDetail({ userId, role }) {
         fetchStamps();
         fetchStampSummary();
 
-        // 非教師（STUDENT）向けに履歴を取得
         if (!isTeacherView) {
             fetchHistory();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [roomId, isTeacherView, userId]);
 
-    // ポーリング
     useEffect(() => {
-        if (!isTeacherView) return; // 教員/管理者ビューのみポーリング
-        const intervalMs = 5000; // 5秒ごと。必要に応じて変更してください（例: 10000 = 10秒）
+        if (!isTeacherView) return;
+        const intervalMs = 5000;
         const id = setInterval(() => {
-            // エラーはコンソールに出すだけにして UI を壊さない
             fetchStampSummary().catch((e) =>
                 console.error("polling summary failed", e)
             );
         }, intervalMs);
-
-        // クリーンアップ: コンポーネントアンマウント時や依存が変わったら停止
         return () => clearInterval(id);
     }, [roomId, isTeacherView]);
+
+    const onNoteCreated = (createdNote) => {
+        // 作成後に NotesList を再読み込み（key を変えて再マウント）
+        setNotesKey((k) => k + 1);
+    };
 
     function extractMessage(err) {
         if (!err) return null;
         if (typeof err === "string") return err;
         if (err.message) return err.message;
-        // axios 風の構造や response.data を持つケースに対応
         if (err.response && err.response.data) {
             try {
                 const d = typeof err.response.data === "string" ? JSON.parse(err.response.data) : err.response.data;
@@ -214,7 +209,6 @@ export function RoomDetail({ userId, role }) {
         return null;
     }
 
-    // スタンプをクリックしたときに送信する処理
     const handleStampClick = async (stampId) => {
         if (!userId) {
             setMessage("× ユーザー情報が取得できませんでした");
@@ -230,7 +224,6 @@ export function RoomDetail({ userId, role }) {
             if (result.success) {
                 setMessage("✓ スタンプを送信しました！");
                 setTimeout(() => setMessage(""), 3000);
-                // 履歴を再取得（学生ユーザーが送信した直後に履歴に反映させる）
                 if (!isTeacherView) {
                     fetchHistory().catch((e) => console.error("refresh history failed", e));
                 }
@@ -284,7 +277,6 @@ export function RoomDetail({ userId, role }) {
 
     return (
         <section className="py-4 space-y-4">
-            {/* 戻るボタン */}
             <div className="mb-2">
                 <Button
                     variant="ghost"
@@ -320,7 +312,6 @@ export function RoomDetail({ userId, role }) {
             ) : (
                 <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
                     <CardContent>
-                        {/* STUDENT のとき: スタンプ送信ボタンのみ */}
                         {!isTeacherView && (
                             <>
                                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -355,7 +346,6 @@ export function RoomDetail({ userId, role }) {
                                     })}
                                 </div>
 
-                                {/* 送信結果メッセージ */}
                                 {message && (
                                     <div
                                         className={[
@@ -373,7 +363,6 @@ export function RoomDetail({ userId, role }) {
                                     スタンプは即時に送信されます。連打しすぎないように注意してください。
                                 </p>
 
-                                {/* ------- ここから：送信履歴表示（自分が送信したもの） - アイコンのみの表示（最新10件） ------- */}
                                 <div className="mt-4">
                                     <h3 className="text-sm font-medium text-slate-700 mb-2">送信履歴（あなた）</h3>
 
@@ -384,7 +373,6 @@ export function RoomDetail({ userId, role }) {
                                     ) : history.length === 0 ? (
                                         <p className="text-xs text-slate-500">まだ送信したスタンプはありません。</p>
                                     ) : (
-                                        // アイコンのみ（丸背景）の小さい一覧表示（最新10件）
                                         <div className="grid grid-cols-6 gap-3 gap-y-3 sm:grid-cols-8">
                                             {history.map((h, idx) => {
                                                 const color = getStampColorByCode(h.stampColor);
@@ -408,28 +396,20 @@ export function RoomDetail({ userId, role }) {
                                         </div>
                                     )}
                                 </div>
-                                {/* ------- ここまで：送信履歴表示 ------- */}
                             </>
                         )}
 
-                        {/* ADMIN / TEACHER のとき: スタンプ集計表示 */}
                         {isTeacherView && (
                             <>
                                 {summaryLoading && (
-                                    <p className="mt-2 text-xs text-slate-500">
-                                        集計を読み込み中です...
-                                    </p>
+                                    <p className="mt-2 text-xs text-slate-500">集計を読み込み中です...</p>
                                 )}
                                 {summaryError && (
-                                    <p className="mt-2 text-xs text-red-500">
-                                        集計の取得に失敗しました: {summaryError}
-                                    </p>
+                                    <p className="mt-2 text-xs text-red-500">集計の取得に失敗しました: {summaryError}</p>
                                 )}
                                 {!summaryLoading && !summaryError && summary && summary.length > 0 && (
                                     <div>
-                                        <h3 className="text-lg font-medium">
-                                            スタンプ送信状況（最新）
-                                        </h3>
+                                        <h3 className="text-lg font-medium">スタンプ送信状況（最新）</h3>
                                         <SimpleBarChart data={summary} />
                                     </div>
                                 )}
@@ -439,17 +419,26 @@ export function RoomDetail({ userId, role }) {
                 </Card>
             )}
 
-            {/* 教員/管理者ならメモフォームを表示する */}
             {isTeacherView && (
                 <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
                     <CardContent>
                         <section>
                             <h3 className="text-lg font-medium">授業メモ</h3>
-                            <NoteForm roomId={Number(roomId)} />
+                            <NoteForm roomId={Number(roomId)} onCreated={onNoteCreated} />
                         </section>
                     </CardContent>
                 </Card>
             )}
+
+            {/* RoomHistory と同様の見た目でメモ一覧を表示 */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>このルームのメモ</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <NotesList key={notesKey} roomId={Number(roomId)} />
+                </CardContent>
+            </Card>
         </section>
     );
 }
