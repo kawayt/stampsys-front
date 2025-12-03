@@ -66,6 +66,8 @@ export function ClassList({ role }) {
         setCurrentRole(role ?? null);
     }, [role]);
 
+    const isStudent = currentRole === "STUDENT";
+
     // サーバから現在のユーザー role / userId を取得
     const fetchCurrentUserInfo = async () => {
         try {
@@ -337,68 +339,70 @@ export function ClassList({ role }) {
                     </div>
 
                     {/* クラス新規作成ダイアログ */}
-                    <Dialog open={openCreateDialog} onOpenChange={setOpenCreateDialog}>
-                        <DialogTrigger asChild>
-                            <Button className="text-xs font-medium">
-                                <Plus className="h-4 w-4" />
-                                <span>クラスを作成</span>
-                            </Button>
-                        </DialogTrigger>
+                    {!isStudent && (
+                        <Dialog open={openCreateDialog} onOpenChange={setOpenCreateDialog}>
+                            <DialogTrigger asChild>
+                                <Button className="text-xs font-medium">
+                                    <Plus className="h-4 w-4" />
+                                    <span>クラスを作成</span>
+                                </Button>
+                            </DialogTrigger>
 
-                        <DialogContent className="sm:max-w-md">
-                            <DialogHeader>
-                                <DialogTitle>新しいクラスを作成</DialogTitle>
-                                <DialogDescription className="text-xs">
-                                    授業で使用するクラスを登録します。クラス名は後から変更できます。
-                                </DialogDescription>
-                            </DialogHeader>
+                            <DialogContent className="sm:max-w-md">
+                                <DialogHeader>
+                                    <DialogTitle>新しいクラスを作成</DialogTitle>
+                                    <DialogDescription className="text-xs">
+                                        授業で使用するクラスを登録します。クラス名は後から変更できます。
+                                    </DialogDescription>
+                                </DialogHeader>
 
-                            <form onSubmit={handleCreateClass} className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label
-                                        htmlFor="new-class-name"
-                                        className="text-xs font-medium text-slate-700"
-                                    >
-                                        クラス名
-                                    </Label>
-                                    <Input
-                                        id="new-class-name"
-                                        type="text"
-                                        placeholder="例: 情報処理Ⅰ"
-                                        value={newClassName}
-                                        onChange={(e) => setNewClassName(e.target.value)}
-                                        className="text-sm"
-                                    />
-                                    {createError && (
-                                        <p className="text-[11px] text-red-600">
-                                            {createError}
-                                        </p>
-                                    )}
-                                </div>
+                                <form onSubmit={handleCreateClass} className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label
+                                            htmlFor="new-class-name"
+                                            className="text-xs font-medium text-slate-700"
+                                        >
+                                            クラス名
+                                        </Label>
+                                        <Input
+                                            id="new-class-name"
+                                            type="text"
+                                            placeholder="例: 情報処理Ⅰ"
+                                            value={newClassName}
+                                            onChange={(e) => setNewClassName(e.target.value)}
+                                            className="text-sm"
+                                        />
+                                        {createError && (
+                                            <p className="text-[11px] text-red-600">
+                                                {createError}
+                                            </p>
+                                        )}
+                                    </div>
 
-                                <DialogFooter className="flex justify-end gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="text-xs"
-                                        onClick={() => {
-                                            setOpenCreateDialog(false);
-                                            setCreateError(null);
-                                        }}
-                                    >
-                                        キャンセル
-                                    </Button>
-                                    <Button
-                                        type="submit"
-                                        disabled={createLoading}
-                                        className="text-xs font-medium"
-                                    >
-                                        {createLoading ? "作成中..." : "作成"}
-                                    </Button>
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
+                                    <DialogFooter className="flex justify-end gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className="text-xs"
+                                            onClick={() => {
+                                                setOpenCreateDialog(false);
+                                                setCreateError(null);
+                                            }}
+                                        >
+                                            キャンセル
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            disabled={createLoading}
+                                            className="text-xs font-medium"
+                                        >
+                                            {createLoading ? "作成中..." : "作成"}
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
+                    )}
                 </div>
             </div>
 
@@ -440,43 +444,45 @@ export function ClassList({ role }) {
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     {/* 3点ドットメニュー */}
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-                                            >
-                                                <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-40">
-                                            <DropdownMenuGroup>
-                                                <DropdownMenuItem
-                                                    onClick={() => setUserManagementClass(c)}
+                                    {!isStudent && (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100"
                                                 >
-                                                    <Users />
-                                                    ユーザー管理
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    onClick={() => setStampManagementClass(c)}
-                                                >
-                                                    <Stamp />
-                                                    スタンプ管理
-                                                </DropdownMenuItem>
-                                            </DropdownMenuGroup>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuGroup>
-                                                <DropdownMenuItem
-                                                    variant="destructive"
-                                                    onClick={() => setDeleteTargetClass(c)}
-                                                >
-                                                    <Trash />
-                                                    クラスを削除
-                                                </DropdownMenuItem>
-                                            </DropdownMenuGroup>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="w-40">
+                                                <DropdownMenuGroup>
+                                                    <DropdownMenuItem
+                                                        onClick={() => setUserManagementClass(c)}
+                                                    >
+                                                        <Users />
+                                                        ユーザー管理
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() => setStampManagementClass(c)}
+                                                    >
+                                                        <Stamp />
+                                                        スタンプ管理
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuGroup>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuGroup>
+                                                    <DropdownMenuItem
+                                                        variant="destructive"
+                                                        onClick={() => setDeleteTargetClass(c)}
+                                                    >
+                                                        <Trash />
+                                                        クラスを削除
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuGroup>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
