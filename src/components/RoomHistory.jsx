@@ -771,68 +771,6 @@ function RoomHistory() {
                             <NotesList roomId={Number(roomId)} />
                         </CardContent>
                     </Card>
-
-                    {/* テーブル表示 */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>スタンプ集計表</CardTitle>
-                        </CardHeader>
-                        <CardContent className="overflow-auto">
-                            {hasTableData ? (
-                                <table className="min-w-full text-xs border-collapse">
-                                    <thead>
-                                    <tr>
-                                        <th className="border px-2 py-1 text-left">スタンプ</th>
-                                        {data.timeline.map((t, idx) => (
-                                            <th key={idx} className="border px-2 py-1">
-                                                {formatTimeLabel(t)}
-                                            </th>
-                                        ))}
-                                        <th className="border px-2 py-1">合計</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {data.series
-                                        .filter((s) => s.stampName !== "NO_STAMP")
-                                        .map((s) => (
-                                            <tr key={s.stampId}>
-                                                <td className="border px-2 py-1">{s.stampName}</td>
-                                                {data.timeline.map((_, idx) => (
-                                                    <td
-                                                        key={idx}
-                                                        className="border px-2 py-1 text-right"
-                                                    >
-                                                        {s.values?.[idx] ?? 0}
-                                                    </td>
-                                                ))}
-                                                <td className="border px-2 py-1 text-right">
-                                                    {(s.values || []).reduce((acc, v) => acc + v, 0)}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    <tr>
-                                        <td className="border px-2 py-1">合計（件数）</td>
-                                        {data.timeline.map((_, idx) => (
-                                            <td
-                                                key={idx}
-                                                className="border px-2 py-1 text-right"
-                                            >
-                                                {data.totals?.[idx] ?? 0}
-                                            </td>
-                                        ))}
-                                        <td className="border px-2 py-1 text-right">
-                                            {(data.totals || []).reduce((acc, v) => acc + v, 0)}
-                                        </td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                            ) : (
-                                <div className="text-sm text-muted-foreground">
-                                    データがありません。
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
                 </>
             )}
 
