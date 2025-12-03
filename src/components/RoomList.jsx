@@ -26,6 +26,7 @@ import {
     DropdownMenuGroup,
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { notifySuccess, notifyError } from "@/utils/notify";
 
 export function RoomList() {
     const { classId } = useParams();
@@ -251,25 +252,40 @@ export function RoomList() {
             });
 
             if (!res.ok) {
-                const text = await res.text();
-                throw new Error(text || `ルーム作成に失敗しました: ${res.status}`);
+                let msg = `HTTP error! status: ${res.status}`;
+                try {
+                    const text = await res.text();
+                    if (text) msg = text;
+                } catch {
+                    // ignore
+                }
+                throw new Error(msg);
             }
 
             await res.json();
 
+            const createdName = createRoomName.trim();
             setCreateSuccess("ルームを作成しました");
             setCreateRoomName("");
             setOpenCreateDialog(false);
             await fetchRooms();
             await fetchCounts();
             await fetchNoteCountsForClass();
+
+            // 成功トースト
+            notifySuccess("ルームを作成しました", `ルーム名: ${createdName}`);
         } catch (err) {
             console.error(err);
-            setCreateError(err.message ?? "ルーム作成時にエラーが発生しました");
+            const fallback = "ルームを作成できませんでした";
+            const message = err.message ?? fallback;
+            setCreateError(message);
+
+            // 失敗時のみトースト
+            notifyError("ルームを作成できませんでした", message);
         } finally {
             setCreating(false);
         }
-    };
+    }
 
     // ルーム終了ダイアログを開く（対象ルームをセット）
     const openCloseRoomDialog = (room) => {
@@ -299,6 +315,15 @@ export function RoomList() {
                     )
                 );
                 setOpenCloseDialog(false);
+
+                // 成功トースト
+                notifySuccess(
+                    "ルームを終了しました",
+                    selectedRoom?.roomName
+                        ? `ルーム名: ${selectedRoom.roomName}`
+                        : undefined
+                );
+
                 setSelectedRoom(null);
                 // refresh counts because active state change may affect UI
                 await fetchCounts();
@@ -315,16 +340,23 @@ export function RoomList() {
                             message;
                     } else {
                         const txt = await res.text();
-                        if (txt) message = txt;
+                        if (txt) message = txt || message;
                     }
                 } catch {
                     // ignore parse errors
                 }
                 setCloseError(message);
+
+                // 失敗トースト
+                notifyError("ルームを終了できませんでした", message);
             }
         } catch (err) {
             console.error(err);
-            setCloseError(err.message ?? "通信エラーが発生しました");
+            const message = err.message ?? "通信エラーが発生しました";
+            setCloseError(message);
+
+            // 失敗トースト
+            notifyError("ルームを終了できませんでした", message);
         } finally {
             setCloseProcessing(false);
         }
@@ -355,6 +387,7 @@ export function RoomList() {
             if (await handleAuthRedirectIfNeeded(res)) return;
 
             if (res.status === 204) {
+                const deletedName = hideSelectedRoom.roomName;
                 setRooms((prev) =>
                     prev.filter((r) => r.roomId !== hideSelectedRoom.roomId)
                 );
@@ -363,6 +396,12 @@ export function RoomList() {
                 // refresh counts because rooms list changed
                 await fetchCounts();
                 await fetchNoteCountsForClass();
+
+                // 成功トースト
+                notifySuccess(
+                    "ルームを削除しました",
+                    deletedName ? `ルーム名: ${deletedName}` : undefined
+                );
             } else {
                 let message = `ルームの削除（非表示）に失敗しました: ${res.status}`;
                 try {
@@ -375,16 +414,23 @@ export function RoomList() {
                             message;
                     } else {
                         const txt = await res.text();
-                        if (txt) message = txt;
+                        if (txt) message = txt || message;
                     }
                 } catch {
                     // ignore
                 }
                 setHideError(message);
+
+                // 失敗トースト
+                notifyError("ルームを削除できませんでした", message);
             }
         } catch (err) {
             console.error(err);
-            setHideError(err.message ?? "通信エラーが発生しました");
+            const message = err.message ?? "通信エラーが発生しました";
+            setHideError(message);
+
+            // 失敗トースト
+            notifyError("ルームを削除できませんでした", message);
         } finally {
             setHideProcessing(false);
         }
