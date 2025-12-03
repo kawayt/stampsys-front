@@ -162,7 +162,7 @@ function Dashboard({ appData, onLogout }) {
     return (
         <div className="min-h-screen bg-slate-50">
             <header className="border-b bg-white">
-                <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+                <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
                     {/* 左側: ワークスペース名エリア */}
                     <div className="flex items-center gap-2">
                         <div className="flex size-8 items-center justify-center rounded-md bg-slate-900 text-white">
@@ -212,7 +212,6 @@ function Dashboard({ appData, onLogout }) {
                                     </DropdownMenuItem>
                                 )}
                                 <DropdownMenuItem
-                                    variant="destructive"
                                     onClick={onLogout}
                                 >
                                     <LogOut />
@@ -226,7 +225,7 @@ function Dashboard({ appData, onLogout }) {
                 {/* ナビゲーション */}
                 {!isStudent && (
                     <div>
-                        <div className="mx-auto flex max-w-6xl items-center justify-between px-6">
+                        <div className="mx-auto flex max-w-5xl items-center justify-between px-6">
                             <nav className="flex items-center gap-6 text-sm">
                                 <NavButton
                                     active={currentTab === "classes"}
@@ -252,7 +251,7 @@ function Dashboard({ appData, onLogout }) {
                 )}
             </header>
 
-            <main className="mx-auto max-w-6xl space-y-4 px-4 py-4">
+            <main className="mx-auto max-w-5xl space-y-4 px-4 py-4">
                 {/* ルーティング */}
                 <section className="mt-2">
                     <Routes>
