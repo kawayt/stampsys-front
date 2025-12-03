@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -82,6 +82,8 @@ export function RoomDetail({ userId, role }) {
     const [notesKey, setNotesKey] = useState(0);
 
     const isTeacherView = role === "ADMIN" || role === "TEACHER";
+
+    const sseRef = useRef(null);
 
     const fetchStamps = async () => {
         setLoading(true);
@@ -178,15 +180,83 @@ export function RoomDetail({ userId, role }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [roomId, isTeacherView, userId]);
 
+    // SSE で教員画面用の集計を受け取る（ポーリングの代わり）
     useEffect(() => {
         if (!isTeacherView) return;
-        const intervalMs = 5000;
-        const id = setInterval(() => {
-            fetchStampSummary().catch((e) =>
-                console.error("polling summary failed", e)
-            );
-        }, intervalMs);
-        return () => clearInterval(id);
+
+        const url = `/api/rooms/${encodeURIComponent(roomId)}/stamp-summary/stream`;
+        // close previous if exists
+        if (sseRef.current) {
+            try { sseRef.current.close(); } catch (e) { /* ignore */ }
+            sseRef.current = null;
+        }
+
+        const es = new EventSource(url);
+        sseRef.current = es;
+
+        es.addEventListener("open", () => {
+            console.log("SSE connected to", url);
+        });
+
+        es.addEventListener("summary", (e) => {
+            try {
+                const data = JSON.parse(e.data || "[]");
+                const mapped = (data || []).map((d) => {
+                    const color = getStampColorByCode(d.stampColor);
+                    const icon = getStampIconByCode(d.stampIcon);
+                    return {
+                        stampId: d.stampId,
+                        stampName: d.stampName,
+                        stampColor: d.stampColor,
+                        stampIcon: d.stampIcon,
+                        color,
+                        icon,
+                        count: d.cnt,
+                        percentage: typeof d.pct === "number" ? d.pct : Number(d.pct),
+                    };
+                });
+                setSummary(mapped);
+            } catch (err) {
+                console.error("Failed to parse SSE summary data:", err);
+            }
+        });
+
+        // fallback: also handle default onmessage if needed
+        es.onmessage = (e) => {
+            // Some servers may send messages without explicit event name
+            try {
+                const data = JSON.parse(e.data || "[]");
+                const mapped = (data || []).map((d) => {
+                    const color = getStampColorByCode(d.stampColor);
+                    const icon = getStampIconByCode(d.stampIcon);
+                    return {
+                        stampId: d.stampId,
+                        stampName: d.stampName,
+                        stampColor: d.stampColor,
+                        stampIcon: d.stampIcon,
+                        color,
+                        icon,
+                        count: d.cnt,
+                        percentage: typeof d.pct === "number" ? d.pct : Number(d.pct),
+                    };
+                });
+                setSummary(mapped);
+            } catch (err) {
+                // ignore parse errors here
+            }
+        };
+
+        es.onerror = (err) => {
+            console.error("SSE error:", err);
+            // EventSource auto-reconnects by default; we can close on fatal error if desired
+            // es.close();
+            // setSummaryError("サーバーとの接続でエラーが発生しました");
+        };
+
+        return () => {
+            try { es.close(); } catch (e) { /* ignore */ }
+            sseRef.current = null;
+        };
     }, [roomId, isTeacherView]);
 
     const onNoteCreated = (createdNote) => {
@@ -228,6 +298,7 @@ export function RoomDetail({ userId, role }) {
                     fetchHistory().catch((e) => console.error("refresh history failed", e));
                 }
                 if (isTeacherView) {
+                    // SSE があれば自動で集計更新が流れてくるがフォールバックとして取得
                     fetchStampSummary();
                 }
             } else {
@@ -431,14 +502,16 @@ export function RoomDetail({ userId, role }) {
             )}
 
             {/* RoomHistory と同様の見た目でメモ一覧を表示 */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>このルームのメモ</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <NotesList key={notesKey} roomId={Number(roomId)} />
-                </CardContent>
-            </Card>
+            {isTeacherView && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>このルームのメモ</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <NotesList key={notesKey} roomId={Number(roomId)} />
+                    </CardContent>
+                </Card>
+            )}
         </section>
     );
 }
