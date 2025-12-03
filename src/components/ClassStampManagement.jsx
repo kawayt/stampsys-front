@@ -120,7 +120,7 @@ export function ClassStampManagement({ classId, open }) {
         }
     };
 
-    // 親(DIalog) から渡される `open` が true のときにだけ読み込む
+    // 親(Dialog) から渡される `open` が true のときにだけ読み込む
     useEffect(() => {
         if (open) {
             fetchStamps();
@@ -160,18 +160,21 @@ export function ClassStampManagement({ classId, open }) {
                                         const color = getStampColorByCode(
                                             Number(stamp.stampColor) || 0
                                         );
-                                        const icon = getStampIconByCode(
+                                        const { Icon } = getStampIconByCode(
                                             Number(stamp.stampIcon) || 0
                                         );
                                         return (
                                             <li
                                                 key={stamp.stampId}
                                                 className="flex items-center justify-between rounded-lg px-2 py-2"
-                                                style={{ backgroundColor: color.bg }}
+                                                style={{
+                                                    backgroundColor: color.bg,
+                                                    color: color.icon,
+                                                }}
                                             >
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-base">
-                                                        {icon}
+                                                    <span className="inline-flex ml-[2px] items-center justify-center">
+                                                        <Icon className="h-4 w-4" />
                                                     </span>
                                                     <div className="flex flex-col">
                                                         <span className="text-xs font-medium text-slate-800">
@@ -215,18 +218,21 @@ export function ClassStampManagement({ classId, open }) {
                                         const color = getStampColorByCode(
                                             Number(stamp.stampColor) || 0
                                         );
-                                        const icon = getStampIconByCode(
+                                        const { Icon } = getStampIconByCode(
                                             Number(stamp.stampIcon) || 0
                                         );
                                         return (
                                             <li
                                                 key={stamp.stampId}
                                                 className="flex items-center justify-between rounded-lg px-2 py-2"
-                                                style={{ backgroundColor: color.bg }}
+                                                style={{
+                                                    backgroundColor: color.bg,
+                                                    color: color.icon,
+                                                }}
                                             >
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-base">
-                                                        {icon}
+                                                    <span className="inline-flex ml-[2px] items-center justify-center">
+                                                        <Icon className="h-4 w-4" />
                                                     </span>
                                                     <div className="flex flex-col">
                                                         <span className="text-xs font-medium text-slate-800">

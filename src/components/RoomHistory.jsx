@@ -238,7 +238,7 @@ function RoomHistory() {
         for (const s of data.series) {
             if (s.stampName === "NO_STAMP") continue;
             const color = getStampColorByCode(s.stampColor);
-            map[s.stampName] = color.bg;
+            map[s.stampName] = color.icon;
         }
         return map;
     }, [data]);
@@ -250,10 +250,11 @@ function RoomHistory() {
         for (const s of data.series) {
             if (s.stampName === "NO_STAMP") continue;
             const color = getStampColorByCode(s.stampColor);
-            const icon = getStampIconByCode(s.stampIcon);
+            const { Icon } = getStampIconByCode(s.stampIcon);
             map[s.stampName] = {
                 bg: color.bg,
-                icon,
+                iconColor: color.icon,
+                icon: Icon,
             };
         }
         return map;
@@ -469,26 +470,45 @@ function RoomHistory() {
         const stampKey = e.stampName ?? `stamp-${e.stampId}`;
         const display = stampDisplayMap?.[stampKey] ?? null;
 
-        const bgFromEntry = e.color ?? null;
-        const iconFromEntry = e.icon ?? null;
+        const colorFromEntry = e.color ?? null;
+        const iconCodeFromEntry = e.icon ?? null;
 
-        const bg = bgFromEntry != null ? getStampColorByCode(bgFromEntry).bg : (display?.bg ?? "#f9fafb");
-        const icon = iconFromEntry != null ? getStampIconByCode(iconFromEntry) : (display?.icon ?? "🏷");
+        let bg = display?.bg ?? "#f9fafb";
+        let iconColor = display?.iconColor ?? "#4b5563";
+        let IconComponent = display?.icon ?? null;
+
+        if (colorFromEntry != null) {
+            const c = getStampColorByCode(colorFromEntry);
+            bg = c.bg;
+            iconColor = c.icon;
+        }
+
+        if (iconCodeFromEntry != null) {
+            const { Icon } = getStampIconByCode(iconCodeFromEntry);
+            IconComponent = Icon;
+        }
+
         const text = e.stampName ?? `stamp-${e.stampId ?? ""}`;
 
         return (
             <div
                 key={e.key}
                 className="inline-flex items-center gap-2 rounded-xl px-3 py-1 border border-slate-100 shadow-sm text-slate-700"
-                style={{ backgroundColor: bg }}
+                style={{ backgroundColor: bg, color: iconColor }}
                 title={text}
             >
-                <span className="text-lg leading-none">{icon}</span>
+                {IconComponent && (
+                    <IconComponent className="h-4 w-4" />
+                )}
                 <div className="flex flex-col">
                     <span className="text-sm font-medium leading-tight">{text}</span>
-                    <span className="text-xs text-slate-500">{e.senderName}</span>
+                    <span className="text-xs text-slate-600">{e.senderName}</span>
                 </div>
-                {e.count > 1 && <span className="ml-2 text-xs bg-white/30 text-slate-700 px-1 rounded">{e.count}</span>}
+                {e.count > 1 && (
+                    <span className="ml-2 text-xs bg-white/40 text-slate-700 px-1 rounded">
+                        {e.count}
+                    </span>
+                )}
             </div>
         );
     };
@@ -689,6 +709,7 @@ function RoomHistory() {
                                 <div className="border-t pt-2 space-y-1">
                                     {stampTypes.map((kind) => {
                                         const display = stampDisplayMap[kind];
+                                        const IconComponent = display?.icon;
                                         return (
                                             <div
                                                 key={kind}
@@ -707,31 +728,32 @@ function RoomHistory() {
                                                         htmlFor={`stamp-kind-${kind}`}
                                                         className="text-sm font-normal"
                                                     >
-                                                        <span
-                                                            className="
-                                                                inline-flex items-center gap-1
-                                                                rounded-xl pl-1 pr-2 py-1
-                                                                border border-slate-100
-                                                                shadow-sm
-                                                                text-slate-700
-                                                            "
-                                                            style={{
-                                                                backgroundColor:
-                                                                    display?.bg ?? "#f9fafb",
-                                                            }}
-                                                        >
-                                                            <span className="text-lg leading-none">
-                                                                {display?.icon ?? "🙂"}
+                                                            <span
+                                                                className="
+                                                                    inline-flex items-center gap-1
+                                                                    rounded-xl pl-1 pr-2 py-1
+                                                                    border border-slate-100
+                                                                    shadow-sm
+                                                                    text-slate-700
+                                                                "
+                                                                style={{
+                                                                    backgroundColor:
+                                                                        display?.bg ?? "#f9fafb",
+                                                                    color: display?.iconColor ?? "#4b5563",
+                                                                }}
+                                                            >
+                                                                {IconComponent && (
+                                                                    <IconComponent className="h-4 w-4" />
+                                                                )}
+                                                                <span className="text-xs font-medium">
+                                                                    {kind}
+                                                                </span>
                                                             </span>
-                                                            <span className="text-xs font-medium">
-                                                                {kind}
-                                                            </span>
-                                                        </span>
                                                     </Label>
                                                 </div>
                                                 <span className="text-xs text-muted-foreground">
-                                                    {totalPerKind[kind] ?? 0}
-                                                </span>
+                                                        {totalPerKind[kind] ?? 0}
+                                                    </span>
                                             </div>
                                         );
                                     })}
@@ -740,7 +762,7 @@ function RoomHistory() {
                         </Card>
                     </div>
 
-                    {/* ルームに残したメモ一覧（追加） */}
+                    {/* ルームに残したメモ一覧 */}
                     <Card>
                         <CardHeader>
                             <CardTitle>このルームのメモ</CardTitle>
@@ -820,7 +842,7 @@ function RoomHistory() {
                         <CardTitle>スタンプログ（{interval} ごとにまとめて表示）</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {/* ログ用のフィルタUI: グラフで使っている選択状態をそのまま操作可能に */}
+                        {/* ログ用のフィルタUI: グラフ側の選択状態を保持 */}
                         <div className="mb-3 border-b pb-3">
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2">
@@ -840,6 +862,7 @@ function RoomHistory() {
                                 <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                                     {stampTypes.map((kind) => {
                                         const display = stampDisplayMap[kind];
+                                        const IconComponent = display?.icon;
                                         return (
                                             <label key={kind} className="inline-flex items-center gap-2">
                                                 <input
@@ -849,9 +872,14 @@ function RoomHistory() {
                                                 />
                                                 <span
                                                     className="inline-flex items-center gap-1 rounded-xl pl-1 pr-2 py-1 border border-slate-100 shadow-sm text-slate-700"
-                                                    style={{ backgroundColor: display?.bg ?? "#f9fafb" }}
+                                                    style={{
+                                                        backgroundColor: display?.bg ?? "#f9fafb",
+                                                        color: display?.iconColor ?? "#4b5563",
+                                                    }}
                                                 >
-                                                    <span className="text-sm">{display?.icon ?? "🙂"}</span>
+                                                        {IconComponent && (
+                                                            <IconComponent className="h-4 w-4" />
+                                                        )}
                                                     <span className="text-xs">{kind}</span>
                                                 </span>
                                             </label>

@@ -6,7 +6,6 @@ import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition.j
 import { sendStamp } from "../api/StampSendApi.js";
 import { ArrowLeft } from "lucide-react";
 import NoteForm from "@/components/NoteForm";
-// import 名を NotesList に統一
 import NotesList from "@/components/NoteList";
 
 function SimpleBarChart({ data }) {
@@ -19,11 +18,13 @@ function SimpleBarChart({ data }) {
             {data.map((d) => {
                 const ratio = (d.count || 0) / maxCount;
                 const widthPercent = `${ratio * 100}%`;
-                const barColor = d.color?.bg ?? d.color?.background ?? "#fb923c";
-                const textColor = d.color?.fg ?? d.color?.text ?? "inherit";
+                const barColor = d.color?.icon ?? d.color?.bg ?? "#fb923c";
+                const textColor = d.color?.icon ?? d.color?.fg ?? d.color?.text ?? "inherit";
 
                 const iconBg = d.color?.bg ?? "#fff";
-                const iconColor = d.color?.fg ?? "#000";
+                const iconColor = d.color?.icon ?? "#000";
+
+                const IconComponent = d.icon;
 
                 return (
                     <div key={d.stampId ?? d.stampName} className="flex items-center gap-3">
@@ -32,7 +33,9 @@ function SimpleBarChart({ data }) {
                                 className="flex items-center justify-center h-10 w-10 rounded-full shrink-0"
                                 style={{ backgroundColor: iconBg, color: iconColor }}
                             >
-                                <span className="text-lg leading-none">{d.icon}</span>
+                                {IconComponent && (
+                                    <IconComponent className="h-5 w-5" />
+                                )}
                             </div>
                             <span className="font-medium truncate" style={{ color: textColor }}>
                                 {d.stampName}
@@ -148,14 +151,14 @@ export function RoomDetail({ userId, role }) {
 
             const mapped = (data || []).map((d) => {
                 const color = getStampColorByCode(d.stampColor);
-                const icon = getStampIconByCode(d.stampIcon);
+                const { Icon } = getStampIconByCode(d.stampIcon);
                 return {
                     stampId: d.stampId,
                     stampName: d.stampName,
                     stampColor: d.stampColor,
                     stampIcon: d.stampIcon,
                     color,
-                    icon,
+                    icon: Icon,
                     count: d.cnt,
                     percentage: typeof d.pct === "number" ? d.pct : Number(d.pct),
                 };
@@ -203,14 +206,14 @@ export function RoomDetail({ userId, role }) {
                 const data = JSON.parse(e.data || "[]");
                 const mapped = (data || []).map((d) => {
                     const color = getStampColorByCode(d.stampColor);
-                    const icon = getStampIconByCode(d.stampIcon);
+                    const { Icon } = getStampIconByCode(d.stampIcon);
                     return {
                         stampId: d.stampId,
                         stampName: d.stampName,
                         stampColor: d.stampColor,
                         stampIcon: d.stampIcon,
                         color,
-                        icon,
+                        icon: Icon,
                         count: d.cnt,
                         percentage: typeof d.pct === "number" ? d.pct : Number(d.pct),
                     };
@@ -388,28 +391,31 @@ export function RoomDetail({ userId, role }) {
                                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                                     {stamps.map((s) => {
                                         const color = getStampColorByCode(s.stampColor);
-                                        const icon = getStampIconByCode(s.stampIcon);
+                                        const { Icon } = getStampIconByCode(s.stampIcon);
 
                                         return (
                                             <button
                                                 type="button"
                                                 key={s.stampId ?? `${s.stampName}-${s.stampColor}-${s.stampIcon}`}
                                                 className="
-                                                    flex h-28 flex-col items-center justify-center rounded-2xl
-                                                    border border-slate-100 bg-slate-50/60
-                                                    text-slate-700 shadow-sm
-                                                    hover:bg-orange-50 hover:border-orange-200 hover:text-orange-600
-                                                    transition-all relative
-                                                    disabled:opacity-50 disabled:cursor-not-allowed
-                                                "
-                                                style={{ backgroundColor: color.bg }}
+                                                        flex h-28 flex-col items-center justify-center rounded-2xl
+                                                        border border-slate-100
+                                                        text-slate-700 shadow-sm
+                                                        hover:shadow-md
+                                                        transition-all relative
+                                                        disabled:opacity-50 disabled:cursor-not-allowed
+                                                    "
+                                                style={{
+                                                    backgroundColor: color.bg,
+                                                    color: color.icon,
+                                                }}
                                                 onClick={() => handleStampClick(s.stampId)}
                                                 disabled={sending || !userId}
                                             >
-                                                <span className="text-3xl mb-1">
-                                                    {icon}
+                                                <span className="mb-1.5">
+                                                    <Icon className="h-10 w-10" />
                                                 </span>
-                                                <span className="text-xs font-medium">
+                                                <span className="text-sm font-medium">
                                                     {s.stampName}
                                                 </span>
                                             </button>
@@ -447,7 +453,7 @@ export function RoomDetail({ userId, role }) {
                                         <div className="grid grid-cols-6 gap-3 gap-y-3 sm:grid-cols-8">
                                             {history.map((h, idx) => {
                                                 const color = getStampColorByCode(h.stampColor);
-                                                const icon = getStampIconByCode(h.stampIcon);
+                                                const { Icon } = getStampIconByCode(h.stampIcon);
 
                                                 return (
                                                     <div
@@ -457,9 +463,12 @@ export function RoomDetail({ userId, role }) {
                                                     >
                                                         <div
                                                             className="h-10 w-10 rounded-full flex items-center justify-center"
-                                                            style={{ backgroundColor: color.bg, color: color.fg ?? "#000" }}
+                                                            style={{
+                                                                backgroundColor: color.bg,
+                                                                color: color.icon,
+                                                            }}
                                                         >
-                                                            <span className="text-lg leading-none">{icon}</span>
+                                                            <Icon className="h-4 w-4" />
                                                         </div>
                                                     </div>
                                                 );

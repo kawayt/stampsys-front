@@ -268,7 +268,7 @@ function StampList() {
                                         value={newStampColor}
                                         onValueChange={setNewStampColor}
                                     >
-                                        <SelectTrigger className="w-full text-xs">
+                                        <SelectTrigger className="w-full">
                                             <SelectValue placeholder="カラーを選択" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -277,12 +277,10 @@ function StampList() {
                                                 return (
                                                     <SelectItem key={code} value={String(code)}>
                                                         <span
-                                                            className="mr-2 h-3 w-3 rounded-full border border-slate-200 inline-block"
-                                                            style={{ backgroundColor: color.bg }}
+                                                            className="mr-2 h-4 w-4 rounded-full border border-slate-200 inline-block"
+                                                            style={{ backgroundColor: color.icon }}
                                                         />
-                                                        <span className="text-xs">
-                                                            {color.label} ({code})
-                                                        </span>
+                                                        <span>{color.label}</span>
                                                     </SelectItem>
                                                 );
                                             })}
@@ -298,18 +296,16 @@ function StampList() {
                                         value={newStampIcon}
                                         onValueChange={setNewStampIcon}
                                     >
-                                        <SelectTrigger className="w-full text-xs">
+                                        <SelectTrigger className="w-full">
                                             <SelectValue placeholder="アイコンを選択" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {iconOptions.map((code) => {
-                                                const icon = getStampIconByCode(code);
+                                                const { Icon, label } = getStampIconByCode(code);
                                                 return (
                                                     <SelectItem key={code} value={String(code)}>
-                                                        <span className="mr-2 text-base">{icon}</span>
-                                                        <span className="text-[11px] text-slate-500">
-                                                            ({code})
-                                                        </span>
+                                                        <Icon className="mr-2 h-4 w-4" />
+                                                        <span>{label}</span>
                                                     </SelectItem>
                                                 );
                                             })}
@@ -373,19 +369,18 @@ function StampList() {
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     {filteredStamps.map((stamp) => {
                         const color = getStampColorByCode(stamp.stampColor);
-                        const icon = getStampIconByCode(stamp.stampIcon);
+                        const { Icon } = getStampIconByCode(stamp.stampIcon);
 
                         return (
                             <div
                                 key={stamp.stampId}
                                 className="
-                                    relative flex h-28 flex-col items-center justify-center
-                                    rounded-2xl border border-slate-100 bg-slate-50/60
-                                    text-slate-700 shadow-sm
-                                    hover:bg-orange-50 hover:border-orange-200 hover:text-orange-600
-                                    transition-all
-                                "
-                                style={{ backgroundColor: color.bg }}
+                                        relative flex h-28 flex-col items-center justify-center
+                                        rounded-2xl border border-slate-100
+                                        text-slate-700 shadow-sm
+                                        hover:shadow-md transition-all
+                                    "
+                                style={{ backgroundColor: color.bg, color: color.icon }}
                             >
                                 {/* 削除ボタン */}
                                 <button
@@ -400,12 +395,12 @@ function StampList() {
                                 </button>
 
                                 {/* アイコン */}
-                                <span className="mb-1 text-3xl">
-                                    {icon}
+                                <span className="mb-1.5">
+                                    <Icon className="h-10 w-10" />
                                 </span>
 
                                 {/* ラベル */}
-                                <span className="text-xs font-medium">
+                                <span className="text-sm font-medium">
                                     {stamp.stampName}
                                 </span>
                             </div>
