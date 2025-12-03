@@ -438,7 +438,7 @@ export function RoomDetail({ userId, role }) {
                                     {historyLoading ? (
                                         <p className="text-xs text-slate-500">履歴を読み込み中...</p>
                                     ) : historyError ? (
-                                        <p className="text-xs text-red-500">履歴の取得に失敗しました: {historyError}</p>
+                                        <p className="text-xs text-red-500">履歴を取得できませんでした: {historyError}</p>
                                     ) : history.length === 0 ? (
                                         <p className="text-xs text-slate-500">まだ送信したスタンプはありません。</p>
                                     ) : (
@@ -474,10 +474,10 @@ export function RoomDetail({ userId, role }) {
                         {isTeacherView && (
                             <>
                                 {summaryLoading && (
-                                    <p className="mt-2 text-xs text-slate-500">集計を読み込み中です...</p>
+                                    <p className="mt-2 text-xs text-slate-500">集計を読み込み中...</p>
                                 )}
                                 {summaryError && (
-                                    <p className="mt-2 text-xs text-red-500">集計の取得に失敗しました: {summaryError}</p>
+                                    <p className="mt-2 text-xs text-red-500">集計を取得できませんでした: {summaryError}</p>
                                 )}
                                 {!summaryLoading && !summaryError && summary && summary.length > 0 && (
                                     <div>

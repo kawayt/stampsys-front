@@ -35,7 +35,11 @@ import {
     SelectItem,
     SelectValue,
 } from "@/components/ui/select";
-
+import {
+    Tabs,
+    TabsList,
+    TabsTrigger,
+} from "@/components/ui/tabs";
 import {
     CartesianGrid,
     Legend,
@@ -532,22 +536,20 @@ function RoomHistory() {
                 <h2 className="text-xl font-bold">スタンプ履歴 - ルーム{roomId}</h2>
 
                 {/* タブ切替（画面中央付近、タイトルの右側） */}
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab("graph")}
-                        className={`text-sm px-3 py-1 rounded ${activeTab === "graph" ? "bg-slate-200" : "bg-white border"}`}
-                    >
-                        グラフ
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab("logs")}
-                        className={`text-sm px-3 py-1 rounded ${activeTab === "logs" ? "bg-slate-200" : "bg-white border"}`}
-                    >
-                        ログ一覧
-                    </button>
-                </div>
+                <Tabs
+                    value={activeTab}
+                    onValueChange={setActiveTab}
+                    className="w-auto"
+                >
+                    <TabsList className="grid grid-cols-2">
+                        <TabsTrigger value="graph" className="px-3 py-1 text-sm">
+                            グラフ
+                        </TabsTrigger>
+                        <TabsTrigger value="logs" className="px-3 py-1 text-sm">
+                            ログ
+                        </TabsTrigger>
+                    </TabsList>
+                </Tabs>
             </div>
 
             {/* 条件入力 */}
@@ -617,7 +619,7 @@ function RoomHistory() {
                         className="px-3 py-1 text-sm"
                         onClick={handleResetSelection}
                     >
-                        選択リセット
+                        リセット
                     </Button>
                 </div>
             </div>
@@ -790,10 +792,9 @@ function RoomHistory() {
                                         onCheckedChange={(v) => setShowAllKinds(Boolean(v))}
                                     />
                                     <Label htmlFor="logs-show-all-kinds" className="text-sm font-normal">
-                                        すべてのスタンプを表示（ログ）
+                                        すべてのスタンプを表示
                                     </Label>
                                 </div>
-                                <div className="text-sm text-muted-foreground">※ グラフと同じ選択状態が共有されます</div>
                             </div>
 
                             {!showAllKinds && (
@@ -886,6 +887,7 @@ function RoomHistory() {
 
                         <div className="flex items-center gap-2 mt-2">
                             <Button
+                                variant="outline"
                                 className="px-2 py-1 text-sm"
                                 onClick={() => setLogsOffset(Math.max(0, logsOffset - logsLimit))}
                                 disabled={logsOffset === 0}
@@ -893,6 +895,7 @@ function RoomHistory() {
                                 前へ
                             </Button>
                             <Button
+                                variant="outline"
                                 className="px-2 py-1 text-sm"
                                 onClick={() => setLogsOffset(logsOffset + logsLimit)}
                             >
