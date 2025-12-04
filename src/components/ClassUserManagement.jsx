@@ -128,9 +128,17 @@ export function ClassUserManagement({ classId, open }) {
 
     const renderUserLabel = (user) => {
         const namePart = user.userName || `ユーザーID: ${user.userId}`;
-        const rolePart = user.role ? ` (${user.role})` : "";
+
+        // ★ 削除: ロールは表示しない
+        // const rolePart = user.role ? ` (${user.role})` : "";
+
         const emailPart = user.email ? ` - ${user.email}` : "";
-        return `${namePart}${rolePart}${emailPart}`;
+
+        // ★ 追加: 所属名があれば表示
+        const groupPart = user.groupName ? ` [${user.groupName}]` : "";
+
+        // 戻り値に groupPart を含め、rolePart を削除
+        return `${namePart}${groupPart}${emailPart}`;
     };
 
     // 検索クエリに一致するかどうかを判定するヘルパー
