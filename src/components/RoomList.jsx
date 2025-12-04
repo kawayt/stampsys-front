@@ -14,7 +14,19 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { ArrowLeft, Search, StickyNote, MoreHorizontal, Plus, Stamp, Users, DoorOpen, DoorClosed, History, Trash } from "lucide-react";
+import {
+    ArrowLeft,
+    Search,
+    StickyNote,
+    MoreHorizontal,
+    Plus,
+    Stamp,
+    Users,
+    DoorOpen,
+    DoorClosed,
+    History,
+    Trash,
+} from "lucide-react";
 import { ClassStampManagement } from "./ClassStampManagement";
 import { ClassUserManagement } from "./ClassUserManagement";
 import { fetchNoteCounts, fetchNotes } from "@/api/notes.js";
@@ -27,6 +39,16 @@ import {
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { notifySuccess, notifyError } from "@/utils/notify";
+import {
+    Tabs,
+    TabsList,
+    TabsTrigger,
+} from "@/components/ui/tabs";
+
+const ROOM_TAB = {
+    ACTIVE: "active", // hidden=false
+    HIDDEN: "hidden", // hidden=true
+};
 
 export function RoomList() {
     const { classId } = useParams();
@@ -76,6 +98,18 @@ export function RoomList() {
     const [hideProcessing, setHideProcessing] = useState(false);
     const [hideError, setHideError] = useState(null);
 
+    // 削除済みルーム（hidden=true）用 state
+    const [hiddenRooms, setHiddenRooms] = useState([]);
+    const [hiddenLoading, setHiddenLoading] = useState(false);
+    const [hiddenError, setHiddenError] = useState(null);
+
+    // 復元処理 state
+    const [restoreProcessingId, setRestoreProcessingId] = useState(null);
+    const [restoreError, setRestoreError] = useState(null);
+
+    // タブ state
+    const [activeTab, setActiveTab] = useState(ROOM_TAB.ACTIVE);
+
     // スタンプ管理 / ユーザー管理ダイアログの open state
     const [openStampDialog, setOpenStampDialog] = useState(false);
     const [openUserDialog, setOpenUserDialog] = useState(false);
@@ -93,12 +127,17 @@ export function RoomList() {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(`/api/rooms/${encodeURIComponent(classId)}`, {
-                credentials: "include",
-            });
+            const res = await fetch(
+                `/api/rooms/${encodeURIComponent(classId)}`,
+                {
+                    credentials: "include",
+                }
+            );
             if (await handleAuthRedirectIfNeeded(res)) return;
             if (!res.ok) {
-                throw new Error(`ルーム一覧の取得に失敗しました: ${res.status}`);
+                throw new Error(
+                    `ルーム一覧の取得に失敗しました: ${res.status}`
+                );
             }
             const data = await res.json();
             setClassInfo(data?.classInfo ?? null);
@@ -111,12 +150,44 @@ export function RoomList() {
         }
     };
 
+    const fetchHiddenRooms = async () => {
+        setHiddenLoading(true);
+        setHiddenError(null);
+        try {
+            const res = await fetch(
+                `/api/rooms/${encodeURIComponent(classId)}?hidden=true`,
+                {
+                    credentials: "include",
+                }
+            );
+            if (await handleAuthRedirectIfNeeded(res)) return;
+            if (!res.ok) {
+                throw new Error(
+                    `削除済みルーム一覧の取得に失敗しました: ${res.status}`
+                );
+            }
+            const data = await res.json();
+            setHiddenRooms(data?.rooms ?? []);
+        } catch (err) {
+            console.error(err);
+            setHiddenError(
+                err.message ??
+                "削除済みルーム一覧取得時にエラーが発生しました"
+            );
+            setHiddenRooms([]);
+        } finally {
+            setHiddenLoading(false);
+        }
+    };
+
     const fetchCounts = async () => {
         setCountsLoading(true);
         setCountsError(null);
         try {
             const res = await fetch(
-                `/api/classes/${encodeURIComponent(classId)}/rooms/stamp-counts`,
+                `/api/classes/${encodeURIComponent(
+                    classId
+                )}/rooms/stamp-counts`,
                 {
                     credentials: "include",
                 }
@@ -124,7 +195,10 @@ export function RoomList() {
             if (await handleAuthRedirectIfNeeded(res)) return;
             if (!res.ok) {
                 const text = await res.text().catch(() => "");
-                throw new Error(text || `stamp-counts の取得に失敗しました: ${res.status}`);
+                throw new Error(
+                    text ||
+                    `stamp-counts の取得に失敗しました: ${res.status}`
+                );
             }
             const arr = await res.json();
             // build map
@@ -137,7 +211,9 @@ export function RoomList() {
             setCountsMap(map);
         } catch (err) {
             console.error("fetchCounts error:", err);
-            setCountsError(err.message ?? "合計スタンプ取得時にエラーが発生しました");
+            setCountsError(
+                err.message ?? "合計スタンプ取得時にエラーが発生しました"
+            );
             setCountsMap({});
         } finally {
             setCountsLoading(false);
@@ -159,7 +235,9 @@ export function RoomList() {
             setNoteCountsMap(map);
         } catch (err) {
             console.error("fetchNoteCountsForClass error:", err);
-            setNoteCountsError(err.message ?? "メモ数取得時にエラーが発生しました");
+            setNoteCountsError(
+                err.message ?? "メモ数取得時にエラーが発生しました"
+            );
             setNoteCountsMap({});
         } finally {
             setNoteCountsLoading(false);
@@ -217,7 +295,9 @@ export function RoomList() {
         if (!q) return;
 
         (rooms || []).forEach((r) => {
-            const roomKey = String(r.roomId ?? r.room_id ?? r.id ?? r.room ?? "");
+            const roomKey = String(
+                r.roomId ?? r.room_id ?? r.id ?? r.room ?? ""
+            );
             if (roomKey) {
                 fetchNotesForRoom(roomKey);
             }
@@ -285,7 +365,7 @@ export function RoomList() {
         } finally {
             setCreating(false);
         }
-    }
+    };
 
     // ルーム終了ダイアログを開く（対象ルームをセット）
     const openCloseRoomDialog = (room) => {
@@ -311,7 +391,9 @@ export function RoomList() {
             if (res.status === 204) {
                 setRooms((prev) =>
                     prev.map((r) =>
-                        r.roomId === selectedRoom.roomId ? { ...r, active: false } : r
+                        r.roomId === selectedRoom.roomId
+                            ? { ...r, active: false }
+                            : r
                     )
                 );
                 setOpenCloseDialog(false);
@@ -336,7 +418,9 @@ export function RoomList() {
                         const body = await res.json();
                         message =
                             (body &&
-                                (body.error || body.message || JSON.stringify(body))) ||
+                                (body.error ||
+                                    body.message ||
+                                    JSON.stringify(body))) ||
                             message;
                     } else {
                         const txt = await res.text();
@@ -402,15 +486,26 @@ export function RoomList() {
                     "ルームを削除しました",
                     deletedName ? `ルーム名: ${deletedName}` : undefined
                 );
+
+                // 削除済みタブ用一覧を最新化（タブを開いていれば次回表示時に反映される）
+                if (activeTab === ROOM_TAB.HIDDEN) {
+                    await fetchHiddenRooms();
+                } else {
+                    // タブ未表示時はキャッシュだけクリアしておき、開かれたときに再取得
+                    setHiddenRooms([]);
+                }
             } else {
-                let message = `ルームの削除（非表示）に失敗しました: ${res.status}`;
+                let message =
+                    "ルームの削除（非表示）に失敗しました: " + res.status;
                 try {
                     const contentType = res.headers.get("content-type") || "";
                     if (contentType.includes("application/json")) {
                         const body = await res.json();
                         message =
                             (body &&
-                                (body.error || body.message || JSON.stringify(body))) ||
+                                (body.error ||
+                                    body.message ||
+                                    JSON.stringify(body))) ||
                             message;
                     } else {
                         const txt = await res.text();
@@ -436,15 +531,77 @@ export function RoomList() {
         }
     };
 
+    const handleRestoreRoom = async (room) => {
+        if (!room || !room.roomId) return;
+
+        setRestoreProcessingId(room.roomId);
+        setRestoreError(null);
+
+        try {
+            const res = await fetch(
+                `/api/rooms/${encodeURIComponent(room.roomId)}/restore`,
+                {
+                    method: "PATCH",
+                    credentials: "include",
+                }
+            );
+
+            if (await handleAuthRedirectIfNeeded(res)) return;
+
+            if (res.status === 204) {
+                // 削除済み一覧から除外
+                setHiddenRooms((prev) =>
+                    prev.filter((r) => r.roomId !== room.roomId)
+                );
+                // 通常ルーム一覧を再取得
+                await fetchRooms();
+
+                notifySuccess(
+                    "ルームを復元しました",
+                    room.roomName ? `ルーム名: ${room.roomName}` : undefined
+                );
+            } else {
+                let message = `ルームの復元に失敗しました: ${res.status}`;
+                try {
+                    const contentType = res.headers.get("content-type") || "";
+                    if (contentType.includes("application/json")) {
+                        const body = await res.json();
+                        message =
+                            (body &&
+                                (body.error ||
+                                    body.message ||
+                                    JSON.stringify(body))) ||
+                            message;
+                    } else {
+                        const txt = await res.text();
+                        if (txt) message = txt || message;
+                    }
+                } catch {
+                    // ignore
+                }
+                setRestoreError(message);
+                notifyError("ルームを復元できませんでした", message);
+            }
+        } catch (err) {
+            console.error(err);
+            const message = err.message ?? "通信エラーが発生しました";
+            setRestoreError(message);
+            notifyError("ルームを復元できませんでした", message);
+        } finally {
+            setRestoreProcessingId(null);
+        }
+    };
+
     useEffect(() => {
-        // load rooms / stamp counts / note counts when classId changes
+        // 通常ルーム / スタンプ数 / メモ数だけ初期ロード
         fetchRooms();
         fetchCounts();
         fetchNoteCountsForClass();
+        // 削除済みルームはタブを開いたときだけ fetchHiddenRooms() を呼ぶ
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [classId]);
 
-    // ルーム名またはメモで検索フィルタ
+    // ルーム名またはメモで検索フィルタ（通常タブ用）
     const filteredRooms = (rooms || []).filter((r) => {
         if (!searchQuery || !searchQuery.trim()) return true;
         const q = searchQuery.trim().toLowerCase();
@@ -454,7 +611,9 @@ export function RoomList() {
             .toLowerCase();
         const nameMatches = name.includes(q);
 
-        const roomKey = String(r.roomId ?? r.room_id ?? r.id ?? r.room ?? "");
+        const roomKey = String(
+            r.roomId ?? r.room_id ?? r.id ?? r.room ?? ""
+        );
         const notes = notesByRoom[roomKey] || [];
         const noteMatches = notes.some((n) => {
             const text = (n.noteText ?? n.note_text ?? "")
@@ -466,21 +625,283 @@ export function RoomList() {
         return nameMatches || noteMatches;
     });
 
-    const handleCardClick = (room) => {
-        if (!room) return;
-        if (room.active) {
-            navigate(`/rooms/${room.roomId}`);
+    // 削除済みタブ用フィルタ（名前のみ）
+    const filteredHiddenRooms = (hiddenRooms || []).filter((r) => {
+        if (!searchQuery || !searchQuery.trim()) return true;
+        const q = searchQuery.trim().toLowerCase();
+        const name = (r.roomName ?? r.name ?? "")
+            .toString()
+            .toLowerCase();
+        return name.includes(q);
+    });
+
+    const handleCardClick = (room, { isHiddenTab }) => {
+        if (!room || !room.roomId) return;
+        if (isHiddenTab) {
+            // 削除済みタブ: クリックで履歴へ
+            navigate(`/rooms/${room.roomId}/history`);
         } else {
-            navigate(
-                `/rooms/${room.roomId}/history`
-            );
+            // 通常タブ: active なら入室、終了済みなら履歴
+            if (room.active) {
+                navigate(`/rooms/${room.roomId}`);
+            } else {
+                navigate(`/rooms/${room.roomId}/history`);
+            }
         }
     };
 
     const navigateToHistory = (room) => {
         if (!room || !room.roomId) return;
-        navigate(
-            `/rooms/${room.roomId}/history`
+        navigate(`/rooms/${room.roomId}/history`);
+    };
+
+    const getRoomKey = (room) =>
+        String(room.roomId ?? room.room_id ?? room.id ?? room.room ?? "");
+
+    const renderRoomCard = (room, { isHiddenTab }) => {
+        const roomKey = getRoomKey(room);
+        const total = countsLoading ? "-" : countsMap[roomKey] ?? 0;
+        const isActive = !!room.active;
+        const isRestoring = restoreProcessingId === room.roomId;
+
+        const cardBase =
+            "group rounded-3xl border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-orange-400 bg-white";
+        const cardColor = isHiddenTab
+            ? "bg-white/95 hover:bg-slate-50"
+            : isActive
+                ? "bg-orange-50/95 hover:bg-orange-100"
+                : "bg-white/95 hover:bg-slate-50";
+
+        return (
+            <Card
+                key={room.roomId}
+                className={`${cardBase} ${cardColor}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => handleCardClick(room, { isHiddenTab })}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleCardClick(room, { isHiddenTab });
+                    }
+                }}
+            >
+                <CardContent className="flex h-32 flex-col justify-between px-8 py-5">
+                    {/* 上段：ルーム名とステータス */}
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="text-left">
+                            <div className="flex items-center gap-2">
+                                <p
+                                    className={`text-sm font-medium text-slate-800 ${
+                                        isHiddenTab
+                                            ? "line-through decoration-red-300"
+                                            : ""
+                                    }`}
+                                >
+                                    {room.roomName}
+                                </p>
+
+                                {/* ステータスバッジ */}
+                                {!isHiddenTab && !isActive && (
+                                    <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-500 border border-red-100">
+                                        終了
+                                    </span>
+                                )}
+                                {isHiddenTab && (
+                                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 border border-slate-200">
+                                        削除済み
+                                    </span>
+                                )}
+                            </div>
+
+                            {room.createdAt && (
+                                <p className="mt-1 text-[11px] text-slate-400">
+                                    作成日時:{" "}
+                                    {new Date(
+                                        room.createdAt
+                                    ).toLocaleString("ja-JP")}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* 右上：ドロップダウンメニュー */}
+                        <div
+                            className="flex items-center gap-2"
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                        >
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                                    >
+                                        <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                    align="end"
+                                    className="w-44"
+                                >
+                                    <DropdownMenuGroup>
+                                        {/* 入室は通常タブかつ active のときのみ */}
+                                        {!isHiddenTab && isActive && (
+                                            <DropdownMenuItem
+                                                onClick={() =>
+                                                    navigate(
+                                                        `/rooms/${room.roomId}`
+                                                    )
+                                                }
+                                            >
+                                                <DoorOpen />
+                                                ルームに入室
+                                            </DropdownMenuItem>
+                                        )}
+                                        {/* 履歴は全タブで表示 */}
+                                        <DropdownMenuItem
+                                            onClick={() =>
+                                                navigateToHistory(room)
+                                            }
+                                        >
+                                            <History />
+                                            ルーム履歴
+                                        </DropdownMenuItem>
+                                    </DropdownMenuGroup>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuGroup>
+                                        {/* 通常タブ: active -> 終了, !active -> 削除 */}
+                                        {!isHiddenTab && isActive && (
+                                            <DropdownMenuItem
+                                                variant="destructive"
+                                                onClick={() =>
+                                                    openCloseRoomDialog({
+                                                        roomId: room.roomId,
+                                                        roomName:
+                                                        room.roomName,
+                                                    })
+                                                }
+                                            >
+                                                <DoorClosed />
+                                                ルームを終了
+                                            </DropdownMenuItem>
+                                        )}
+                                        {!isHiddenTab && !isActive && (
+                                            <DropdownMenuItem
+                                                variant="destructive"
+                                                onClick={() =>
+                                                    openHideRoomDialog({
+                                                        roomId: room.roomId,
+                                                        roomName:
+                                                        room.roomName,
+                                                    })
+                                                }
+                                            >
+                                                <Trash />
+                                                ルームを削除
+                                            </DropdownMenuItem>
+                                        )}
+
+                                        {/* 削除済みタブ: 復元 */}
+                                        {isHiddenTab && (
+                                            <DropdownMenuItem
+                                                onClick={() =>
+                                                    handleRestoreRoom(room)
+                                                }
+                                                disabled={isRestoring}
+                                            >
+                                                <DoorOpen />
+                                                {isRestoring
+                                                    ? "復元中..."
+                                                    : "ルームを復元"}
+                                            </DropdownMenuItem>
+                                        )}
+                                    </DropdownMenuGroup>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    </div>
+
+                    {/* 下段：スタンプ数とメモ数 */}
+                    <div className="mt-3 flex items-end gap-6">
+                        {/* 合計スタンプ数 */}
+                        <div className="flex items-center gap-1 text-xs text-slate-600">
+                            <Stamp className="h-5 w-5" />
+                            <span className="font-semibold text-sm">
+                                {total}
+                            </span>
+                        </div>
+                        {/* メモ数（ポップオーバー付き） */}
+                        <div className="relative">
+                            <div
+                                className="flex items-center gap-1 text-xs text-slate-600"
+                                onMouseEnter={() => {
+                                    openPopover(roomKey);
+                                    fetchNotesForRoom(roomKey);
+                                }}
+                                onMouseLeave={() => scheduleClosePopover()}
+                                onFocus={() => {
+                                    openPopover(roomKey);
+                                    fetchNotesForRoom(roomKey);
+                                }}
+                                onBlur={() => scheduleClosePopover()}
+                                role="button"
+                                tabIndex={-1}
+                                aria-describedby={`notes-tooltip-${roomKey}`}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <StickyNote className="h-5 w-5" />
+                                <span className="font-semibold text-sm">
+                                    {noteCountsLoading
+                                        ? "…"
+                                        : noteCountsMap[roomKey] ?? 0}
+                                </span>
+                            </div>
+
+                            {/* Popover */}
+                            {hoveredRoom === roomKey && (
+                                <div
+                                    id={`notes-tooltip-${roomKey}`}
+                                    className="absolute z-50 mt-2 left-0 w-72 max-h-64 overflow-auto rounded-md border border-slate-100 bg-white p-3 text-sm text-slate-700 shadow-lg"
+                                    onMouseEnter={() =>
+                                        openPopover(roomKey)
+                                    }
+                                    onMouseLeave={() =>
+                                        scheduleClosePopover()
+                                    }
+                                >
+                                    {notesLoadingMap[roomKey] ? (
+                                        <div className="text-xs text-slate-500">
+                                            読み込み中...
+                                        </div>
+                                    ) : notesByRoom[roomKey] &&
+                                    notesByRoom[roomKey].length > 0 ? (
+                                        notesByRoom[roomKey].map((n) => (
+                                            <div
+                                                key={
+                                                    n.noteId ??
+                                                    `${n.createdAt}-${Math.random()}`
+                                                }
+                                                className="mb-2 last:mb-0"
+                                            >
+                                                <div className="whitespace-pre-wrap break-words text-[13px]">
+                                                    {n.noteText ??
+                                                        n.note_text ??
+                                                        ""}
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-xs text-slate-500">
+                                            メモはありません
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
         );
     };
 
@@ -552,7 +973,9 @@ export function RoomList() {
 
                         <DialogContent className="sm:max-w-2xl">
                             <DialogHeader>
-                                <DialogTitle>クラスで使用するスタンプの管理</DialogTitle>
+                                <DialogTitle>
+                                    クラスで使用するスタンプの管理
+                                </DialogTitle>
                                 <DialogDescription className="text-xs">
                                     このクラスで使用するスタンプを追加・削除できます。
                                 </DialogDescription>
@@ -584,7 +1007,9 @@ export function RoomList() {
 
                         <DialogContent className="sm:max-w-3xl">
                             <DialogHeader>
-                                <DialogTitle>クラスに参加するユーザーの管理</DialogTitle>
+                                <DialogTitle>
+                                    クラスに参加するユーザーの管理
+                                </DialogTitle>
                                 <DialogDescription className="text-xs">
                                     このクラスに参加するユーザーを追加・削除できます。
                                 </DialogDescription>
@@ -599,20 +1024,53 @@ export function RoomList() {
                 </div>
             </div>
 
-            {/* ルーム一覧タイトル＋検索＋ルーム作成 */}
+            {/* ルーム一覧タイトル＋Tabs＋検索＋ルーム作成 */}
             <div className="mb-6 flex items-center justify-between gap-4">
                 <h2 className="text-lg font-semibold text-slate-800">
                     ルーム一覧
                 </h2>
 
                 <div className="flex items-center gap-2">
+                    {/* shadcn Tabs（検索ボックスの左隣に配置） */}
+                    <Tabs
+                        className="mr-2"
+                        value={activeTab}
+                        onValueChange={(val) => {
+                            setActiveTab(val);
+                            if (
+                                val === ROOM_TAB.HIDDEN &&
+                                (!hiddenRooms || hiddenRooms.length === 0) &&
+                                !hiddenLoading
+                            ) {
+                                fetchHiddenRooms();
+                            }
+                        }}
+                    >
+                        <TabsList className="bg-slate-100">
+                            <TabsTrigger
+                                value={ROOM_TAB.ACTIVE}
+                                className="px-3 py-1 text-xs"
+                            >
+                                通常表示
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value={ROOM_TAB.HIDDEN}
+                                className="px-3 py-1 text-xs"
+                            >
+                                削除済み
+                            </TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+
                     {/* search input */}
                     <div className="mr-2 w-full max-w-xs">
                         <div className="relative">
                             <Search className="absolute left-2 top-1/2 w-4 h-4 text-slate-400 -translate-y-1/2 pointer-events-none" />
                             <Input
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={(e) =>
+                                    setSearchQuery(e.target.value)
+                                }
                                 placeholder="ルーム名またはメモで検索"
                                 className="text-sm bg-white pl-8"
                                 aria-label="ルーム名またはメモで検索"
@@ -655,7 +1113,10 @@ export function RoomList() {
                                 </DialogDescription>
                             </DialogHeader>
 
-                            <form onSubmit={handleCreateRoom} className="space-y-4">
+                            <form
+                                onSubmit={handleCreateRoom}
+                                className="space-y-4"
+                            >
                                 <div className="space-y-2">
                                     <Label
                                         htmlFor="new-room-name"
@@ -712,246 +1173,42 @@ export function RoomList() {
                 </div>
             </div>
 
-            {(!filteredRooms || filteredRooms.length === 0) ? (
+            {/* タブごとのエラー表示（削除済みタブ関連） */}
+            {activeTab === ROOM_TAB.HIDDEN && restoreError && (
+                <p className="text-[11px] text-red-600 mb-2">{restoreError}</p>
+            )}
+            {activeTab === ROOM_TAB.HIDDEN && hiddenError && (
+                <p className="text-[11px] text-red-600 mb-2">{hiddenError}</p>
+            )}
+
+            {/* タブごとの一覧 */}
+            {activeTab === ROOM_TAB.ACTIVE ? (
+                (!filteredRooms || filteredRooms.length === 0) ? (
+                    <p className="text-sm text-slate-500">
+                        ルームが見つかりません
+                    </p>
+                ) : (
+                    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                        {filteredRooms.map((r) =>
+                            renderRoomCard(r, { isHiddenTab: false })
+                        )}
+                    </div>
+                )
+            ) : hiddenLoading ? (
+                <div className="flex flex-col items-center justify-center gap-2 mt-8 text-sm text-slate-600">
+                    <Spinner className="size-6" />
+                    <span>削除済みルームを読み込み中</span>
+                </div>
+            ) : (!filteredHiddenRooms ||
+                filteredHiddenRooms.length === 0) ? (
                 <p className="text-sm text-slate-500">
-                    ルームが見つかりません
+                    削除済みルームはありません
                 </p>
             ) : (
                 <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                    {filteredRooms.map((r) => {
-                        const roomKey = String(
-                            r.roomId ?? r.room_id ?? r.id ?? r.room ?? ""
-                        );
-                        const total = countsLoading
-                            ? "-"
-                            : countsMap[roomKey] ?? 0;
-
-                        const isActive = !!r.active;
-                        const cardBase =
-                            "group rounded-3xl border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-400";
-                        const cardColor = isActive
-                            ? "bg-orange-50/95 hover:bg-orange-100"
-                            : "bg-white/95 hover:bg-slate-50";
-
-                        return (
-                            <Card
-                                key={r.roomId}
-                                className={`${cardBase} ${cardColor}`}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => handleCardClick(r)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter" || e.key === " ") {
-                                        e.preventDefault();
-                                        handleCardClick(r);
-                                    }
-                                }}
-                            >
-                                <CardContent className="flex h-32 flex-col justify-between px-8 py-5">
-                                    {/* 上段：ルーム名とステータス */}
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="text-left">
-                                            <div className="flex items-center gap-2">
-                                                <p className="text-sm font-medium text-slate-800">
-                                                    {r.roomName}
-                                                </p>
-
-                                                {!isActive && (
-                                                    <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-500 border border-red-100">
-                                                        終了
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            {r.createdAt && (
-                                                <p className="mt-1 text-[11px] text-slate-400">
-                                                    作成日時:{" "}
-                                                    {new Date(
-                                                        r.createdAt
-                                                    ).toLocaleString("ja-JP")}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        {/* 右上：ドロップダウンメニュー（カードクリックと分離） */}
-                                        <div
-                                            className="flex items-center gap-2"
-                                            onClick={(e) =>
-                                                e.stopPropagation()
-                                            }
-                                            onKeyDown={(e) =>
-                                                e.stopPropagation()
-                                            }
-                                        >
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-                                                    >
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-40">
-                                                    <DropdownMenuGroup>
-                                                        {isActive && (
-                                                            <DropdownMenuItem
-                                                                onClick={() =>
-                                                                    navigate(
-                                                                        `/rooms/${r.roomId}`
-                                                                    )
-                                                                }
-                                                            >
-                                                                <DoorOpen />
-                                                                ルームに入室
-                                                            </DropdownMenuItem>
-                                                        )}
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                navigateToHistory(
-                                                                    r
-                                                                )
-                                                            }
-                                                        >
-                                                            <History />
-                                                            ルーム履歴
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuGroup>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuGroup>
-                                                    {isActive ? (
-                                                        <DropdownMenuItem
-                                                            variant="destructive"
-                                                            onClick={() =>
-                                                                openCloseRoomDialog({
-                                                                    roomId: r.roomId,
-                                                                    roomName:
-                                                                    r.roomName,
-                                                                })
-                                                            }
-                                                        >
-                                                            <DoorClosed />
-                                                            ルームを終了
-                                                        </DropdownMenuItem>
-                                                    ) : (
-                                                        <DropdownMenuItem
-                                                            variant="destructive"
-                                                            onClick={() =>
-                                                                openHideRoomDialog({
-                                                                    roomId: r.roomId,
-                                                                    roomName:
-                                                                    r.roomName,
-                                                                })
-                                                            }
-                                                        >
-                                                            <Trash />
-                                                            ルームを削除
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                    </DropdownMenuGroup>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </div>
-                                    </div>
-
-                                    {/* 下段 */}
-                                    <div className="mt-3 flex items-end gap-6">
-                                        {/* 合計スタンプ数 */}
-                                        <div className="flex items-center gap-1 text-xs text-slate-600">
-                                            <Stamp className="h-5 w-5" />
-                                            <span className="font-semibold text-sm">
-                                                {total}
-                                            </span>
-                                        </div>
-                                        {/* メモ数 */}
-                                        <div className="relative">
-                                            <div
-                                                className="flex items-center gap-1 text-xs text-slate-600"
-                                                onMouseEnter={() => {
-                                                    openPopover(roomKey);
-                                                    fetchNotesForRoom(roomKey);
-                                                }}
-                                                onMouseLeave={() =>
-                                                    scheduleClosePopover()
-                                                }
-                                                onFocus={() => {
-                                                    openPopover(roomKey);
-                                                    fetchNotesForRoom(roomKey);
-                                                }}
-                                                onBlur={() =>
-                                                    scheduleClosePopover()
-                                                }
-                                                role="button"
-                                                tabIndex={-1}
-                                                aria-describedby={`notes-tooltip-${roomKey}`}
-                                                onClick={(e) =>
-                                                    e.stopPropagation()
-                                                }
-                                            >
-                                                <StickyNote className="h-5 w-5" />
-                                                <span className="font-semibold text-sm">
-                                                    {noteCountsLoading
-                                                        ? "…"
-                                                        : noteCountsMap[
-                                                        roomKey
-                                                        ] ?? 0}
-                                                </span>
-                                            </div>
-
-                                            {/* Popover */}
-                                            {hoveredRoom === roomKey && (
-                                                <div
-                                                    id={`notes-tooltip-${roomKey}`}
-                                                    className="absolute z-50 mt-2 left-0 w-72 max-h-64 overflow-auto rounded-md border border-slate-100 bg-white p-3 text-sm text-slate-700 shadow-lg"
-                                                    onMouseEnter={() =>
-                                                        openPopover(roomKey)
-                                                    }
-                                                    onMouseLeave={() =>
-                                                        scheduleClosePopover()
-                                                    }
-                                                >
-                                                    {notesLoadingMap[
-                                                        roomKey
-                                                        ] ? (
-                                                        <div className="text-xs text-slate-500">
-                                                            読み込み中...
-                                                        </div>
-                                                    ) : notesByRoom[
-                                                        roomKey
-                                                        ] &&
-                                                    notesByRoom[roomKey]
-                                                        .length > 0 ? (
-                                                        notesByRoom[
-                                                            roomKey
-                                                            ].map((n) => (
-                                                            <div
-                                                                key={
-                                                                    n.noteId ??
-                                                                    `${n.createdAt}-${Math.random()}`
-                                                                }
-                                                                className="mb-2 last:mb-0"
-                                                            >
-                                                                <div className="whitespace-pre-wrap break-words text-[13px]">
-                                                                    {n.noteText ??
-                                                                        n.note_text ??
-                                                                        ""}
-                                                                </div>
-                                                            </div>
-                                                        ))
-                                                    ) : (
-                                                        <div className="text-xs text-slate-500">
-                                                            メモはありません
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
+                    {filteredHiddenRooms.map((r) =>
+                        renderRoomCard(r, { isHiddenTab: true })
+                    )}
                 </div>
             )}
 
