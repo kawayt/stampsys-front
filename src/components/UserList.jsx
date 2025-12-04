@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
 import { restoreHiddenUser } from '@/api/user.js';
-import { Search, Shield, GraduationCap, User } from 'lucide-react';
+import { Search, Shield, GraduationCap, User, Plus, Filter } from 'lucide-react';
 import {
     useReactTable,
     getCoreRowModel,
@@ -124,16 +124,16 @@ function ToastSingle({ open, message, onClose, autoHideMs = 5000 }) {
     );
 }
 
-/* CountCard (kept simple) */
+/* CountCard */
 function CountCard({
-   title,
-   count,
-   colorClass = 'bg-gray-50',
-   icon,
-   active = false,
-   onClick,
-   innerRef = null,
-}) {
+                       title,
+                       count,
+                       colorClass = 'bg-gray-50',
+                       icon,
+                       active = false,
+                       onClick,
+                       innerRef = null,
+                   }) {
     const iconNode = typeof icon === 'function' ? icon() : icon;
     return (
         <button
@@ -160,9 +160,7 @@ function CountCard({
                     {iconNode}
                 </div>
                 <div className="flex flex-col text-left">
-                    <div
-                        className="text-sm text-slate-500"
-                    >
+                    <div className="text-sm text-slate-500">
                         {title}
                         {active && <span className="sr-only">、選択中</span>}
                     </div>
@@ -225,6 +223,13 @@ function UserList() {
     });
     const [roleFilter, setRoleFilter] = useState('ALL');
     const [roleSort] = useState('NONE');
+
+    // ★ グループ管理用ステート
+    const [groupMap, setGroupMap] = useState({});
+    const [groupList, setGroupList] = useState([]);
+    const [groupFilter, setGroupFilter] = useState('ALL'); // 絞り込み用
+    const [newGroupName, setNewGroupName] = useState('');  // 新規追加用
+    const [isAddingGroup, setIsAddingGroup] = useState(false);
 
     const [hiddenLoading, setHiddenLoading] = useState(false);
     const [hiddenUsers, setHiddenUsers] = useState([]);
@@ -295,6 +300,26 @@ function UserList() {
         cardRefs.current = cardRefs.current.slice(0, CARD_ROLES.length);
     }, []);
 
+    // グループ情報取得
+    const fetchGroups = async () => {
+        try {
+            const res = await fetchWithCreds('/api/groups');
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    setGroupList(data);
+                    const map = {};
+                    data.forEach(g => {
+                        map[g.groupId] = g.groupName;
+                    });
+                    setGroupMap(map);
+                }
+            }
+        } catch (err) {
+            console.error("グループ情報の取得に失敗しました", err);
+        }
+    };
+
     useEffect(() => {
         (async () => {
             setLoading(true);
@@ -304,8 +329,11 @@ function UserList() {
                 setError(null);
                 return;
             }
-            await fetchUsers(0, pageSize);
-            await fetchCounts();
+            await Promise.all([
+                fetchUsers(0, pageSize),
+                fetchCounts(),
+                fetchGroups()
+            ]);
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -318,9 +346,8 @@ function UserList() {
             await fetchUsers(0, pageSize, searchQuery);
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [roleFilter]);
+    }, [roleFilter, groupFilter]); // ★ groupFilter が変わったら再検索
 
-    // リアルタイム検索（デバウンス処理）
     useEffect(() => {
         const timer = setTimeout(() => {
             if (currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT')
@@ -368,7 +395,7 @@ function UserList() {
         focusCard(next);
     };
 
-    /* API helpers (kept inline for clarity) */
+    /* API helpers */
     const fetchCurrentUserRole = async () => {
         try {
             const res = await fetchWithCreds('/api/app');
@@ -394,6 +421,12 @@ function UserList() {
                 url += `&q=${encodeURIComponent(query)}`;
             if (roleFilter && roleFilter !== 'ALL')
                 url += `&role=${encodeURIComponent(roleFilter)}`;
+
+            // ★ グループフィルタリング
+            if (groupFilter && groupFilter !== 'ALL') {
+                url += `&groupId=${encodeURIComponent(groupFilter)}`;
+            }
+
             const res = await fetchWithCreds(url);
             if (!res.ok) await handleApiError(res);
             const data = await res.json();
@@ -494,6 +527,49 @@ function UserList() {
             notifyError(err.message || err);
             await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
+        }
+    };
+
+    const handleGroupChange = async (userId, newGroupIdStr) => {
+        if (currentUserRole !== 'ADMIN') {
+            notifyError('権限がありません');
+            return;
+        }
+        try {
+            const newGroupId = parseInt(newGroupIdStr, 10);
+            const res = await fetchWithCreds(`/api/users/${userId}/group`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groupId: newGroupId }),
+            });
+            if (!res.ok) await handleApiError(res);
+            await fetchUsers(currentPage, pageSize, searchQuery);
+            notifySuccess('所属グループを変更しました');
+        } catch (err) {
+            notifyError(err.message || err);
+            await fetchUsers(currentPage, pageSize, searchQuery);
+        }
+    };
+
+    // ★ 新規グループ追加処理
+    const handleAddGroup = async () => {
+        if (!newGroupName.trim()) return;
+        setIsAddingGroup(true);
+        try {
+            const res = await fetchWithCreds('/api/groups', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groupName: newGroupName.trim() })
+            });
+            if (!res.ok) await handleApiError(res);
+
+            setNewGroupName('');
+            await fetchGroups(); // リストを再取得
+            notifySuccess('新しい所属先を追加しました');
+        } catch (err) {
+            notifyError(err.message || '追加に失敗しました');
+        } finally {
+            setIsAddingGroup(false);
         }
     };
 
@@ -643,7 +719,7 @@ function UserList() {
     const isStudent =
         currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT';
 
-    // === tanstack/react-table setup (no sorting) ===
+    // === tanstack/react-table setup ===
     const columns = React.useMemo(
         () => [
             {
@@ -667,49 +743,92 @@ function UserList() {
             },
             {
                 accessorKey: 'role',
-                header: () => <span>ロール</span>,
+                header: () => <span>権限</span>,
                 cell: ({ row }) => {
                     const user = row.original;
-                    const uid =
-                        user?.userId ?? user?.id ?? user?.user_id;
+                    const uid = user?.userId ?? user?.id ?? user?.user_id;
+
+                    if (String(currentUserRole || '').toUpperCase() === 'ADMIN') {
+                        return (
+                            <div className="flex items-center">
+                                <Select
+                                    value={user.role}
+                                    onValueChange={(value) => handleRoleChange(uid, value)}
+                                >
+                                    <SelectTrigger className="w-[140px] role-select h-8 text-xs">
+                                        <SelectValue placeholder="ロールを選択" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ADMIN">
+                                            <div className="flex items-center gap-2">
+                                                <RoleIconSmall role="ADMIN" /> 管理者
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="TEACHER">
+                                            <div className="flex items-center gap-2">
+                                                <RoleIconSmall role="TEACHER" /> 教員
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="STUDENT">
+                                            <div className="flex items-center gap-2">
+                                                <RoleIconSmall role="STUDENT" /> 学生
+                                            </div>
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        );
+                    }
+                    return (
+                        <div className="flex items-center">
+                            <span
+                                className="whitespace-nowrap flex items-center gap-2"
+                                aria-label={`権限: ${roleLabel(user.role)}`}
+                            >
+                                <RoleIconSmall role={user.role} />
+                                {roleLabel(user.role)}
+                            </span>
+                        </div>
+                    );
+                },
+            },
+            {
+                id: 'group',
+                header: () => <span>所属</span>,
+                cell: ({ row }) => {
+                    const user = row.original;
+                    const uid = user?.userId ?? user?.id ?? user?.user_id;
+                    const gid = user.groupId;
+                    const groupName = groupMap[gid];
+
                     if (String(currentUserRole || '').toUpperCase() === 'ADMIN') {
                         return (
                             <Select
-                                value={user.role}
-                                onValueChange={(value) => handleRoleChange(uid, value)}
+                                value={gid ? String(gid) : undefined}
+                                onValueChange={(val) => handleGroupChange(uid, val)}
                             >
-                                <SelectTrigger className="w-[180px] role-select">
-                                    <SelectValue placeholder="ロールを選択" />
+                                <SelectTrigger className="w-[120px] h-8 text-xs">
+                                    <SelectValue placeholder="未所属" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="ADMIN">
-                                        <div className="flex items-center gap-2">
-                                            <RoleIconSmall role="ADMIN" /> 管理者
-                                        </div>
-                                    </SelectItem>
-                                    <SelectItem value="TEACHER">
-                                        <div className="flex items-center gap-2">
-                                            <RoleIconSmall role="TEACHER" /> 教員
-                                        </div>
-                                    </SelectItem>
-                                    <SelectItem value="STUDENT">
-                                        <div className="flex items-center gap-2">
-                                            <RoleIconSmall role="STUDENT" /> 学生
-                                        </div>
-                                    </SelectItem>
+                                    {groupList.map((g) => (
+                                        <SelectItem key={g.groupId} value={String(g.groupId)}>
+                                            {g.groupName}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         );
                     }
-                    return (
-                        <span
-                            className="whitespace-nowrap flex items-center gap-2"
-                            aria-label={`権限: ${roleLabel(user.role)}`}
-                        >
-              <RoleIconSmall role={user.role} />
-                            {roleLabel(user.role)}
-            </span>
-                    );
+
+                    if (groupName) {
+                        return (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                                {groupName}
+                            </span>
+                        );
+                    }
+                    return <span className="text-gray-400 text-xs">-</span>;
                 },
             },
             {
@@ -753,7 +872,7 @@ function UserList() {
                 ]
                 : []),
         ],
-        [currentUserRole],
+        [currentUserRole, groupMap, groupList],
     );
 
     const table = useReactTable({
@@ -780,7 +899,7 @@ function UserList() {
 
     return (
         <div className="mx-auto space-y-4 py-4">
-            {/* タイトル / 説明 */}
+            {/* タイトル */}
             <div className="space-y-1">
                 <h2
                     id="userlist-heading"
@@ -840,7 +959,7 @@ function UserList() {
                 </div>
             </div>
 
-            {/* 各種ダイアログ（復元 / 削除 / 成功） */}
+            {/* 各種ダイアログ */}
             <Dialog
                 open={restoreDialogOpen}
                 onOpenChange={(v) => {
@@ -994,14 +1113,8 @@ function UserList() {
                 className="flex flex-wrap items-center justify-between gap-3"
                 aria-labelledby="userlist-heading"
             >
-                <div className="mr-2 w-full max-w-xs">
-                    <label
-                        htmlFor="search-input"
-                        className="sr-only"
-                    >
-                        名前またはメールアドレスで検索
-                    </label>
-                    <div className="relative">
+                <div className="flex items-center gap-2 w-full max-w-xl">
+                    <div className="relative flex-1">
                         <Search className="absolute left-2 top-1/2 w-4 h-4 text-slate-400 -translate-y-1/2 pointer-events-none" />
                         <Input
                             id="search-input"
@@ -1022,6 +1135,29 @@ function UserList() {
                                 クリア
                             </button>
                         )}
+                    </div>
+                    {/* ★ 所属絞り込みフィルタ */}
+                    <div className="w-[180px]">
+                        <Select
+                            value={groupFilter}
+                            onValueChange={(val) => setGroupFilter(val)}
+                        >
+                            <SelectTrigger className="bg-white">
+                                <div className="flex items-center gap-2 text-slate-600">
+                                    <Filter className="w-4 h-4" />
+                                    <SelectValue placeholder="所属で絞り込む" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">すべての所属</SelectItem>
+                                <SelectItem value="-1">未所属</SelectItem>
+                                {groupList.map(g => (
+                                    <SelectItem key={g.groupId} value={String(g.groupId)}>
+                                        {g.groupName}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
             </form>
@@ -1087,7 +1223,7 @@ function UserList() {
                 </Table>
             </div>
 
-            {/* ページネーション（バックエンド連携のまま） */}
+            {/* ページネーション */}
             <div className="mt-4 flex flex-wrap items-center justify-end gap-1">
                 <Button
                     onClick={() => goToPage(currentPage - 1)}
@@ -1149,9 +1285,31 @@ function UserList() {
                 表示中: {processedUsers.length}人 / 合計: {totalElements}人
             </div>
 
+            {/* ★ 新規所属追加フォーム (管理者のみ表示) */}
+            {String(currentUserRole || '').toUpperCase() === 'ADMIN' && (
+                <div className="mt-8 pt-6 border-t">
+                    <h3 className="text-sm font-semibold text-slate-700 mb-3">新しい所属先を追加</h3>
+                    <div className="flex gap-2 max-w-md">
+                        <Input
+                            placeholder="追加する所属名（例: 大阪、福岡）"
+                            value={newGroupName}
+                            onChange={(e) => setNewGroupName(e.target.value)}
+                            className="bg-white"
+                        />
+                        <Button
+                            onClick={handleAddGroup}
+                            disabled={isAddingGroup || !newGroupName.trim()}
+                        >
+                            {isAddingGroup ? <Spinner className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                            追加
+                        </Button>
+                    </div>
+                </div>
+            )}
+
             {/* 非表示ユーザー ダイアログ起動ボタン */}
             {String(currentUserRole || '').toUpperCase() === 'ADMIN' && (
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center justify-end gap-2 mt-8">
                     <Dialog
                         open={openHiddenDialog}
                         onOpenChange={setOpenHiddenDialog}
@@ -1217,7 +1375,7 @@ function UserList() {
                                                             メールアドレス
                                                         </th>
                                                         <th className="py-2 px-3">
-                                                            ロール
+                                                            権限
                                                         </th>
                                                         <th className="py-2 px-3">
                                                             登録日時
@@ -1258,10 +1416,6 @@ function UserList() {
                                                             >
                                                                 <td className="py-2 px-3 align-top">
                                                                     <div className="flex items-center gap-3">
-                                                                        <UserBadge
-                                                                            email={u?.email}
-                                                                            role={u?.role}
-                                                                        />
                                                                         <span>{name}</span>
                                                                     </div>
                                                                 </td>
