@@ -26,7 +26,7 @@ const dbAdminConfig = {
     },
 
     // ■ group: 所属（名古屋 / 津 等）
-    group: {
+    groups: {
         tableLabel: "所属（グループ）",
         labels: {
             group_id: "所属ID",
