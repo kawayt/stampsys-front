@@ -26,10 +26,10 @@ import { notifySuccess, notifyError } from "@/utils/notify";
 /**
  * StampList
  * - 引数に userId を受け取り、新規作成時の POST ボディに必ず userId を含めます。
- * - App 側で <StampList userId={appData.user?.userId} /> のように渡してください。
+ * - App 側で <StampList userId={appData.user?.userId} role={appData.user?.role} /> のように渡してください。
  * - 既存コードは極力そのままにし、"自分のスタンプのみ" のチェックボックスと取得切替を追加しています。
  */
-function StampList({ userId }) {
+function StampList({ userId, role }) {
     const [stamps, setStamps] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -49,31 +49,56 @@ function StampList({ userId }) {
     const [deleteTargetStamp, setDeleteTargetStamp] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
 
-    // 追加: 自分が作成したスタンプのみ表示するフラグ
-    const [showMine, setShowMine] = useState(false);
+    // 復元ダイアログ用（削除済みスタンプ）
+    const [openRestoreDialog, setOpenRestoreDialog] = useState(false);
+    const [restoreTargetStamp, setRestoreTargetStamp] = useState(null);
+    const [restoreLoading, setRestoreLoading] = useState(false);
+
+    // 表示モード: "all" | "mine" | "deleted"
+    const [filterMode, setFilterMode] = useState("all");
+
+    const isAdmin = role === "ADMIN";
 
     // 初回ロードで一覧取得
     useEffect(() => {
-        fetchStamps();
+        fetchStamps("all");
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // fetchStamps に mine フラグを追加（既存呼び出しはそのまま動作）
-    const fetchStamps = async (mine = false) => {
+    /**
+     * スタンプ一覧取得
+     * mode:
+     *  - "all"     : 全スタンプ (/api/stamp-management)
+     *  - "mine"    : 自分が作成したスタンプ (/api/stamp-management/mine)
+     *  - "deleted" : 削除済みスタンプ (/api/stamp-management/deleted, ADMIN のみ)
+     */
+    const fetchStamps = async (mode = "all") => {
         setLoading(true);
         setError(null);
 
         try {
             let url = "/api/stamp-management";
-            if (mine) {
+
+            if (mode === "mine") {
                 if (!userId) {
-                    const msg = "ユーザー情報が取得できていません。自分のスタンプを表示するにはログインが必要です。";
+                    const msg =
+                        "ユーザー情報が取得できていません。自分のスタンプを表示するにはログインが必要です。";
                     setError(msg);
                     setStamps([]);
                     setLoading(false);
                     return;
                 }
                 url = `/api/stamp-management/mine?userId=${encodeURIComponent(userId)}`;
+            } else if (mode === "deleted") {
+                // ADMIN 以外は削除済み一覧を取得させない
+                if (!isAdmin) {
+                    const msg = "削除済みのスタンプの表示は管理者のみ可能です。";
+                    setError(msg);
+                    setStamps([]);
+                    setLoading(false);
+                    return;
+                }
+                url = "/api/stamp-management/deleted";
             }
 
             const response = await fetch(url);
@@ -152,8 +177,8 @@ function StampList({ userId }) {
             setNewStampColor("");
             setNewStampIcon("");
             setOpenAddDialog(false);
-            // 現在のフィルタ（showMine）を考慮して再取得
-            await fetchStamps(showMine);
+            // 現在のフィルタを考慮して再取得
+            await fetchStamps(filterMode);
 
             // 追加成功トースト
             notifySuccess("スタンプを追加しました", `スタンプ名: ${addedName}`);
@@ -169,7 +194,7 @@ function StampList({ userId }) {
         }
     };
 
-    // スタンプ削除（API コール本体）
+    // スタンプ削除（API コール）
     const handleDeleteStamp = async (stampId) => {
         setError(null);
         setDeleteLoading(true);
@@ -213,6 +238,48 @@ function StampList({ userId }) {
         }
     };
 
+    // 削除済みスタンプの復元（API コール）
+    const handleRestoreStamp = async (stampId) => {
+        setError(null);
+        setRestoreLoading(true);
+
+        try {
+            const response = await fetch(`/api/stamp-management/restore/${stampId}`, {
+                method: "POST",
+            });
+
+            if (!response.ok) {
+                let msg = `HTTP error! status: ${response.status}`;
+                try {
+                    const text = await response.text();
+                    if (text) msg = text;
+                } catch {
+                    // ignore
+                }
+                throw new Error(msg);
+            }
+
+            // ローカル state から削除（一覧から消す）
+            const restoredStamp = stamps.find((s) => s.stampId === stampId);
+            setStamps((prev) => prev.filter((s) => s.stampId !== stampId));
+
+            setOpenRestoreDialog(false);
+            setRestoreTargetStamp(null);
+
+            notifySuccess(
+                "スタンプを復元しました",
+                restoredStamp ? `スタンプ名: ${restoredStamp.stampName}` : undefined
+            );
+        } catch (err) {
+            console.error(err);
+            const msg = "スタンプを復元できませんでした";
+            setError(msg);
+            notifyError("スタンプを復元できませんでした", err.message ?? msg);
+        } finally {
+            setRestoreLoading(false);
+        }
+    };
+
     // カラーとアイコンの候補（コード値を配列化）
     const colorOptions = Array.from({ length: 10 }, (_, i) => i + 1);
     const iconOptions = Array.from({ length: 20 }, (_, i) => i + 1);
@@ -225,17 +292,23 @@ function StampList({ userId }) {
         return name.includes(q);
     });
 
+    const isDeletedMode = filterMode === "deleted";
+
     return (
         <section className="py-4">
             {/* ヘッダー */}
             <div className="mb-6 flex items-center justify-between gap-4">
                 <div>
                     <Select
-                        value={showMine ? "mine" : "all"}
+                        value={isAdmin ? filterMode : (filterMode === "mine" ? "mine" : "all")}
                         onValueChange={(value) => {
-                            const isMine = value === "mine";
-                            setShowMine(isMine);
-                            fetchStamps(isMine);
+                            // ADMIN 以外は deleted を選べないようにする
+                            if (!isAdmin && value === "deleted") {
+                                return;
+                            }
+                            const nextMode = value;
+                            setFilterMode(nextMode);
+                            fetchStamps(nextMode);
                         }}
                     >
                         <SelectTrigger
@@ -246,9 +319,13 @@ function StampList({ userId }) {
                                     focus:ring-0 focus:ring-offset-0
                                 "
                         >
-                                <span>
-                                    {showMine ? "自分が作成したスタンプ" : "すべてのスタンプ"}
-                                </span>
+                            <span>
+                                {filterMode === "mine"
+                                    ? "自分が作成したスタンプ"
+                                    : filterMode === "deleted"
+                                        ? "削除済みのスタンプ"
+                                        : "すべてのスタンプ"}
+                            </span>
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">
@@ -257,6 +334,11 @@ function StampList({ userId }) {
                             <SelectItem value="mine">
                                 自分が作成したスタンプ
                             </SelectItem>
+                            {isAdmin && (
+                                <SelectItem value="deleted">
+                                    削除済みのスタンプ
+                                </SelectItem>
+                            )}
                         </SelectContent>
                     </Select>
                 </div>
@@ -286,122 +368,124 @@ function StampList({ userId }) {
                     </div>
 
                     {/* 新規追加ダイアログトリガー */}
-                    <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
-                        <DialogTrigger asChild>
-                            <Button className="text-xs font-medium">
-                                <Plus className="h-4 w-4" />
-                                <span>スタンプを追加</span>
-                            </Button>
-                        </DialogTrigger>
+                    {!isDeletedMode && (
+                        <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
+                            <DialogTrigger asChild>
+                                <Button className="text-xs font-medium">
+                                    <Plus className="h-4 w-4" />
+                                    <span>スタンプを追加</span>
+                                </Button>
+                            </DialogTrigger>
 
-                        <DialogContent className="sm:max-w-md">
-                            <DialogHeader>
-                                <DialogTitle>新しいスタンプを追加</DialogTitle>
-                                <DialogDescription className="text-xs">
-                                    授業で使用するスタンプを追加します。
-                                </DialogDescription>
-                            </DialogHeader>
+                            <DialogContent className="sm:max-w-md">
+                                <DialogHeader>
+                                    <DialogTitle>新しいスタンプを追加</DialogTitle>
+                                    <DialogDescription className="text-xs">
+                                        授業で使用するスタンプを追加します。
+                                    </DialogDescription>
+                                </DialogHeader>
 
-                            <form onSubmit={handleAddStamp} className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label
-                                        htmlFor="stamp-name"
-                                        className="text-xs font-medium text-slate-700"
-                                    >
-                                        スタンプ名
-                                    </Label>
-                                    <Input
-                                        id="stamp-name"
-                                        type="text"
-                                        placeholder="例: いいね！"
-                                        value={newStampName}
-                                        onChange={(e) => setNewStampName(e.target.value)}
-                                        className="text-sm"
-                                    />
-                                </div>
+                                <form onSubmit={handleAddStamp} className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label
+                                            htmlFor="stamp-name"
+                                            className="text-xs font-medium text-slate-700"
+                                        >
+                                            スタンプ名
+                                        </Label>
+                                        <Input
+                                            id="stamp-name"
+                                            type="text"
+                                            placeholder="例: いいね！"
+                                            value={newStampName}
+                                            onChange={(e) => setNewStampName(e.target.value)}
+                                            className="text-sm"
+                                        />
+                                    </div>
 
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-medium text-slate-700">
-                                        カラー
-                                    </Label>
-                                    <Select
-                                        value={newStampColor}
-                                        onValueChange={setNewStampColor}
-                                    >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="カラーを選択" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {colorOptions.map((code) => {
-                                                const color = getStampColorByCode(code);
-                                                return (
-                                                    <SelectItem key={code} value={String(code)}>
-                                                        <span
-                                                            className="mr-2 h-4 w-4 rounded-full border border-slate-200 inline-block"
-                                                            style={{ backgroundColor: color.icon }}
-                                                        />
-                                                        <span>{color.label}</span>
-                                                    </SelectItem>
-                                                );
-                                            })}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-medium text-slate-700">
+                                            カラー
+                                        </Label>
+                                        <Select
+                                            value={newStampColor}
+                                            onValueChange={setNewStampColor}
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="カラーを選択" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {colorOptions.map((code) => {
+                                                    const color = getStampColorByCode(code);
+                                                    return (
+                                                        <SelectItem key={code} value={String(code)}>
+                                                            <span
+                                                                className="mr-2 h-4 w-4 rounded-full border border-slate-200 inline-block"
+                                                                style={{ backgroundColor: color.icon }}
+                                                            />
+                                                            <span>{color.label}</span>
+                                                        </SelectItem>
+                                                    );
+                                                })}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
 
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-medium text-slate-700">
-                                        アイコン
-                                    </Label>
-                                    <Select
-                                        value={newStampIcon}
-                                        onValueChange={setNewStampIcon}
-                                    >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="アイコンを選択" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {iconOptions.map((code) => {
-                                                const { Icon, label } = getStampIconByCode(code);
-                                                return (
-                                                    <SelectItem key={code} value={String(code)}>
-                                                        <Icon className="mr-2 h-4 w-4" />
-                                                        <span>{label}</span>
-                                                    </SelectItem>
-                                                );
-                                            })}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-medium text-slate-700">
+                                            アイコン
+                                        </Label>
+                                        <Select
+                                            value={newStampIcon}
+                                            onValueChange={setNewStampIcon}
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="アイコンを選択" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {iconOptions.map((code) => {
+                                                    const { Icon, label } = getStampIconByCode(code);
+                                                    return (
+                                                        <SelectItem key={code} value={String(code)}>
+                                                            <Icon className="mr-2 h-4 w-4" />
+                                                            <span>{label}</span>
+                                                        </SelectItem>
+                                                    );
+                                                })}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
 
-                                {error && (
-                                    <p className="text-[11px] text-red-600">
-                                        {error}
-                                    </p>
-                                )}
+                                    {error && (
+                                        <p className="text-[11px] text-red-600">
+                                            {error}
+                                        </p>
+                                    )}
 
-                                <DialogFooter className="flex justify-end gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="text-xs"
-                                        onClick={() => {
-                                            setOpenAddDialog(false);
-                                            setError(null);
-                                        }}
-                                    >
-                                        キャンセル
-                                    </Button>
-                                    <Button
-                                        type="submit"
-                                        disabled={addLoading}
-                                        className="text-xs font-medium"
-                                    >
-                                        {addLoading ? "追加中..." : "追加"}
-                                    </Button>
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
+                                    <DialogFooter className="flex justify-end gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className="text-xs"
+                                            onClick={() => {
+                                                setOpenAddDialog(false);
+                                                setError(null);
+                                            }}
+                                        >
+                                            キャンセル
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            disabled={addLoading}
+                                            className="text-xs font-medium"
+                                        >
+                                            {addLoading ? "追加中..." : "追加"}
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
+                    )}
                 </div>
             </div>
 
@@ -413,7 +497,7 @@ function StampList({ userId }) {
                 </div>
             )}
 
-            {!loading && error && !openAddDialog && (
+            {!loading && error && !openAddDialog && !openRestoreDialog && (
                 <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
                     {error}
                 </div>
@@ -442,17 +526,32 @@ function StampList({ userId }) {
                                     "
                                 style={{ backgroundColor: color.bg, color: color.icon }}
                             >
-                                {/* 削除ボタン */}
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setDeleteTargetStamp(stamp);
-                                        setOpenDeleteDialog(true);
-                                    }}
-                                    className="absolute right-2 top-2 rounded-full bg-white/80 px-2 text-[10px] text-red-500 border border-red-100 hover:bg-red-50"
-                                >
-                                    削除
-                                </button>
+                                {/* 削除 or 復元ボタン */}
+                                {!isDeletedMode ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setDeleteTargetStamp(stamp);
+                                            setOpenDeleteDialog(true);
+                                        }}
+                                        className="absolute right-2 top-2 rounded-full bg-white/80 px-2 text-[10px] text-red-500 border border-red-100 hover:bg-red-50"
+                                    >
+                                        削除
+                                    </button>
+                                ) : (
+                                    isAdmin && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setRestoreTargetStamp(stamp);
+                                                setOpenRestoreDialog(true);
+                                            }}
+                                            className="absolute right-2 top-2 rounded-full bg-white/80 px-2 text-[10px] text-emerald-600 border border-emerald-200 hover:bg-emerald-50"
+                                        >
+                                            復元
+                                        </button>
+                                    )
+                                )}
 
                                 {/* アイコン */}
                                 <span className="mb-1.5">
@@ -517,6 +616,57 @@ function StampList({ userId }) {
                             disabled={deleteLoading}
                         >
                             {deleteLoading ? "削除中..." : "削除"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* 復元確認ダイアログ（ADMIN & 削除済みモード用） */}
+            <Dialog
+                open={openRestoreDialog}
+                onOpenChange={(open) => {
+                    setOpenRestoreDialog(open);
+                    if (!open) {
+                        setRestoreTargetStamp(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>このスタンプを復元しますか？</DialogTitle>
+                        <DialogDescription className="text-xs">
+                            {restoreTargetStamp && (
+                                <>
+                                    「{restoreTargetStamp.stampName}」を復元します。
+                                </>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <DialogFooter className="flex justify-end gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="text-xs"
+                            onClick={() => {
+                                setOpenRestoreDialog(false);
+                                setRestoreTargetStamp(null);
+                            }}
+                            disabled={restoreLoading}
+                        >
+                            キャンセル
+                        </Button>
+                        <Button
+                            type="button"
+                            className="text-xs font-medium"
+                            onClick={() => {
+                                if (restoreTargetStamp) {
+                                    handleRestoreStamp(restoreTargetStamp.stampId);
+                                }
+                            }}
+                            disabled={restoreLoading}
+                        >
+                            {restoreLoading ? "復元中..." : "復元"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
