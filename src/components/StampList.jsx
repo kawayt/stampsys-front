@@ -27,6 +27,7 @@ import { notifySuccess, notifyError } from "@/utils/notify";
  * StampList
  * - 引数に userId を受け取り、新規作成時の POST ボディに必ず userId を含めます。
  * - App 側で <StampList userId={appData.user?.userId} /> のように渡してください。
+ * - 既存コードは極力そのままにし、"自分のスタンプのみ" のチェックボックスと取得切替を追加しています。
  */
 function StampList({ userId }) {
     const [stamps, setStamps] = useState([]);
@@ -48,17 +49,34 @@ function StampList({ userId }) {
     const [deleteTargetStamp, setDeleteTargetStamp] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
 
+    // 追加: 自分が作成したスタンプのみ表示するフラグ
+    const [showMine, setShowMine] = useState(false);
+
     // 初回ロードで一覧取得
     useEffect(() => {
         fetchStamps();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const fetchStamps = async () => {
+    // fetchStamps に mine フラグを追加（既存呼び出しはそのまま動作）
+    const fetchStamps = async (mine = false) => {
         setLoading(true);
         setError(null);
 
         try {
-            const response = await fetch("/api/stamp-management");
+            let url = "/api/stamp-management";
+            if (mine) {
+                if (!userId) {
+                    const msg = "ユーザー情報が取得できていません。自分のスタンプを表示するにはログインが必要です。";
+                    setError(msg);
+                    setStamps([]);
+                    setLoading(false);
+                    return;
+                }
+                url = `/api/stamp-management/mine?userId=${encodeURIComponent(userId)}`;
+            }
+
+            const response = await fetch(url);
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -134,7 +152,8 @@ function StampList({ userId }) {
             setNewStampColor("");
             setNewStampIcon("");
             setOpenAddDialog(false);
-            await fetchStamps();
+            // 現在のフィルタ（showMine）を考慮して再取得
+            await fetchStamps(showMine);
 
             // 追加成功トースト
             notifySuccess("スタンプを追加しました", `スタンプ名: ${addedName}`);
@@ -239,6 +258,22 @@ function StampList({ userId }) {
                             )}
                         </div>
                     </div>
+
+                    {/* 追加: 自分が作成したスタンプのみ チェックボックス（最小変更で追加） */}
+                    <label className="flex items-center gap-2 mr-2 text-sm">
+                        <input
+                            type="checkbox"
+                            checked={showMine}
+                            onChange={(e) => {
+                                const checked = e.target.checked;
+                                setShowMine(checked);
+                                // チェック状態に応じて API を叩いて切替
+                                fetchStamps(checked);
+                            }}
+                            className="w-4 h-4"
+                        />
+                        <span className="text-sm text-slate-700">自分が作成したスタンプのみ</span>
+                    </label>
 
                     {/* 新規追加ダイアログトリガー */}
                     <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
