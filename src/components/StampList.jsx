@@ -23,7 +23,12 @@ import { Search, Plus } from "lucide-react";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition.js";
 import { notifySuccess, notifyError } from "@/utils/notify";
 
-function StampList() {
+/**
+ * StampList
+ * - 引数に userId を受け取り、新規作成時の POST ボディに必ず userId を含めます。
+ * - App 側で <StampList userId={appData.user?.userId} /> のように渡してください。
+ */
+function StampList({ userId }) {
     const [stamps, setStamps] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -74,6 +79,14 @@ function StampList() {
         e.preventDefault();
         setError(null);
 
+        // userId が無ければ処理を止める（フロント渡しの方式では必須）
+        if (!userId) {
+            const msg = "ユーザー情報が取得できていません。再度ログインしてください。";
+            setError(msg);
+            notifyError("スタンプの追加に失敗しました", msg);
+            return;
+        }
+
         // 空チェック
         if (!newStampName || !newStampColor || !newStampIcon) {
             const msg = "スタンプ名・カラー・アイコンをすべて選択してください";
@@ -86,10 +99,12 @@ function StampList() {
         const colorNum = Number(newStampColor);
         const iconNum = Number(newStampIcon);
 
+        // ここで userId を必ず含める
         const payload = {
             stampName: newStampName,
             stampColor: colorNum,
             stampIcon: iconNum,
+            userId: userId,
         };
 
         setAddLoading(true);
