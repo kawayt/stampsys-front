@@ -38,8 +38,15 @@ import {
     DropdownMenuGroup,
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+    Select,
+    SelectTrigger,
+    SelectContent,
+    SelectItem,
+    SelectValue,
+} from "@/components/ui/select";
 import { notifySuccess, notifyError } from "@/utils/notify";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 const ROOM_TAB = {
     ACTIVE: "active", // hidden=false
@@ -1031,45 +1038,52 @@ export function RoomList({ userId, role }) {
 
             {/* ルーム一覧タイトル＋Tabs＋検索＋ルーム作成 */}
             <div className="mb-6 flex items-center justify-between gap-4">
-                <h2 className="text-lg font-semibold text-slate-800">
-                    ルーム一覧
-                </h2>
-
-                <div className="flex items-center gap-2">
-                    {/* ADMIN のときだけ Tabs を表示 */}
-                    {isAdmin && (
-                        <Tabs
-                            className="mr-2"
+                <div>
+                    {isAdmin ? (
+                        <Select
                             value={effectiveActiveTab}
                             onValueChange={(val) => {
                                 setActiveTab(val);
                                 if (
                                     val === ROOM_TAB.HIDDEN &&
-                                    (!hiddenRooms ||
-                                        hiddenRooms.length === 0) &&
+                                    (!hiddenRooms || hiddenRooms.length === 0) &&
                                     !hiddenLoading
                                 ) {
                                     fetchHiddenRooms();
                                 }
                             }}
                         >
-                            <TabsList className="bg-slate-100">
-                                <TabsTrigger
-                                    value={ROOM_TAB.ACTIVE}
-                                    className="px-3 py-1 text-xs"
-                                >
-                                    通常表示
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value={ROOM_TAB.HIDDEN}
-                                    className="px-3 py-1 text-xs"
-                                >
-                                    削除済み
-                                </TabsTrigger>
-                            </TabsList>
-                        </Tabs>
+                            <SelectTrigger
+                                className="
+                                    inline-flex h-auto items-center gap-1 border-0
+                                    bg-transparent px-0 py-0 shadow-none
+                                    text-lg font-semibold text-slate-800
+                                    focus:ring-0 focus:ring-offset-0
+                                "
+                            >
+                                <span>
+                                    {effectiveActiveTab === ROOM_TAB.HIDDEN
+                                        ? "削除済みのルーム"
+                                        : "ルーム一覧"}
+                                </span>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={ROOM_TAB.ACTIVE}>
+                                    ルーム一覧
+                                </SelectItem>
+                                <SelectItem value={ROOM_TAB.HIDDEN}>
+                                    削除済みのルーム
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    ) : (
+                        <h2 className="text-lg font-semibold text-slate-800">
+                            ルーム一覧
+                        </h2>
                     )}
+                </div>
 
+                <div className="flex items-center gap-2">
                     {/* search input */}
                     <div className="mr-2 w-full max-w-xs">
                         <div className="relative">
