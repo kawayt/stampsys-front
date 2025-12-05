@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
-import { Trash2, Plus, Search } from "lucide-react";
+import {
+    Select,
+    SelectTrigger,
+    SelectValue,
+    SelectContent,
+    SelectItem,
+} from "@/components/ui/select";
+import { Trash2, Plus, Search, Filter } from "lucide-react";
 
 export function ClassUserManagement({ classId, open }) {
     const [usersInClass, setUsersInClass] = useState([]);
@@ -13,12 +20,29 @@ export function ClassUserManagement({ classId, open }) {
 
     const [query, setQuery] = useState("");
 
+    // ★追加: グループ関連のステート
+    const [groupList, setGroupList] = useState([]);
+    const [groupFilter, setGroupFilter] = useState("ALL");
+
     const handleAuthRedirectIfNeeded = async (res) => {
         if (res.status === 401 || res.redirected) {
             window.location.href = "/oauth2/authorization/microsoft";
             return true;
         }
         return false;
+    };
+
+    // ★追加: グループ一覧を取得する関数
+    const fetchGroups = async () => {
+        try {
+            const res = await fetch("/api/groups", { credentials: "include" });
+            if (res.ok) {
+                const data = await res.json();
+                setGroupList(data || []);
+            }
+        } catch (err) {
+            console.error("グループ一覧の取得に失敗しました", err);
+        }
     };
 
     const fetchUsers = async () => {
@@ -123,31 +147,46 @@ export function ClassUserManagement({ classId, open }) {
     useEffect(() => {
         if (open) {
             fetchUsers();
+            fetchGroups(); // ★追加: ダイアログが開いたときにグループも取得
         }
     }, [open, classId]);
 
     const renderUserLabel = (user) => {
         const namePart = user.userName || `ユーザーID: ${user.userId}`;
-
-        // ★ 削除: ロールは表示しない
-        // const rolePart = user.role ? ` (${user.role})` : "";
-
         const emailPart = user.email ? ` - ${user.email}` : "";
-
-        // ★ 追加: 所属名があれば表示
         const groupPart = user.groupName ? ` [${user.groupName}]` : "";
-
-        // 戻り値に groupPart を含め、rolePart を削除
         return `${namePart}${groupPart}${emailPart}`;
     };
 
-    // 検索クエリに一致するかどうかを判定するヘルパー
+    // ★修正: 検索クエリとグループフィルタの両方で判定する
     const matchesQuery = (user) => {
-        if (!query) return true;
-        const q = query.toLowerCase();
-        const name = (user.userName || "").toLowerCase();
-        const email = (user.email || "").toLowerCase();
-        return name.includes(q) || email.includes(q);
+        // 1. テキスト検索 (名前 or メール)
+        let matchesText = true;
+        if (query) {
+            const q = query.toLowerCase();
+            const name = (user.userName || "").toLowerCase();
+            const email = (user.email || "").toLowerCase();
+            matchesText = name.includes(q) || email.includes(q);
+        }
+
+        // 2. グループフィルタ
+        let matchesGroup = true;
+        if (groupFilter !== "ALL") {
+            // "未所属" (-1) の場合
+            if (groupFilter === "-1") {
+                matchesGroup = !user.groupName;
+            } else {
+                // 特定のグループIDが選択された場合
+                // groupListから選択されたIDに対応する名前を探して比較、あるいは user.groupId があればそれと比較
+                // ここでは user.groupName と、groupList内の名前を比較します
+                const selectedGroup = groupList.find(g => String(g.groupId) === groupFilter);
+                if (selectedGroup) {
+                    matchesGroup = user.groupName === selectedGroup.groupName;
+                }
+            }
+        }
+
+        return matchesText && matchesGroup;
     };
 
     const filteredInClass = usersInClass.filter(matchesQuery);
@@ -155,16 +194,39 @@ export function ClassUserManagement({ classId, open }) {
 
     return (
         <div>
-            {/* 検索窓（shadcn/ui の Input を使用） */}
-            <div className="mb-3">
-                <div className="relative">
-                    <Search className="absolute left-2 top-1/2 w-4 h-4 text-slate-400 -translate-y-1/2 pointer-events-none" />
+            {/* ★修正: 検索窓の横にフィルタを追加 (Flexboxで横並び) */}
+            <div className="flex items-center gap-2 mb-3">
+                <div className="relative relative w-1/2">
+                    <Search className="absolute left-2 top-1/2 w-4 h-4 text-slate-300 -translate-y-1/2 pointer-events-none" />
                     <Input
                         placeholder="名前またはメールアドレスで検索"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         className="text-xs pl-8"
                     />
+                </div>
+
+                <div className="w-[140px]">
+                    <Select
+                        value={groupFilter}
+                        onValueChange={(val) => setGroupFilter(val)}
+                    >
+                        <SelectTrigger className="h-9 text-xs">
+                            <div className="flex items-center gap-2 text-slate-600">
+                                <Filter className="w-3 h-3" />
+                                <SelectValue placeholder="すべて" />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">すべて</SelectItem>
+                            <SelectItem value="-1">未所属</SelectItem>
+                            {groupList.map((g) => (
+                                <SelectItem key={g.groupId} value={String(g.groupId)}>
+                                    {g.groupName}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 
@@ -183,11 +245,11 @@ export function ClassUserManagement({ classId, open }) {
                 <div className="grid gap-4 md:grid-cols-2">
                     <div>
                         <p className="mb-1 text-xs font-medium text-slate-600">
-                            参加中のユーザー
+                            参加中のユーザー ({filteredInClass.length}人)
                         </p>
                         {filteredInClass.length === 0 ? (
                             <p className="text-xs text-slate-400">
-                                {query ? "該当するユーザーがいません。" : "右列からユーザーを追加してください。"}
+                                {query || groupFilter !== "ALL" ? "該当するユーザーがいません。" : "右列からユーザーを追加してください。"}
                             </p>
                         ) : (
                             <ul className="space-y-1 max-h-[400px] overflow-auto pr-1">
@@ -215,11 +277,11 @@ export function ClassUserManagement({ classId, open }) {
 
                     <div>
                         <p className="mb-1 text-xs font-medium text-slate-600">
-                            追加できるユーザー
+                            追加できるユーザー ({filteredNotInClass.length}人)
                         </p>
                         {filteredNotInClass.length === 0 ? (
                             <p className="text-xs text-slate-400">
-                                {query ? "該当するユーザーがいません。" : "ユーザーはありません。"}
+                                {query || groupFilter !== "ALL" ? "該当するユーザーがいません。" : "ユーザーはありません。"}
                             </p>
                         ) : (
                             <ul className="space-y-1 max-h-[400px] overflow-auto pr-1">

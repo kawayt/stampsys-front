@@ -1149,7 +1149,7 @@ function UserList() {
                                 </div>
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="ALL">すべての所属</SelectItem>
+                                <SelectItem value="ALL">すべて</SelectItem>
                                 <SelectItem value="-1">未所属</SelectItem>
                                 {groupList.map(g => (
                                     <SelectItem key={g.groupId} value={String(g.groupId)}>
