@@ -127,6 +127,11 @@ function RoomHistory() {
     const [logsLimit, setLogsLimit] = useState(100);
     const [logsOffset, setLogsOffset] = useState(0);
 
+    // --- 追加: group フィルタ用 state ---
+    const [showAllGroups, setShowAllGroups] = useState(true);
+    const [selectedGroups, setSelectedGroups] = useState([]); // ["名古屋", ...]
+    // ------------------------------------------------
+
     // roomId が変わったら状態リセット
     useEffect(() => {
         setInterval("5 minutes");
@@ -143,6 +148,10 @@ function RoomHistory() {
         setLogsLoading(false);
         setLogsLimit(100);
         setLogsOffset(0);
+
+        // reset group filters too
+        setShowAllGroups(true);
+        setSelectedGroups([]);
     }, [roomId]);
 
     const handleFetch = async () => {
@@ -210,6 +219,10 @@ function RoomHistory() {
             setSelectedKinds([]);
         }
 
+        // reset group selection
+        setShowAllGroups(true);
+        setSelectedGroups([]);
+
         if (data && Array.isArray(data.timeline) && data.timeline.length > 0) {
             const first = data.timeline[0];
             const last = data.timeline[data.timeline.length - 1];
@@ -226,6 +239,33 @@ function RoomHistory() {
             prev.includes(kind) ? prev.filter((k) => k !== kind) : [...prev, kind]
         );
     };
+
+    // --- 追加: group 用ユーティリティ ---
+    const availableGroups = useMemo(() => {
+        if (!logs || logs.length === 0) return [];
+        const s = new Set();
+        for (const r of logs) {
+            const g = r.groupName ?? r.group_name ?? null;
+            if (g) s.add(g);
+        }
+        return Array.from(s).sort();
+    }, [logs]);
+
+    // 初回ロード後に availableGroups がある場合、selectedGroups を既定で全選択にする
+    useEffect(() => {
+        if (availableGroups.length > 0 && selectedGroups.length === 0) {
+            setSelectedGroups(availableGroups);
+            setShowAllGroups(false); // default to using explicit selection (all)
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [availableGroups]);
+
+    const handleToggleGroup = (group) => {
+        setSelectedGroups((prev) =>
+            prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group]
+        );
+    };
+    // ------------------------------------------------
 
     // series からスタンプ名一覧（NO_STAMP を除外）
     const stampTypes = useMemo(() => {
@@ -345,6 +385,9 @@ function RoomHistory() {
         stampIcon: r.stampIcon ?? r.stamp_icon ?? null,
         stampColor: r.stampColor ?? r.stamp_color ?? null,
         sentAt: r.sentAt ?? r.sent_at ?? r.timestamp ?? null,
+        // --- 追加: group 情報を正規化して保持 ---
+        groupId: r.groupId ?? r.group_id ?? null,
+        groupName: r.groupName ?? r.group_name ?? null,
     });
 
     const loadLogs = async () => {
@@ -384,6 +427,13 @@ function RoomHistory() {
         const groups = new Map(); // bucketStartMs -> { bucketStartMs, entries: Map<entryKey, entry>, firstTs, lastTs }
 
         for (const row of sorted) {
+            // --- 追加: groupName によるフィルタ ---
+            if (!showAllGroups) {
+                const gName = row.groupName ?? null;
+                if (!gName || !selectedGroups.includes(gName)) {
+                    continue;
+                }
+            }
             // フィルタ: showAllKinds が false の場合、selectedKinds に含まれないスタンプは無視する
             if (!showAllKinds) {
                 const stampName = row.stampName ?? null;
@@ -459,7 +509,7 @@ function RoomHistory() {
             });
 
         return arr;
-    }, [logs, interval, stampDisplayMap, showAllKinds, selectedKinds]);
+    }, [logs, interval, stampDisplayMap, showAllKinds, selectedKinds, showAllGroups, selectedGroups]);
     // --- グルーピング処理終わり ---
 
     function formatDateTime(iso) {
@@ -760,6 +810,7 @@ function RoomHistory() {
                                         );
                                     })}
                                 </div>
+
                             </CardContent>
                         </Card>
                     </div>
@@ -816,9 +867,9 @@ function RoomHistory() {
                                                         color: display?.iconColor ?? "#4b5563",
                                                     }}
                                                 >
-                                                        {IconComponent && (
-                                                            <IconComponent className="h-4 w-4" />
-                                                        )}
+                                                    {IconComponent && (
+                                                        <IconComponent className="h-4 w-4" />
+                                                    )}
                                                     <span className="text-xs">{kind}</span>
                                                 </span>
                                             </label>
@@ -827,6 +878,35 @@ function RoomHistory() {
                                 </div>
                             )}
                         </div>
+
+                        {/* --- 追加: logs タブ側にも group フィルタUI を簡易表示 --- */}
+                        <div className="mb-3 border-b pb-3">
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="logs-show-all-groups"
+                                    checked={showAllGroups}
+                                    onCheckedChange={(v) => setShowAllGroups(Boolean(v))}
+                                />
+                                <Label htmlFor="logs-show-all-groups" className="text-sm font-normal">
+                                    すべてのグループを表示
+                                </Label>
+                            </div>
+                            {!showAllGroups && (
+                                <div className="mt-2 flex flex-wrap gap-2 text-sm">
+                                    {availableGroups.map((g) => (
+                                        <label key={g} className="inline-flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedGroups.includes(g)}
+                                                onChange={() => handleToggleGroup(g)}
+                                            />
+                                            <span className="text-xs">{g}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        {/* --- group filter UI end --- */}
 
                         <div className="flex items-center gap-2 mb-2">
                             <label className="text-sm flex items-center gap-2">
