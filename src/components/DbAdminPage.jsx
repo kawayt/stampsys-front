@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/dialog";
 import { GenericRowEditor } from "@/components/GenericRowEditor";
 import { useNavigate } from "react-router-dom";
+// 追加: セル書式化ユーティリティ（true/false -> 有効/無効 等）
+import formatCellValue from "@/utils/formatCellValue";
 
 export function DbAdminPage({ currentUserRole }) {
     const navigate = useNavigate();
@@ -322,9 +324,8 @@ export function DbAdminPage({ currentUserRole }) {
                                                     <TableRow key={idx} className="odd:bg-white even:bg-slate-50">
                                                         {columns.map((c) => {
                                                             const v = r[c.name];
-                                                            let display = v;
-                                                            if (v === null || typeof v === "undefined") display = "";
-                                                            else if (typeof v === "object") display = JSON.stringify(v);
+                                                            // 変更: formatCellValue を使ってセル表示を整形する
+                                                            const display = formatCellValue(selectedTable, c.name, v);
                                                             return <TableCell key={c.name} className="whitespace-nowrap max-w-[200px] truncate">{String(display)}</TableCell>;
                                                         })}
                                                         <TableCell className="whitespace-nowrap space-x-2">
