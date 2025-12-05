@@ -39,18 +39,16 @@ import {
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { notifySuccess, notifyError } from "@/utils/notify";
-import {
-    Tabs,
-    TabsList,
-    TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ROOM_TAB = {
     ACTIVE: "active", // hidden=false
     HIDDEN: "hidden", // hidden=true
 };
 
-export function RoomList() {
+export function RoomList({ role }) {
+    const isAdmin = role === "ADMIN";
+
     const { classId } = useParams();
     const navigate = useNavigate();
 
@@ -98,7 +96,7 @@ export function RoomList() {
     const [hideProcessing, setHideProcessing] = useState(false);
     const [hideError, setHideError] = useState(null);
 
-    // 削除済みルーム（hidden=true）用 state
+    // 削除済みルーム（hidden=true）用 state（ADMIN のみ利用）
     const [hiddenRooms, setHiddenRooms] = useState([]);
     const [hiddenLoading, setHiddenLoading] = useState(false);
     const [hiddenError, setHiddenError] = useState(null);
@@ -107,7 +105,7 @@ export function RoomList() {
     const [restoreProcessingId, setRestoreProcessingId] = useState(null);
     const [restoreError, setRestoreError] = useState(null);
 
-    // タブ state
+    // タブ state（ADMIN でない場合は実質 ACTIVE 固定）
     const [activeTab, setActiveTab] = useState(ROOM_TAB.ACTIVE);
 
     // スタンプ管理 / ユーザー管理ダイアログの open state
@@ -151,6 +149,9 @@ export function RoomList() {
     };
 
     const fetchHiddenRooms = async () => {
+        // ADMIN 以外は API 自体を呼ばない
+        if (!isAdmin) return;
+
         setHiddenLoading(true);
         setHiddenError(null);
         try {
@@ -487,11 +488,10 @@ export function RoomList() {
                     deletedName ? `ルーム名: ${deletedName}` : undefined
                 );
 
-                // 削除済みタブ用一覧を最新化（タブを開いていれば次回表示時に反映される）
-                if (activeTab === ROOM_TAB.HIDDEN) {
+                // 削除済みタブ用一覧を最新化（ADMIN でタブを開いていれば再取得）
+                if (isAdmin && activeTab === ROOM_TAB.HIDDEN) {
                     await fetchHiddenRooms();
                 } else {
-                    // タブ未表示時はキャッシュだけクリアしておき、開かれたときに再取得
                     setHiddenRooms([]);
                 }
             } else {
@@ -533,6 +533,7 @@ export function RoomList() {
 
     const handleRestoreRoom = async (room) => {
         if (!room || !room.roomId) return;
+        if (!isAdmin) return; // ADMIN 以外ならそもそも呼ばれないが一応ガード
 
         setRestoreProcessingId(room.roomId);
         setRestoreError(null);
@@ -638,7 +639,7 @@ export function RoomList() {
     const handleCardClick = (room, { isHiddenTab }) => {
         if (!room || !room.roomId) return;
         if (isHiddenTab) {
-            // 削除済みタブ: クリックで履歴へ
+            // 削除済みタブ: クリックで履歴へ（ADMIN のみタブに到達可能）
             navigate(`/rooms/${room.roomId}/history`);
         } else {
             // 通常タブ: active なら入室、終了済みなら履歴
@@ -724,7 +725,7 @@ export function RoomList() {
                             )}
                         </div>
 
-                        {/* 右上：ドロップダウンメニュー */}
+                        {/* 右上：ドロップダウンメニュー（カードクリックと分離） */}
                         <div
                             className="flex items-center gap-2"
                             onClick={(e) => e.stopPropagation()}
@@ -802,7 +803,7 @@ export function RoomList() {
                                             </DropdownMenuItem>
                                         )}
 
-                                        {/* 削除済みタブ: 復元 */}
+                                        {/* 削除済みタブ: 復元（ADMIN のみ） */}
                                         {isHiddenTab && (
                                             <DropdownMenuItem
                                                 onClick={() =>
@@ -933,6 +934,9 @@ export function RoomList() {
         );
     }
 
+    // ADMIN 以外の場合は、実質的に activeTab は常に ACTIVE として扱う
+    const effectiveActiveTab = isAdmin ? activeTab : ROOM_TAB.ACTIVE;
+
     return (
         <section className="py-4">
             {/* 戻るボタン */}
@@ -1031,36 +1035,39 @@ export function RoomList() {
                 </h2>
 
                 <div className="flex items-center gap-2">
-                    {/* shadcn Tabs（検索ボックスの左隣に配置） */}
-                    <Tabs
-                        className="mr-2"
-                        value={activeTab}
-                        onValueChange={(val) => {
-                            setActiveTab(val);
-                            if (
-                                val === ROOM_TAB.HIDDEN &&
-                                (!hiddenRooms || hiddenRooms.length === 0) &&
-                                !hiddenLoading
-                            ) {
-                                fetchHiddenRooms();
-                            }
-                        }}
-                    >
-                        <TabsList className="bg-slate-100">
-                            <TabsTrigger
-                                value={ROOM_TAB.ACTIVE}
-                                className="px-3 py-1 text-xs"
-                            >
-                                通常表示
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value={ROOM_TAB.HIDDEN}
-                                className="px-3 py-1 text-xs"
-                            >
-                                削除済み
-                            </TabsTrigger>
-                        </TabsList>
-                    </Tabs>
+                    {/* ADMIN のときだけ Tabs を表示 */}
+                    {isAdmin && (
+                        <Tabs
+                            className="mr-2"
+                            value={effectiveActiveTab}
+                            onValueChange={(val) => {
+                                setActiveTab(val);
+                                if (
+                                    val === ROOM_TAB.HIDDEN &&
+                                    (!hiddenRooms ||
+                                        hiddenRooms.length === 0) &&
+                                    !hiddenLoading
+                                ) {
+                                    fetchHiddenRooms();
+                                }
+                            }}
+                        >
+                            <TabsList className="bg-slate-100">
+                                <TabsTrigger
+                                    value={ROOM_TAB.ACTIVE}
+                                    className="px-3 py-1 text-xs"
+                                >
+                                    通常表示
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value={ROOM_TAB.HIDDEN}
+                                    className="px-3 py-1 text-xs"
+                                >
+                                    削除済み
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    )}
 
                     {/* search input */}
                     <div className="mr-2 w-full max-w-xs">
@@ -1173,44 +1180,45 @@ export function RoomList() {
                 </div>
             </div>
 
-            {/* タブごとのエラー表示（削除済みタブ関連） */}
-            {activeTab === ROOM_TAB.HIDDEN && restoreError && (
+            {/* ADMIN かつ 削除済みタブ選択時のエラー表示 */}
+            {isAdmin && effectiveActiveTab === ROOM_TAB.HIDDEN && restoreError && (
                 <p className="text-[11px] text-red-600 mb-2">{restoreError}</p>
             )}
-            {activeTab === ROOM_TAB.HIDDEN && hiddenError && (
+            {isAdmin && effectiveActiveTab === ROOM_TAB.HIDDEN && hiddenError && (
                 <p className="text-[11px] text-red-600 mb-2">{hiddenError}</p>
             )}
 
             {/* タブごとの一覧 */}
-            {activeTab === ROOM_TAB.ACTIVE ? (
-                (!filteredRooms || filteredRooms.length === 0) ? (
+            {effectiveActiveTab === ROOM_TAB.ACTIVE ? (
+                    (!filteredRooms || filteredRooms.length === 0) ? (
+                        <p className="text-sm text-slate-500">
+                            ルームが見つかりません
+                        </p>
+                    ) : (
+                        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                            {filteredRooms.map((r) =>
+                                renderRoomCard(r, { isHiddenTab: false })
+                            )}
+                        </div>
+                    )
+                ) : // ここに到達するのは ADMIN かつ HIDDEN タブ選択時のみ
+                hiddenLoading ? (
+                    <div className="flex flex-col items-center justify-center gap-2 mt-8 text-sm text-slate-600">
+                        <Spinner className="size-6" />
+                        <span>削除済みルームを読み込み中</span>
+                    </div>
+                ) : (!filteredHiddenRooms ||
+                    filteredHiddenRooms.length === 0) ? (
                     <p className="text-sm text-slate-500">
-                        ルームが見つかりません
+                        削除済みルームはありません
                     </p>
                 ) : (
                     <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                        {filteredRooms.map((r) =>
-                            renderRoomCard(r, { isHiddenTab: false })
+                        {filteredHiddenRooms.map((r) =>
+                            renderRoomCard(r, { isHiddenTab: true })
                         )}
                     </div>
-                )
-            ) : hiddenLoading ? (
-                <div className="flex flex-col items-center justify-center gap-2 mt-8 text-sm text-slate-600">
-                    <Spinner className="size-6" />
-                    <span>削除済みルームを読み込み中</span>
-                </div>
-            ) : (!filteredHiddenRooms ||
-                filteredHiddenRooms.length === 0) ? (
-                <p className="text-sm text-slate-500">
-                    削除済みルームはありません
-                </p>
-            ) : (
-                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                    {filteredHiddenRooms.map((r) =>
-                        renderRoomCard(r, { isHiddenTab: true })
-                    )}
-                </div>
-            )}
+                )}
 
             {/* ルーム終了確認ダイアログ */}
             <Dialog

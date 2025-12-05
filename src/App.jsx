@@ -268,7 +268,7 @@ function Dashboard({ appData, onLogout }) {
                         <Route path="/stamps" element={<StampList userId={appData.user?.userId} />} />
 
                         {/* ルーム一覧ページ */}
-                        <Route path="/classes/:classId" element={<RoomList />} />
+                        <Route path="/classes/:classId" element={<RoomList role={appData.user?.role} />} />
 
                         {/* ルーム詳細ページ */}
                         <Route path="/rooms/:roomId" element={<RoomDetail userId={appData.user?.userId} role={appData.user?.role} />} />
