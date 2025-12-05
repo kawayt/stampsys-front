@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
 import { restoreHiddenUser } from '@/api/user.js';
-import { Search, Shield, GraduationCap, User, Plus, Filter } from 'lucide-react';
+import { Search, Shield, GraduationCap, User, Plus, Filter, Building, Trash2, RotateCw } from 'lucide-react';
 import {
     useReactTable,
     getCoreRowModel,
@@ -230,6 +230,8 @@ function UserList() {
     const [groupFilter, setGroupFilter] = useState('ALL'); // 絞り込み用
     const [newGroupName, setNewGroupName] = useState('');  // 新規追加用
     const [isAddingGroup, setIsAddingGroup] = useState(false);
+    // ★ グループ管理ダイアログの開閉状態
+    const [openGroupManager, setOpenGroupManager] = useState(false);
 
     const [hiddenLoading, setHiddenLoading] = useState(false);
     const [hiddenUsers, setHiddenUsers] = useState([]);
@@ -346,7 +348,7 @@ function UserList() {
             await fetchUsers(0, pageSize, searchQuery);
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [roleFilter, groupFilter]); // ★ groupFilter が変わったら再検索
+    }, [roleFilter, groupFilter]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -422,7 +424,7 @@ function UserList() {
             if (roleFilter && roleFilter !== 'ALL')
                 url += `&role=${encodeURIComponent(roleFilter)}`;
 
-            // ★ グループフィルタリング
+            // グループフィルタリング
             if (groupFilter && groupFilter !== 'ALL') {
                 url += `&groupId=${encodeURIComponent(groupFilter)}`;
             }
@@ -430,7 +432,17 @@ function UserList() {
             const res = await fetchWithCreds(url);
             if (!res.ok) await handleApiError(res);
             const data = await res.json();
+
             if (data && Array.isArray(data.content)) {
+                // 空ページ回避: 現在のページが空で、かつ前のページが存在する場合は戻る
+                const currentTotalPages = data.totalPages || 0;
+                const currentPageNum = data.number || 0;
+
+                if (data.content.length === 0 && currentPageNum > 0 && currentPageNum >= currentTotalPages) {
+                    const prevPage = Math.max(0, currentTotalPages - 1);
+                    return fetchUsers(prevPage, size, query);
+                }
+
                 setUsers(data.content);
                 setTotalElements(data.totalElements || 0);
                 setTotalPages(data.totalPages || 0);
@@ -454,7 +466,6 @@ function UserList() {
             setLoading(false);
         }
     };
-
     const fetchCounts = async () => {
         try {
             const res = await fetchWithCreds('/api/users/counts');
@@ -530,25 +541,57 @@ function UserList() {
         }
     };
 
+    // ★修正: 所属グループ変更処理（楽観的UI更新 + サーバー通信のみ、再取得なし）
     const handleGroupChange = async (userId, newGroupIdStr) => {
         if (currentUserRole !== 'ADMIN') {
             notifyError('権限がありません');
             return;
         }
+
+        // 変更前の状態を保存
+        const previousUsers = [...users];
+
+        const newGroupId = parseInt(newGroupIdStr, 10);
+        const apiGroupId = newGroupId === -1 ? null : newGroupId; // -1ならnull
+
+        // 1. UIを先に更新（リストから消えないようにする）
+        setUsers((prevUsers) =>
+            prevUsers.map((u) => {
+                if (u.userId === userId) {
+                    return { ...u, groupId: apiGroupId };
+                }
+                return u;
+            })
+        );
+
         try {
-            const newGroupId = parseInt(newGroupIdStr, 10);
+            // 2. API送信
             const res = await fetchWithCreds(`/api/users/${userId}/group`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ groupId: newGroupId }),
+                body: JSON.stringify({ groupId: apiGroupId }),
             });
-            if (!res.ok) await handleApiError(res);
-            await fetchUsers(currentPage, pageSize, searchQuery);
-            notifySuccess('所属グループを変更しました');
+
+            if (!res.ok) {
+                // 失敗時
+                const body = await parseResponseBody(res);
+                throw new Error(body.message || "更新に失敗しました");
+            }
+
+            // 成功時は通知のみ
+            notifySuccess('所属を変更しました');
+
         } catch (err) {
+            // エラー時は表示を元に戻す
+            setUsers(previousUsers);
             notifyError(err.message || err);
-            await fetchUsers(currentPage, pageSize, searchQuery);
         }
+    };
+
+    // ★追加: 手動更新処理
+    const handleManualRefresh = () => {
+        fetchUsers(currentPage, pageSize, searchQuery);
+        notifySuccess("リストを更新しました");
     };
 
     // ★ 新規グループ追加処理
@@ -626,6 +669,26 @@ function UserList() {
             setHideToggleError(err.message || String(err));
         } finally {
             setHideToggleLoading(false);
+        }
+    };
+    // ★ グループ削除処理
+    const handleDeleteGroup = async (groupId) => {
+        if (!window.confirm("この所属を削除しますか？\n所属しているユーザーは「未所属」になります。")) {
+            return;
+        }
+        try {
+            const res = await fetchWithCreds(`/api/groups/${groupId}`, {
+                method: 'DELETE',
+            });
+            if (!res.ok) await handleApiError(res);
+
+            notifySuccess('所属を削除しました');
+
+            // データを再取得して表示を更新
+            await fetchGroups(); // リスト更新
+            await fetchUsers(currentPage, pageSize, searchQuery); // ユーザーの所属表示更新
+        } catch (err) {
+            notifyError(err.message || '削除に失敗しました');
         }
     };
 
@@ -804,13 +867,14 @@ function UserList() {
                     if (String(currentUserRole || '').toUpperCase() === 'ADMIN') {
                         return (
                             <Select
-                                value={gid ? String(gid) : undefined}
+                                value={gid ? String(gid) : "-1"}
                                 onValueChange={(val) => handleGroupChange(uid, val)}
                             >
                                 <SelectTrigger className="w-[120px] h-8 text-xs">
                                     <SelectValue placeholder="未所属" />
                                 </SelectTrigger>
                                 <SelectContent>
+                                    <SelectItem value="-1">未所属</SelectItem>
                                     {groupList.map((g) => (
                                         <SelectItem key={g.groupId} value={String(g.groupId)}>
                                             {g.groupName}
@@ -828,7 +892,7 @@ function UserList() {
                             </span>
                         );
                     }
-                    return <span className="text-gray-400 text-xs">-</span>;
+                    return <span className="text-gray-400 text-xs">未所属</span>;
                 },
             },
             {
@@ -1107,7 +1171,7 @@ function UserList() {
                 </DialogContent>
             </Dialog>
 
-            {/* フィルタ / 検索バー */}
+            {/* フィルタ / 検索バー / 更新ボタン */}
             <form
                 onSubmit={handleSearch}
                 className="flex flex-wrap items-center justify-between gap-3"
@@ -1149,7 +1213,7 @@ function UserList() {
                                 </div>
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="ALL">すべて</SelectItem>
+                                <SelectItem value="ALL">すべての所属</SelectItem>
                                 <SelectItem value="-1">未所属</SelectItem>
                                 {groupList.map(g => (
                                     <SelectItem key={g.groupId} value={String(g.groupId)}>
@@ -1159,6 +1223,18 @@ function UserList() {
                             </SelectContent>
                         </Select>
                     </div>
+
+                    {/* ★ 手動更新ボタン */}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={handleManualRefresh}
+                        title="リストを最新の情報に更新"
+                        className="bg-white"
+                    >
+                        <RotateCw className={`w-4 h-4 text-slate-600 ${loading ? 'animate-spin' : ''}`} />
+                    </Button>
                 </div>
             </form>
 
@@ -1285,24 +1361,84 @@ function UserList() {
                 表示中: {processedUsers.length}人 / 合計: {totalElements}人
             </div>
 
-            {/* ★ 新規所属追加フォーム (管理者のみ表示) */}
+            {/* ★ 新規所属追加フォーム & 管理ボタン (管理者のみ表示) */}
             {String(currentUserRole || '').toUpperCase() === 'ADMIN' && (
                 <div className="mt-8 pt-6 border-t">
-                    <h3 className="text-sm font-semibold text-slate-700 mb-3">新しい所属先を追加</h3>
-                    <div className="flex gap-2 max-w-md">
-                        <Input
-                            placeholder="追加する所属名（例: 大阪、福岡）"
-                            value={newGroupName}
-                            onChange={(e) => setNewGroupName(e.target.value)}
-                            className="bg-white"
-                        />
-                        <Button
-                            onClick={handleAddGroup}
-                            disabled={isAddingGroup || !newGroupName.trim()}
-                        >
-                            {isAddingGroup ? <Spinner className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-                            追加
-                        </Button>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-sm font-semibold text-slate-700 mb-3">新しい所属先を追加</h3>
+                            <div className="flex gap-2 max-w-md">
+                                <Input
+                                    placeholder="例: 大阪、福岡"
+                                    value={newGroupName}
+                                    onChange={(e) => setNewGroupName(e.target.value)}
+                                    className="bg-white w-[200px]"
+                                />
+                                <Button
+                                    onClick={handleAddGroup}
+                                    disabled={isAddingGroup || !newGroupName.trim()}
+                                >
+                                    {isAddingGroup ? <Spinner className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                                    追加
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* ★ 所属一覧・削除ダイアログを起動するボタン */}
+                        <Dialog open={openGroupManager} onOpenChange={setOpenGroupManager}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" className="mt-6">
+                                    所属リスト管理
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md">
+                                <DialogHeader>
+                                    <DialogTitle>所属リストの管理</DialogTitle>
+                                    <DialogDescription>
+                                        登録されている所属一覧です。削除すると、その所属のユーザーは「未所属」になります。
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="mt-4 max-h-[60vh] overflow-y-auto border rounded-md">
+                                    {groupList.length === 0 ? (
+                                        <div className="p-4 text-sm text-slate-500 text-center">所属がありません</div>
+                                    ) : (
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="bg-slate-50 text-slate-600 sticky top-0">
+                                            <tr>
+                                                <th className="py-2 px-4 font-medium">ID</th>
+                                                <th className="py-2 px-4 font-medium">所属名</th>
+                                                <th className="py-2 px-4 text-right">操作</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                            {groupList.map((g) => (
+                                                <tr key={g.groupId}>
+                                                    <td className="py-2 px-4 text-slate-500">{g.groupId}</td>
+                                                    <td className="py-2 px-4 font-medium">{g.groupName}</td>
+                                                    <td className="py-2 px-4 text-right">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                            onClick={() => handleDeleteGroup(g.groupId)}
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                            <span className="sr-only">削除</span>
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+                                <DialogFooter>
+                                    <Button variant="secondary" onClick={() => setOpenGroupManager(false)}>
+                                        閉じる
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </div>
                 </div>
             )}
