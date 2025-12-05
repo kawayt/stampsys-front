@@ -582,13 +582,14 @@ export function ClassList({ role }) {
                     {stampManagementClass && (
                         <ClassStampManagement
                             classId={stampManagementClass.classId}
+                            userId={currentUserId}
                             open={!!stampManagementClass}
                         />
                     )}
                 </DialogContent>
             </Dialog>
 
-            {/* 参加エラーダイアログ (shadcn/ui) */}
+            {/* 参加エラーダイアログ */}
             <Dialog
                 open={!!joinError}
                 onOpenChange={(open) => {

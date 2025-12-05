@@ -46,7 +46,7 @@ const ROOM_TAB = {
     HIDDEN: "hidden", // hidden=true
 };
 
-export function RoomList({ role }) {
+export function RoomList({ userId, role }) {
     const isAdmin = role === "ADMIN";
 
     const { classId } = useParams();
@@ -987,6 +987,7 @@ export function RoomList({ role }) {
 
                             <ClassStampManagement
                                 classId={classId}
+                                userId={userId}
                                 open={openStampDialog}
                             />
                         </DialogContent>

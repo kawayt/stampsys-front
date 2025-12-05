@@ -1,14 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition";
 import { Trash2, Plus } from "lucide-react";
 
-export function ClassStampManagement({ classId, open }) {
+export function ClassStampManagement({ classId, open, userId }) {
     const [assignedStamps, setAssignedStamps] = useState([]);
     const [unassignedStamps, setUnassignedStamps] = useState([]);
     const [stampLoading, setStampLoading] = useState(false);
     const [stampError, setStampError] = useState(null);
     const [stampProcessing, setStampProcessing] = useState(false);
+    const [showOnlyMyStamps, setShowOnlyMyStamps] = useState(false);
 
     const handleAuthRedirectIfNeeded = async (res) => {
         if (res.status === 401 || res.redirected) {
@@ -120,6 +121,18 @@ export function ClassStampManagement({ classId, open }) {
         }
     };
 
+    // 「自分が作成したスタンプのみ」フィルタ済みのリスト
+    const filteredUnassignedStamps = useMemo(() => {
+        if (!showOnlyMyStamps || !userId) {
+            return unassignedStamps;
+        }
+        return unassignedStamps.filter((stamp) => {
+            if (!stamp) return false;
+            // 型の違いに影響されないように文字列で比較
+            return String(stamp.userId) === String(userId);
+        });
+    }, [showOnlyMyStamps, userId, unassignedStamps]);
+
     // 親(Dialog) から渡される `open` が true のときにだけ読み込む
     useEffect(() => {
         if (open) {
@@ -206,14 +219,35 @@ export function ClassStampManagement({ classId, open }) {
                             追加できるスタンプ
                         </p>
 
+                        {/* フィルタ: 自分が作成したスタンプのみ */}
+                        <div className="mb-2 flex items-center gap-2">
+                            <input
+                                id="show-only-my-stamps"
+                                type="checkbox"
+                                className="h-3 w-3 accent-slate-700"
+                                checked={showOnlyMyStamps}
+                                onChange={(e) => setShowOnlyMyStamps(e.target.checked)}
+                                disabled={!userId}
+                            />
+                            <label
+                                htmlFor="show-only-my-stamps"
+                                className={`text-xs ${
+                                    userId ? "text-slate-600" : "text-slate-300"
+                                }`}
+                            >
+                                自分が作成したスタンプのみ表示
+                                {!userId && "（ログインユーザーID未取得）"}
+                            </label>
+                        </div>
+
                         <div className="max-h-[400px] overflow-y-auto pr-1">
-                            {unassignedStamps.length === 0 ? (
+                            {filteredUnassignedStamps.length === 0 ? (
                                 <p className="text-xs text-slate-400">
                                     スタンプはありません。
                                 </p>
                             ) : (
                                 <ul className="space-y-1">
-                                    {unassignedStamps.map((stamp) => {
+                                    {filteredUnassignedStamps.map((stamp) => {
                                         if (!stamp) return null;
                                         const color = getStampColorByCode(
                                             Number(stamp.stampColor) || 0
