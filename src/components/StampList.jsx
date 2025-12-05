@@ -230,9 +230,35 @@ function StampList({ userId }) {
             {/* ヘッダー */}
             <div className="mb-6 flex items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-lg font-semibold text-slate-800">
-                        すべてのスタンプ
-                    </h2>
+                    <Select
+                        value={showMine ? "mine" : "all"}
+                        onValueChange={(value) => {
+                            const isMine = value === "mine";
+                            setShowMine(isMine);
+                            fetchStamps(isMine);
+                        }}
+                    >
+                        <SelectTrigger
+                            className="
+                                    inline-flex h-auto items-center gap-1 border-0
+                                    bg-transparent px-0 py-0 shadow-none
+                                    text-lg font-semibold text-slate-800
+                                    focus:ring-0 focus:ring-offset-0
+                                "
+                        >
+                                <span>
+                                    {showMine ? "自分が作成したスタンプ" : "すべてのスタンプ"}
+                                </span>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">
+                                すべてのスタンプ
+                            </SelectItem>
+                            <SelectItem value="mine">
+                                自分が作成したスタンプ
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -258,22 +284,6 @@ function StampList({ userId }) {
                             )}
                         </div>
                     </div>
-
-                    {/* 追加: 自分が作成したスタンプのみ チェックボックス（最小変更で追加） */}
-                    <label className="flex items-center gap-2 mr-2 text-sm">
-                        <input
-                            type="checkbox"
-                            checked={showMine}
-                            onChange={(e) => {
-                                const checked = e.target.checked;
-                                setShowMine(checked);
-                                // チェック状態に応じて API を叩いて切替
-                                fetchStamps(checked);
-                            }}
-                            className="w-4 h-4"
-                        />
-                        <span className="text-sm text-slate-700">自分が作成したスタンプのみ</span>
-                    </label>
 
                     {/* 新規追加ダイアログトリガー */}
                     <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
