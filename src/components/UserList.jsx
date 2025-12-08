@@ -144,6 +144,8 @@ function UserList() {
     const [roleFilter, setRoleFilter] = useState('ALL');
     const [groupMap, setGroupMap] = useState({});
     const [groupList, setGroupList] = useState([]);
+    // ▼ 追加: グループごとの人数を保持するステート
+    const [groupCounts, setGroupCounts] = useState({});
     const [groupFilter, setGroupFilter] = useState('ALL');
     const [newGroupName, setNewGroupName] = useState('');
     const [isAddingGroup, setIsAddingGroup] = useState(false);
@@ -211,6 +213,20 @@ function UserList() {
         }
     };
 
+    // ▼ 追加: グループごとの人数を取得する関数
+    const fetchGroupCounts = async () => {
+        try {
+            const res = await fetchWithCreds('/api/users/counts/groups');
+            if (res.ok) {
+                const data = await res.json();
+                // nullキー（未所属）の調整などが必要ならここで行う
+                setGroupCounts(data || {});
+            }
+        } catch (err) {
+            console.error("グループ人数の取得に失敗しました", err);
+        }
+    };
+
     useEffect(() => {
         (async () => {
             setLoading(true);
@@ -220,7 +236,13 @@ function UserList() {
                 setError(null);
                 return;
             }
-            await Promise.all([fetchUsers(0, pageSize), fetchCounts(), fetchGroups()]);
+            // ▼ 変更: fetchGroupCounts も初期ロードに追加
+            await Promise.all([
+                fetchUsers(0, pageSize),
+                fetchCounts(),
+                fetchGroups(),
+                fetchGroupCounts()
+            ]);
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -228,7 +250,6 @@ function UserList() {
     useEffect(() => {
         (async () => {
             if (currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT') return;
-            // フィルタ変更時はページをリセットして再取得するのが適切な挙動
             setCurrentPage(0);
             await fetchUsers(0, pageSize, searchQuery);
         })();
@@ -370,17 +391,14 @@ function UserList() {
         fetchUsers(0, pageSize, searchQuery);
     };
 
-    // ---------- 修正: ロール変更 ----------
     const handleRoleChange = async (userId, newRole) => {
         if (currentUserRole !== 'ADMIN') {
             notifyError('権限がありません');
             return;
         }
 
-        // 1. バックアップを作成（失敗時のロールバック用）
         const previousUsers = [...users];
 
-        // 2. 画面上のデータを先行更新 (Optimistic Update)
         setUsers((prevUsers) =>
             prevUsers.map((u) => {
                 const uid = u.userId ?? u.id ?? u.user_id;
@@ -401,18 +419,15 @@ function UserList() {
             await res.json().catch(() => null);
 
             notifySuccess('ロールを変更しました');
-            // ここで fetchUsers を呼ばないことで、現在の並び順とページ位置を維持します
-
-            // カウント情報は全体数に関わるため更新
             await fetchCounts();
+            // ロール変更も集計に影響しうる（所属は変わらないが念のため）
+            await fetchGroupCounts();
         } catch (err) {
-            // エラー時は元に戻す
             setUsers(previousUsers);
             notifyError(err.message || err);
         }
     };
 
-    // ---------- 修正: 所属変更 ----------
     const handleGroupChange = async (userId, newGroupIdStr) => {
         if (currentUserRole !== 'ADMIN') {
             notifyError('権限がありません');
@@ -423,7 +438,6 @@ function UserList() {
         const newGroupId = parseInt(newGroupIdStr, 10);
         const apiGroupId = newGroupId === -1 ? null : newGroupId;
 
-        // 1. 画面上のデータを先行更新 (Optimistic Update)
         setUsers((prevUsers) =>
             prevUsers.map((u) => (u.userId === userId ? { ...u, groupId: apiGroupId } : u))
         );
@@ -442,13 +456,11 @@ function UserList() {
             await res.json().catch(() => null);
 
             notifySuccess('所属を変更しました');
-            // ここで fetchUsers を呼ばないことで、現在の並び順とページ位置を維持します
-
-            // カウント情報は更新
             await fetchCounts();
+            // ▼ 追加: 所属が変わったのでグループ別人数も再取得
+            await fetchGroupCounts();
 
         } catch (err) {
-            // エラー時は元に戻す
             setUsers(previousUsers);
             notifyError(err.message || err);
         }
@@ -456,6 +468,7 @@ function UserList() {
 
     const handleManualRefresh = () => {
         fetchUsers(currentPage, pageSize, searchQuery);
+        fetchGroupCounts(); // 手動更新時も人数を更新
         notifySuccess("リストを最新の状態に更新しました");
     };
 
@@ -472,6 +485,7 @@ function UserList() {
 
             setNewGroupName('');
             await fetchGroups();
+            await fetchGroupCounts(); // 追加時は人数0だが一応更新
             notifySuccess('新しい所属先を追加しました');
         } catch (err) {
             notifyError(err.message || '追加に失敗しました');
@@ -519,10 +533,9 @@ function UserList() {
             if (!res.ok) await handleApiError(res);
             await res.json().catch(() => null);
 
-            // 削除・再表示の場合はリストから消える/増えるためサーバー同期が必要だが、
-            // 現在のページ位置は維持する
             await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
+            await fetchGroupCounts(); // 削除/復元で人数が変わるため
 
             const msg = willHide ? `${targetName} を削除しました` : `${targetName} を復元しました`;
             setDeleteDialogOpen(false);
@@ -545,8 +558,8 @@ function UserList() {
 
             notifySuccess('所属を削除しました');
             await fetchGroups();
-            // 所属削除の影響を受けたユーザーがいるかもしれないので、ここは安全のためリスト更新（ページ維持）
             await fetchUsers(currentPage, pageSize, searchQuery);
+            await fetchGroupCounts(); // 削除で人数移動があるため
         } catch (err) {
             notifyError(err.message || '削除に失敗しました');
         }
@@ -606,9 +619,9 @@ function UserList() {
                         String(u?.userId ?? u?.id ?? u?.user_id) !== idStr,
                 ),
             );
-            // 復元後も現在のページを維持
             await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
+            await fetchGroupCounts(); // 復元で人数が変わるため
 
             const msg = `${targetName} を復元しました`;
             setRestoreDialogOpen(false);
@@ -623,7 +636,6 @@ function UserList() {
         }
     };
 
-    // サーバーの content をそのまま使用（クライアント再フィルタなし）
     const processedUsers = users;
 
     const isStudent = currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT';
@@ -781,6 +793,14 @@ function UserList() {
         );
     }
 
+    // nullキーは "null" という文字列キーで返ってくる場合と、Mapの仕様による場合がありますが、JSON.stringifyではキーは文字列になります。
+    // そのため、groupCounts['null'] か groupCounts[null] をケアしつつ、未所属(-1)は別途対応
+    const getCountForGroup = (gid) => {
+        // BackendのMap<Integer, Long>はJSON化されるとキーが文字列になります "1": 10
+        return groupCounts[gid] || 0;
+    };
+    const unassignedCount = groupCounts['null'] || groupCounts[null] || 0;
+
     return (
         <div className="mx-auto space-y-4 py-4">
             {/* タイトル */}
@@ -802,6 +822,7 @@ function UserList() {
                         innerRef={(el) => (cardRefs.current[0] = el)}
                         onClick={() => setRoleFilter((prev) => (prev === 'ADMIN' ? 'ALL' : 'ADMIN'))}
                     />
+
                     <CountCard
                         title="教員"
                         count={counts.teacher}
@@ -995,24 +1016,30 @@ function UserList() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="ALL">すべての所属</SelectItem>
-                                <SelectItem value="-1">未所属</SelectItem>
+                                {/* ▼ 変更: 未所属のカウント表示 */}
+                                <SelectItem value="-1">未所属 ({unassignedCount})</SelectItem>
                                 {groupList.map(g => (
+                                    /* ▼ 変更: 各グループのカウント表示 */
                                     <SelectItem key={g.groupId} value={String(g.groupId)}>
-                                        {g.groupName}
+                                        {g.groupName} ({getCountForGroup(g.groupId)})
                                     </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                     </div>
 
-                    {/* ★ 手動更新ボタン (テキスト付き) */}
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleManualRefresh}
-                        className="bg-white h-9 px-3 text-xs"
-                    ><RotateCw className={`w-3.5 h-3.5 mr-2 text-slate-600 ${loading ? 'animate-spin' : ''}`}/>
-                    </Button>
+                    {/* ★ 手動更新ボタン (管理者のみ表示) */}
+                    {String(currentUserRole || '').toUpperCase() === 'ADMIN' && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleManualRefresh}
+                            className="bg-white h-9 px-3 text-xs"
+                        >
+                            <RotateCw className={`w-3.5 h-3.5 mr-2 text-slate-600 ${loading ? 'animate-spin' : ''}`} />
+                            所属情報を更新
+                        </Button>
+                    )}
                 </div>
             </form>
 
@@ -1185,6 +1212,7 @@ function UserList() {
                                             <tr>
                                                 <th className="py-2 px-4 font-medium">ID</th>
                                                 <th className="py-2 px-4 font-medium">所属名</th>
+                                                <th className="py-2 px-4 text-center">人数</th>
                                                 <th className="py-2 px-4 text-right">操作</th>
                                             </tr>
                                             </thead>
@@ -1193,6 +1221,10 @@ function UserList() {
                                                 <tr key={g.groupId}>
                                                     <td className="py-2 px-4 text-slate-500">{g.groupId}</td>
                                                     <td className="py-2 px-4 font-medium">{g.groupName}</td>
+                                                    <td className="py-2 px-4 text-center text-slate-600">
+                                                        {/* ▼ 追加: 管理画面での人数表示 */}
+                                                        {getCountForGroup(g.groupId)}人
+                                                    </td>
                                                     <td className="py-2 px-4 text-right">
                                                         <Button
                                                             variant="ghost"
