@@ -116,6 +116,9 @@ function RoomHistory() {
     const [error, setError] = useState("");
     const [data, setData] = useState(null); // { timeline, totals, series }
 
+    // 追加: ルーム名ステート
+    const [roomName, setRoomName] = useState("");
+
     const [showAllKinds, setShowAllKinds] = useState(true);
     const [showTotal, setShowTotal] = useState(false);
     const [selectedKinds, setSelectedKinds] = useState([]); // ["Good","Great",...]
@@ -152,6 +155,8 @@ function RoomHistory() {
         // reset group filters too
         setShowAllGroups(true);
         setSelectedGroups([]);
+        // reset room name
+        setRoomName("");
     }, [roomId]);
 
     const handleFetch = async () => {
@@ -172,6 +177,10 @@ function RoomHistory() {
             });
 
             setData(resp);
+
+            // 追加: resp に roomName/room_name/name があれば roomName にセット
+            const name = resp?.roomName ?? resp?.room_name ?? resp?.name ?? "";
+            setRoomName(name);
 
             // 初回（開始・終了が未指定）のみ、デフォルトで範囲をセット
             if (
@@ -583,7 +592,12 @@ function RoomHistory() {
 
             {/* ヘッダ */}
             <div className="flex items-center justify-between gap-4">
-                <h2 className="text-xl font-bold">スタンプ履歴 - ルーム{roomId}</h2>
+                <div>
+                    <h2 className="text-xl font-bold">スタンプ履歴 - ルーム{roomId}</h2>
+                    {roomName && (
+                        <p className="mt-1 text-xl font-bold">{roomName}</p>
+                    )}
+                </div>
 
                 {/* タブ切替（画面中央付近、タイトルの右側） */}
                 <Tabs

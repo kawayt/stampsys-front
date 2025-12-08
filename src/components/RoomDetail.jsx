@@ -81,6 +81,9 @@ export function RoomDetail({ userId, role }) {
     const [summaryLoading, setSummaryLoading] = useState(false);
     const [summaryError, setSummaryError] = useState(null);
 
+    // 追加: ルーム名を保持するステート
+    const [roomName, setRoomName] = useState("");
+
     // メモ一覧再読み込み用 key
     const [notesKey, setNotesKey] = useState(0);
 
@@ -88,6 +91,8 @@ export function RoomDetail({ userId, role }) {
 
     const sseRef = useRef(null);
 
+    // stamps エンドポイントは既存の配列を返す場合と、{ roomName, stamps: [...] } のように
+    // room 名を含めて返す場合の両方に対応するようにしています。
     const fetchStamps = async () => {
         setLoading(true);
         setError(null);
@@ -97,7 +102,18 @@ export function RoomDetail({ userId, role }) {
                 throw new Error(`スタンプ一覧の取得に失敗しました: ${res.status}`);
             }
             const data = await res.json();
-            setStamps(data || []);
+
+            // もしオブジェクト形式で { roomName, stamps } を返していれば roomName を取り出す
+            if (data && !Array.isArray(data) && (data.stamps || data.roomName || data.room_name || data.name)) {
+                // roomName の可能なキーを順にチェック
+                const name = data.roomName ?? data.room_name ?? data.name;
+                if (name) setRoomName(name);
+                const stampsArr = Array.isArray(data.stamps) ? data.stamps : [];
+                setStamps(stampsArr);
+            } else {
+                // 単なる配列で返ってくる従来ケース
+                setStamps(Array.isArray(data) ? data : []);
+            }
         } catch (err) {
             console.error(err);
             setError(err.message ?? "スタンプ一覧取得時にエラーが発生しました");
@@ -173,7 +189,27 @@ export function RoomDetail({ userId, role }) {
         }
     };
 
+    // ルーム名だけを取得する汎用的なヘルパー（/api/rooms/:id がある場合に使う）
+    const fetchRoomInfo = async () => {
+        try {
+            const res = await fetch(`/api/rooms/${encodeURIComponent(roomId)}`);
+            if (!res.ok) {
+                // 404 等は想定されるためエラーで止めずに無視（スタンプ取得時に roomName が含まれる可能性がある）
+                console.debug("fetchRoomInfo returned non-ok:", res.status);
+                return;
+            }
+            const d = await res.json();
+            const name = d?.roomName ?? d?.room_name ?? d?.name;
+            if (name) setRoomName(name);
+        } catch (err) {
+            console.debug("fetchRoomInfo failed:", err);
+            // silent
+        }
+    };
+
     useEffect(() => {
+        // ルーム情報（可能なら）を先に取得しておき、スタンプも取得
+        fetchRoomInfo();
         fetchStamps();
         fetchStampSummary();
 
@@ -251,9 +287,6 @@ export function RoomDetail({ userId, role }) {
 
         es.onerror = (err) => {
             console.error("SSE error:", err);
-            // EventSource auto-reconnects by default; we can close on fatal error if desired
-            // es.close();
-            // setSummaryError("サーバーとの接続でエラーが発生しました");
         };
 
         return () => {
@@ -368,6 +401,10 @@ export function RoomDetail({ userId, role }) {
                     <h2 className="text-lg font-semibold text-slate-800">
                         ルーム詳細 - ルーム{roomId}
                     </h2>
+                    {/* ここに room_name を表示 */}
+                    {roomName && (
+                        <p className="mt-1 text-lg font-semibold text-slate-800">{roomName}</p>
+                    )}
                 </div>
             </div>
 
