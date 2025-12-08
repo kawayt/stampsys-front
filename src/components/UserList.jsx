@@ -36,64 +36,33 @@ import {
 } from '@tanstack/react-table';
 import { notifySuccess, notifyError } from "@/utils/notify";
 
-/**
- * roleLabel: map role code to Japanese label
- */
+const ROLE_ORDER = ['ADMIN', 'TEACHER', 'STUDENT'];
+const CARD_ROLES = ['ADMIN', 'TEACHER', 'STUDENT'];
+const DEFAULT_PAGE_SIZE = 20;
+
 const roleLabel = (role) => {
     if (!role) return '';
     switch (String(role).toUpperCase()) {
-        case 'ADMIN':
-            return '管理者';
-        case 'TEACHER':
-            return '教員';
-        case 'STUDENT':
-            return '学生';
-        default:
-            return role;
+        case 'ADMIN': return '管理者';
+        case 'TEACHER': return '教員';
+        case 'STUDENT': return '学生';
+        default: return role;
     }
 };
 
-/**
- * small RoleIcon for role column / selects
- */
 function RoleIconSmall({ role, className = 'h-6 w-6' }) {
     const r = String(role || '').toUpperCase();
-
-    if (r === 'ADMIN') {
-        return (
-            <Shield
-                className={`${className} text-rose-600`}
-                aria-hidden
-            />
-        );
-    }
-    if (r === 'TEACHER') {
-        return (
-            <GraduationCap
-                className={`${className} text-blue-600`}
-                aria-hidden
-            />
-        );
-    }
-    return (
-        <User
-            className={`${className} text-emerald-600`}
-            aria-hidden
-        />
-    );
+    if (r === 'ADMIN') return <Shield className={`${className} text-rose-600`} aria-hidden />;
+    if (r === 'TEACHER') return <GraduationCap className={`${className} text-blue-600`} aria-hidden />;
+    return <User className={`${className} text-emerald-600`} aria-hidden />;
 }
 
-/**
- * Simple toast component
- */
 function ToastSingle({ open, message, onClose, autoHideMs = 5000 }) {
     useEffect(() => {
-        if (!open) return undefined;
-        if (!autoHideMs) return undefined;
+        if (!open || !autoHideMs) return;
         const t = setTimeout(() => onClose(), autoHideMs);
         return () => clearTimeout(t);
     }, [open, autoHideMs, onClose]);
-
     if (!open) return null;
     return (
         <div
@@ -101,68 +70,38 @@ function ToastSingle({ open, message, onClose, autoHideMs = 5000 }) {
             aria-live="polite"
             onClick={onClose}
             style={{
-                position: 'fixed',
-                right: 20,
-                bottom: 24,
-                zIndex: 9999,
-                background: 'rgba(17,24,39,0.95)',
-                color: '#fff',
-                padding: '12px 16px',
-                borderRadius: 8,
+                position: 'fixed', right: 20, bottom: 24, zIndex: 9999,
+                background: 'rgba(17,24,39,0.95)', color: '#fff',
+                padding: '12px 16px', borderRadius: 8,
                 boxShadow: '0 6px 24px rgba(0,0,0,0.15)',
-                cursor: 'pointer',
-                maxWidth: '360px',
-                pointerEvents: 'auto',
+                cursor: 'pointer', maxWidth: '360px', pointerEvents: 'auto',
             }}
         >
             <div style={{ fontWeight: 600, marginBottom: 6 }}>操作が完了しました</div>
             <div style={{ fontSize: 13, opacity: 0.95 }}>{message}</div>
-            <div style={{ fontSize: 11, opacity: 0.75, marginTop: 8 }}>
-                クリックで閉じる
-            </div>
+            <div style={{ fontSize: 11, opacity: 0.75, marginTop: 8 }}>クリックで閉じる</div>
         </div>
     );
 }
 
-/* CountCard */
-function CountCard({
-                       title,
-                       count,
-                       colorClass = 'bg-gray-50',
-                       icon,
-                       active = false,
-                       onClick,
-                       innerRef = null,
-                   }) {
+function CountCard({ title, count, colorClass = 'bg-gray-50', icon, active = false, onClick, innerRef = null }) {
     const iconNode = typeof icon === 'function' ? icon() : icon;
     return (
         <button
             type="button"
             onClick={onClick}
             ref={innerRef}
-            className={`flex-1 min-w-[160px] transition rounded-lg ${
-                active ? 'ring-2 ring-offset-2 ring-indigo-200' : ''
-            } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400`}
+            className={`flex-1 min-w-[160px] transition rounded-lg ${active ? 'ring-2 ring-offset-2 ring-indigo-200' : ''} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400`}
             aria-pressed={active}
             aria-label={`${title} を絞り込む`}
         >
-            <div
-                className={`flex items-center gap-4 rounded-lg ${
-                    active
-                        ? 'bg-indigo-50 border border-indigo-200 text-slate-900'
-                        : 'bg-white'
-                } p-4 shadow-sm hover:shadow-md transition`}
-            >
-                <div
-                    className={`${colorClass} shrink-0 rounded-md p-3 flex items-center justify-center`}
-                    aria-hidden="true"
-                >
+            <div className={`flex items-center gap-4 rounded-lg ${active ? 'bg-indigo-50 border border-indigo-200 text-slate-900' : 'bg-white'} p-4 shadow-sm hover:shadow-md transition`}>
+                <div className={`${colorClass} shrink-0 rounded-md p-3 flex items-center justify-center`} aria-hidden="true">
                     {iconNode}
                 </div>
                 <div className="flex flex-col text-left">
                     <div className="text-sm text-slate-500">
-                        {title}
-                        {active && <span className="sr-only">、選択中</span>}
+                        {title}{active && <span className="sr-only">、選択中</span>}
                     </div>
                     <div className="mt-1 text-2xl font-semibold text-slate-800">
                         {count}人
@@ -173,7 +112,6 @@ function CountCard({
     );
 }
 
-/* Pagination buttons renderer */
 function renderPageButtons(currentPage, totalPages, goToPage) {
     if (!totalPages || totalPages <= 1) return null;
     const buttons = [];
@@ -181,18 +119,11 @@ function renderPageButtons(currentPage, totalPages, goToPage) {
     const half = Math.floor(windowSize / 2);
     let start = Math.max(0, currentPage - half);
     let end = Math.min(totalPages - 1, currentPage + half);
-    if (currentPage - start < half)
-        end = Math.min(totalPages - 1, end + (half - (currentPage - start)));
-    if (end - currentPage < half)
-        start = Math.max(0, start - (half - (end - currentPage)));
+    if (currentPage - start < half) end = Math.min(totalPages - 1, end + (half - (currentPage - start)));
+    if (end - currentPage < half) start = Math.max(0, start - (half - (end - currentPage)));
     for (let i = start; i <= end; i++) {
         buttons.push(
-            <Button
-                key={i}
-                variant={i === currentPage ? undefined : 'outline'}
-                onClick={() => goToPage(i)}
-                aria-label={`ページ ${i + 1} を表示`}
-            >
+            <Button key={i} variant={i === currentPage ? undefined : 'outline'} onClick={() => goToPage(i)} aria-label={`ページ ${i + 1} を表示`}>
                 {i + 1}
             </Button>,
         );
@@ -200,12 +131,6 @@ function renderPageButtons(currentPage, totalPages, goToPage) {
     return buttons;
 }
 
-/* CONSTANTS */
-const ROLE_ORDER = ['ADMIN', 'TEACHER', 'STUDENT'];
-const CARD_ROLES = ['ADMIN', 'TEACHER', 'STUDENT'];
-const DEFAULT_PAGE_SIZE = 20;
-
-/* Main component */
 function UserList() {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -215,79 +140,48 @@ function UserList() {
     const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
     const [totalPages, setTotalPages] = useState(0);
     const [totalElements, setTotalElements] = useState(0);
-    const [counts, setCounts] = useState({
-        admin: 0,
-        teacher: 0,
-        student: 0,
-        total: 0,
-    });
+    const [counts, setCounts] = useState({ admin: 0, teacher: 0, student: 0, total: 0 });
     const [roleFilter, setRoleFilter] = useState('ALL');
-    const [roleSort] = useState('NONE');
-
-    // ★ グループ管理用ステート
     const [groupMap, setGroupMap] = useState({});
     const [groupList, setGroupList] = useState([]);
-    const [groupFilter, setGroupFilter] = useState('ALL'); // 絞り込み用
-    const [newGroupName, setNewGroupName] = useState('');  // 新規追加用
+    const [groupFilter, setGroupFilter] = useState('ALL');
+    const [newGroupName, setNewGroupName] = useState('');
     const [isAddingGroup, setIsAddingGroup] = useState(false);
-    // ★ グループ管理ダイアログの開閉状態
     const [openGroupManager, setOpenGroupManager] = useState(false);
-
     const [hiddenLoading, setHiddenLoading] = useState(false);
     const [hiddenUsers, setHiddenUsers] = useState([]);
     const [hiddenError, setHiddenError] = useState(null);
     const [openHiddenDialog, setOpenHiddenDialog] = useState(false);
     const [currentUserRole, setCurrentUserRole] = useState(null);
-
     const cardRefs = useRef([]);
     const [restoringId, setRestoringId] = useState(null);
-
-    // dialogs
     const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
     const [restoreDialogUser, setRestoreDialogUser] = useState(null);
     const [restoreError, setRestoreError] = useState(null);
-
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleteTargetUser, setDeleteTargetUser] = useState(null);
     const [hideToggleLoading, setHideToggleLoading] = useState(false);
     const [hideToggleError, setHideToggleError] = useState(null);
-
     const [successDialogOpen, setSuccessDialogOpen] = useState(false);
     const [successDialogMessage, setSuccessDialogMessage] = useState('');
     const [pendingSuccessMessage, setPendingSuccessMessage] = useState('');
-
     const [toastOpen, setToastOpen] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
 
     const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
     const fetchWithCreds = (url, options = {}) => {
-        const resolvedUrl =
-            typeof url === 'string' && url.startsWith('/api') && API_BASE
-                ? `${API_BASE}${url}`
-                : url;
-        const opts = {
-            credentials: 'include',
-            headers: { Accept: 'application/json', ...options.headers },
-            ...options,
-        };
+        const resolvedUrl = typeof url === 'string' && url.startsWith('/api') && API_BASE ? `${API_BASE}${url}` : url;
+        const opts = { credentials: 'include', headers: { Accept: 'application/json', ...options.headers }, ...options };
         return fetch(resolvedUrl, opts);
     };
     const parseResponseBody = async (res) => {
         const text = await res.text();
-        try {
-            return JSON.parse(text);
-        } catch {
-            return text;
-        }
+        try { return JSON.parse(text); } catch { return text; }
     };
     const handleApiError = async (res) => {
-        if (res.status === 403)
-            throw new Error(
-                '操作の権限がありません（管理者でログインしているか確認してください）',
-            );
+        if (res.status === 403) throw new Error('操作の権限がありません（管理者でログインしているか確認してください）');
         const body = await parseResponseBody(res);
-        if (body && typeof body === 'object' && body.message)
-            throw new Error(body.message);
+        if (body && typeof body === 'object' && body.message) throw new Error(body.message);
         if (typeof body === 'string' && body.length > 0) throw new Error(body);
         throw new Error('サーバーエラーが発生しました');
     };
@@ -298,11 +192,8 @@ function UserList() {
         fetchUsers(page, pageSize, searchQuery);
     };
 
-    useEffect(() => {
-        cardRefs.current = cardRefs.current.slice(0, CARD_ROLES.length);
-    }, []);
+    useEffect(() => { cardRefs.current = cardRefs.current.slice(0, CARD_ROLES.length); }, []);
 
-    // グループ情報取得
     const fetchGroups = async () => {
         try {
             const res = await fetchWithCreds('/api/groups');
@@ -311,9 +202,7 @@ function UserList() {
                 if (Array.isArray(data)) {
                     setGroupList(data);
                     const map = {};
-                    data.forEach(g => {
-                        map[g.groupId] = g.groupName;
-                    });
+                    data.forEach(g => { map[g.groupId] = g.groupName; });
                     setGroupMap(map);
                 }
             }
@@ -331,19 +220,15 @@ function UserList() {
                 setError(null);
                 return;
             }
-            await Promise.all([
-                fetchUsers(0, pageSize),
-                fetchCounts(),
-                fetchGroups()
-            ]);
+            await Promise.all([fetchUsers(0, pageSize), fetchCounts(), fetchGroups()]);
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
         (async () => {
-            if (currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT')
-                return;
+            if (currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT') return;
+            // フィルタ変更時はページをリセットして再取得するのが適切な挙動
             setCurrentPage(0);
             await fetchUsers(0, pageSize, searchQuery);
         })();
@@ -352,8 +237,7 @@ function UserList() {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT')
-                return;
+            if (currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT') return;
             setCurrentPage(0);
             fetchUsers(0, pageSize, searchQuery);
         }, 500);
@@ -382,22 +266,18 @@ function UserList() {
         const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
         if (!keys.includes(key)) return;
         const active = document.activeElement;
-        const idx = cardRefs.current
-            ? cardRefs.current.findIndex((c) => c === active)
-            : -1;
+        const idx = cardRefs.current ? cardRefs.current.findIndex((c) => c === active) : -1;
         if (idx === -1) return;
         let next = idx;
         const len = CARD_ROLES.length;
         if (key === 'ArrowRight' || key === 'ArrowDown') next = (idx + 1) % len;
-        else if (key === 'ArrowLeft' || key === 'ArrowUp')
-            next = (idx - 1 + len) % len;
+        else if (key === 'ArrowLeft' || key === 'ArrowUp') next = (idx - 1 + len) % len;
         else if (key === 'Home') next = 0;
         else if (key === 'End') next = len - 1;
         e.preventDefault();
         focusCard(next);
     };
 
-    /* API helpers */
     const fetchCurrentUserRole = async () => {
         try {
             const res = await fetchWithCreds('/api/app');
@@ -419,30 +299,15 @@ function UserList() {
         try {
             setLoading(true);
             let url = `/api/users?page=${page}&size=${size}`;
-            if (query && query.trim() !== '')
-                url += `&q=${encodeURIComponent(query)}`;
-            if (roleFilter && roleFilter !== 'ALL')
-                url += `&role=${encodeURIComponent(roleFilter)}`;
-
-            // グループフィルタリング
-            if (groupFilter && groupFilter !== 'ALL') {
-                url += `&groupId=${encodeURIComponent(groupFilter)}`;
-            }
+            if (query && query.trim() !== '') url += `&q=${encodeURIComponent(query)}`;
+            if (roleFilter && roleFilter !== 'ALL') url += `&role=${encodeURIComponent(roleFilter)}`;
+            if (groupFilter && groupFilter !== 'ALL') url += `&groupId=${encodeURIComponent(groupFilter)}`;
 
             const res = await fetchWithCreds(url);
             if (!res.ok) await handleApiError(res);
             const data = await res.json();
 
             if (data && Array.isArray(data.content)) {
-                // 空ページ回避: 現在のページが空で、かつ前のページが存在する場合は戻る
-                const currentTotalPages = data.totalPages || 0;
-                const currentPageNum = data.number || 0;
-
-                if (data.content.length === 0 && currentPageNum > 0 && currentPageNum >= currentTotalPages) {
-                    const prevPage = Math.max(0, currentTotalPages - 1);
-                    return fetchUsers(prevPage, size, query);
-                }
-
                 setUsers(data.content);
                 setTotalElements(data.totalElements || 0);
                 setTotalPages(data.totalPages || 0);
@@ -466,37 +331,25 @@ function UserList() {
             setLoading(false);
         }
     };
+
     const fetchCounts = async () => {
         try {
             const res = await fetchWithCreds('/api/users/counts');
             if (!res.ok) await handleApiError(res);
             const d = await res.json();
-            setCounts({
-                admin: d.admin || 0,
-                teacher: d.teacher || 0,
-                student: d.student || 0,
-                total: d.total || 0,
-            });
-        } catch {
-            /* empty */
-        }
+            setCounts({ admin: d.admin || 0, teacher: d.teacher || 0, student: d.student || 0, total: d.total || 0 });
+        } catch { /* empty */ }
     };
 
     const fetchHiddenUsers = async (query = '') => {
         try {
             setHiddenLoading(true);
-            const url = query
-                ? `/api/users/hidden?q=${encodeURIComponent(query)}`
-                : '/api/users/hidden';
+            const url = query ? `/api/users/hidden?q=${encodeURIComponent(query)}` : '/api/users/hidden';
             const res = await fetchWithCreds(url);
             if (!res.ok) await handleApiError(res);
             const text = await res.text();
             let body;
-            try {
-                body = text ? JSON.parse(text) : null;
-            } catch {
-                body = text;
-            }
+            try { body = text ? JSON.parse(text) : null; } catch { body = text; }
             let usersArray = [];
             if (Array.isArray(body)) usersArray = body;
             else if (body && Array.isArray(body.content)) usersArray = body.content;
@@ -513,16 +366,31 @@ function UserList() {
 
     const handleSearch = (e) => {
         e.preventDefault();
-        if (currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT')
-            return;
+        if (currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT') return;
         fetchUsers(0, pageSize, searchQuery);
     };
 
+    // ---------- 修正: ロール変更 ----------
     const handleRoleChange = async (userId, newRole) => {
         if (currentUserRole !== 'ADMIN') {
             notifyError('権限がありません');
             return;
         }
+
+        // 1. バックアップを作成（失敗時のロールバック用）
+        const previousUsers = [...users];
+
+        // 2. 画面上のデータを先行更新 (Optimistic Update)
+        setUsers((prevUsers) =>
+            prevUsers.map((u) => {
+                const uid = u.userId ?? u.id ?? u.user_id;
+                if (uid === userId) {
+                    return { ...u, role: newRole };
+                }
+                return u;
+            })
+        );
+
         try {
             const res = await fetchWithCreds(`/api/users/${userId}/role`, {
                 method: 'PUT',
@@ -531,41 +399,36 @@ function UserList() {
             });
             if (!res.ok) await handleApiError(res);
             await res.json().catch(() => null);
-            await fetchUsers(currentPage, pageSize, searchQuery);
-            await fetchCounts();
+
             notifySuccess('ロールを変更しました');
-        } catch (err) {
-            notifyError(err.message || err);
-            await fetchUsers(currentPage, pageSize, searchQuery);
+            // ここで fetchUsers を呼ばないことで、現在の並び順とページ位置を維持します
+
+            // カウント情報は全体数に関わるため更新
             await fetchCounts();
+        } catch (err) {
+            // エラー時は元に戻す
+            setUsers(previousUsers);
+            notifyError(err.message || err);
         }
     };
 
-    // ★修正: 所属グループ変更処理（楽観的UI更新 + サーバー通信のみ、再取得なし）
+    // ---------- 修正: 所属変更 ----------
     const handleGroupChange = async (userId, newGroupIdStr) => {
         if (currentUserRole !== 'ADMIN') {
             notifyError('権限がありません');
             return;
         }
 
-        // 変更前の状態を保存
         const previousUsers = [...users];
-
         const newGroupId = parseInt(newGroupIdStr, 10);
-        const apiGroupId = newGroupId === -1 ? null : newGroupId; // -1ならnull
+        const apiGroupId = newGroupId === -1 ? null : newGroupId;
 
-        // 1. UIを先に更新（リストから消えないようにする）
+        // 1. 画面上のデータを先行更新 (Optimistic Update)
         setUsers((prevUsers) =>
-            prevUsers.map((u) => {
-                if (u.userId === userId) {
-                    return { ...u, groupId: apiGroupId };
-                }
-                return u;
-            })
+            prevUsers.map((u) => (u.userId === userId ? { ...u, groupId: apiGroupId } : u))
         );
 
         try {
-            // 2. API送信
             const res = await fetchWithCreds(`/api/users/${userId}/group`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -573,28 +436,29 @@ function UserList() {
             });
 
             if (!res.ok) {
-                // 失敗時
                 const body = await parseResponseBody(res);
                 throw new Error(body.message || "更新に失敗しました");
             }
+            await res.json().catch(() => null);
 
-            // 成功時は通知のみ
             notifySuccess('所属を変更しました');
+            // ここで fetchUsers を呼ばないことで、現在の並び順とページ位置を維持します
+
+            // カウント情報は更新
+            await fetchCounts();
 
         } catch (err) {
-            // エラー時は表示を元に戻す
+            // エラー時は元に戻す
             setUsers(previousUsers);
             notifyError(err.message || err);
         }
     };
 
-    // ★追加: 手動更新処理
     const handleManualRefresh = () => {
         fetchUsers(currentPage, pageSize, searchQuery);
-        notifySuccess("リストを更新しました");
+        notifySuccess("リストを最新の状態に更新しました");
     };
 
-    // ★ 新規グループ追加処理
     const handleAddGroup = async () => {
         if (!newGroupName.trim()) return;
         setIsAddingGroup(true);
@@ -607,7 +471,7 @@ function UserList() {
             if (!res.ok) await handleApiError(res);
 
             setNewGroupName('');
-            await fetchGroups(); // リストを再取得
+            await fetchGroups();
             notifySuccess('新しい所属先を追加しました');
         } catch (err) {
             notifyError(err.message || '追加に失敗しました');
@@ -654,12 +518,13 @@ function UserList() {
             });
             if (!res.ok) await handleApiError(res);
             await res.json().catch(() => null);
+
+            // 削除・再表示の場合はリストから消える/増えるためサーバー同期が必要だが、
+            // 現在のページ位置は維持する
             await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
 
-            const msg = willHide
-                ? `${targetName} を削除しました`
-                : `${targetName} を復元しました`;
+            const msg = willHide ? `${targetName} を削除しました` : `${targetName} を復元しました`;
             setDeleteDialogOpen(false);
             setTimeout(() => {
                 setToastMessage(msg);
@@ -671,22 +536,17 @@ function UserList() {
             setHideToggleLoading(false);
         }
     };
-    // ★ グループ削除処理
+
     const handleDeleteGroup = async (groupId) => {
-        if (!window.confirm("この所属を削除しますか？\n所属しているユーザーは「未所属」になります。")) {
-            return;
-        }
+        if (!window.confirm("この所属を削除しますか？\n所属しているユーザーは「未所属」になります。")) return;
         try {
-            const res = await fetchWithCreds(`/api/groups/${groupId}`, {
-                method: 'DELETE',
-            });
+            const res = await fetchWithCreds(`/api/groups/${groupId}`, { method: 'DELETE' });
             if (!res.ok) await handleApiError(res);
 
             notifySuccess('所属を削除しました');
-
-            // データを再取得して表示を更新
-            await fetchGroups(); // リスト更新
-            await fetchUsers(currentPage, pageSize, searchQuery); // ユーザーの所属表示更新
+            await fetchGroups();
+            // 所属削除の影響を受けたユーザーがいるかもしれないので、ここは安全のためリスト更新（ページ維持）
+            await fetchUsers(currentPage, pageSize, searchQuery);
         } catch (err) {
             notifyError(err.message || '削除に失敗しました');
         }
@@ -746,6 +606,7 @@ function UserList() {
                         String(u?.userId ?? u?.id ?? u?.user_id) !== idStr,
                 ),
             );
+            // 復元後も現在のページを維持
             await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
 
@@ -762,27 +623,11 @@ function UserList() {
         }
     };
 
-    const processedUsers = React.useMemo(() => {
-        let list = users.filter((u) => !u.hidden);
-        if (roleFilter && roleFilter !== 'ALL')
-            list = list.filter((u) => u.role === roleFilter);
-        if (roleSort !== 'NONE') {
-            list = [...list].sort((a, b) => {
-                const ia = ROLE_ORDER.indexOf((a.role || '').toUpperCase());
-                const ib = ROLE_ORDER.indexOf((b.role || '').toUpperCase());
-                const aIndex = ia === -1 ? 99 : ia;
-                const bIndex = ib === -1 ? 99 : ib;
-                return roleSort === 'ASC' ? aIndex - bIndex : bIndex - aIndex;
-            });
-        }
-        return list;
-    }, [users, roleFilter, roleSort]);
+    // サーバーの content をそのまま使用（クライアント再フィルタなし）
+    const processedUsers = users;
 
-    const isAdmin = currentUserRole === 'ADMIN';
-    const isStudent =
-        currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT';
+    const isStudent = currentUserRole && String(currentUserRole).toUpperCase() === 'STUDENT';
 
-    // === tanstack/react-table setup ===
     const columns = React.useMemo(
         () => [
             {
@@ -790,13 +635,8 @@ function UserList() {
                 header: () => <span className="ml-2">ユーザー名</span>,
                 cell: ({ row }) => {
                     const user = row.original;
-                    const name =
-                        user?.userName ?? user?.name ?? user?.fullName ?? '';
-                    return (
-                        <div className="flex items-center ml-2 gap-3">
-                            <span>{name}</span>
-                        </div>
-                    );
+                    const name = user?.userName ?? user?.name ?? user?.fullName ?? '';
+                    return <div className="flex items-center ml-2 gap-3"><span>{name}</span></div>;
                 },
             },
             {
@@ -814,10 +654,7 @@ function UserList() {
                     if (String(currentUserRole || '').toUpperCase() === 'ADMIN') {
                         return (
                             <div className="flex items-center">
-                                <Select
-                                    value={user.role}
-                                    onValueChange={(value) => handleRoleChange(uid, value)}
-                                >
+                                <Select value={user.role} onValueChange={(value) => handleRoleChange(uid, value)}>
                                     <SelectTrigger className="w-[140px] role-select h-8 text-xs">
                                         <SelectValue placeholder="ロールを選択" />
                                     </SelectTrigger>
@@ -844,10 +681,7 @@ function UserList() {
                     }
                     return (
                         <div className="flex items-center">
-                            <span
-                                className="whitespace-nowrap flex items-center gap-2"
-                                aria-label={`権限: ${roleLabel(user.role)}`}
-                            >
+                            <span className="whitespace-nowrap flex items-center gap-2" aria-label={`権限: ${roleLabel(user.role)}`}>
                                 <RoleIconSmall role={user.role} />
                                 {roleLabel(user.role)}
                             </span>
@@ -866,10 +700,7 @@ function UserList() {
 
                     if (String(currentUserRole || '').toUpperCase() === 'ADMIN') {
                         return (
-                            <Select
-                                value={gid ? String(gid) : "-1"}
-                                onValueChange={(val) => handleGroupChange(uid, val)}
-                            >
+                            <Select value={gid ? String(gid) : "-1"} onValueChange={(val) => handleGroupChange(uid, val)}>
                                 <SelectTrigger className="w-[120px] h-8 text-xs">
                                     <SelectValue placeholder="未所属" />
                                 </SelectTrigger>
@@ -900,40 +731,31 @@ function UserList() {
                 header: () => <span>登録日時</span>,
                 cell: ({ row }) => {
                     const user = row.original;
-                    const created =
-                        user?.createdAt ?? user?.created_at ?? '';
-                    return created
-                        ? new Date(created).toLocaleString('ja-JP')
-                        : '';
+                    const created = user?.createdAt ?? user?.created_at ?? '';
+                    return created ? new Date(created).toLocaleString('ja-JP') : '';
                 },
             },
             ...(String(currentUserRole || '').toUpperCase() === 'ADMIN'
-                ? [
-                    {
-                        id: 'actions',
-                        header: () => <span>操作</span>,
-                        cell: ({ row }) => {
-                            const user = row.original;
-                            const name =
-                                user?.userName ??
-                                user?.name ??
-                                user?.fullName ??
-                                '';
-                            return (
-                                <div className="flex gap-2">
-                                    <Button
-                                        variant="destructive"
-                                        onClick={() => openHideToggleDialog(user)}
-                                        aria-label={`${name} を削除`}
-                                        className="focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400 text-xs"
-                                    >
-                                        {user.hidden ? '表示' : '削除'}
-                                    </Button>
-                                </div>
-                            );
-                        },
+                ? [{
+                    id: 'actions',
+                    header: () => <span>操作</span>,
+                    cell: ({ row }) => {
+                        const user = row.original;
+                        const name = user?.userName ?? user?.name ?? user?.fullName ?? '';
+                        return (
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="destructive"
+                                    onClick={() => openHideToggleDialog(user)}
+                                    aria-label={`${name} を削除`}
+                                    className="focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400 text-xs"
+                                >
+                                    {user.hidden ? '表示' : '削除'}
+                                </Button>
+                            </div>
+                        );
                     },
-                ]
+                }]
                 : []),
         ],
         [currentUserRole, groupMap, groupList],
@@ -952,9 +774,7 @@ function UserList() {
                     <h1 className="mb-4 text-lg font-semibold">ユーザー一覧</h1>
                     <Alert variant="destructive">
                         <AlertTitle>エラー</AlertTitle>
-                        <AlertDescription>
-                            学生はこの機能を使用することはできません
-                        </AlertDescription>
+                        <AlertDescription>学生はこの機能を使用することはできません</AlertDescription>
                     </Alert>
                 </div>
             </div>
@@ -965,22 +785,14 @@ function UserList() {
         <div className="mx-auto space-y-4 py-4">
             {/* タイトル */}
             <div className="space-y-1">
-                <h2
-                    id="userlist-heading"
-                    className="text-lg font-semibold text-slate-800"
-                >
+                <h2 id="userlist-heading" className="text-lg font-semibold text-slate-800">
                     すべてのユーザー
                 </h2>
             </div>
 
             {/* サマリーカード */}
             <div className="mb-12" aria-live="polite" aria-atomic="true">
-                <div
-                    className="grid gap-4 grid-cols-1 sm:grid-cols-3"
-                    role="tablist"
-                    aria-label="役割で絞り込む"
-                    onKeyDown={handleCardKeyDown}
-                >
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-3" role="tablist" aria-label="役割で絞り込む" onKeyDown={handleCardKeyDown}>
                     <CountCard
                         title="管理者"
                         count={counts.admin}
@@ -988,11 +800,7 @@ function UserList() {
                         icon={() => <RoleIconSmall role="ADMIN" />}
                         active={roleFilter === 'ADMIN'}
                         innerRef={(el) => (cardRefs.current[0] = el)}
-                        onClick={() =>
-                            setRoleFilter((prev) =>
-                                prev === 'ADMIN' ? 'ALL' : 'ADMIN',
-                            )
-                        }
+                        onClick={() => setRoleFilter((prev) => (prev === 'ADMIN' ? 'ALL' : 'ADMIN'))}
                     />
                     <CountCard
                         title="教員"
@@ -1001,11 +809,7 @@ function UserList() {
                         icon={() => <RoleIconSmall role="TEACHER" />}
                         active={roleFilter === 'TEACHER'}
                         innerRef={(el) => (cardRefs.current[1] = el)}
-                        onClick={() =>
-                            setRoleFilter((prev) =>
-                                prev === 'TEACHER' ? 'ALL' : 'TEACHER',
-                            )
-                        }
+                        onClick={() => setRoleFilter((prev) => (prev === 'TEACHER' ? 'ALL' : 'TEACHER'))}
                     />
                     <CountCard
                         title="学生"
@@ -1014,11 +818,7 @@ function UserList() {
                         icon={() => <RoleIconSmall role="STUDENT" />}
                         active={roleFilter === 'STUDENT'}
                         innerRef={(el) => (cardRefs.current[2] = el)}
-                        onClick={() =>
-                            setRoleFilter((prev) =>
-                                prev === 'STUDENT' ? 'ALL' : 'STUDENT',
-                            )
-                        }
+                        onClick={() => setRoleFilter((prev) => (prev === 'STUDENT' ? 'ALL' : 'STUDENT'))}
                     />
                 </div>
             </div>
@@ -1039,12 +839,7 @@ function UserList() {
                         <DialogTitle>ユーザーを復元</DialogTitle>
                         <DialogDescription>
                             {restoreDialogUser
-                                ? `${
-                                    restoreDialogUser.userName ??
-                                    restoreDialogUser.name ??
-                                    restoreDialogUser.fullName ??
-                                    ''
-                                } を表示状態に戻しますか？`
+                                ? `${restoreDialogUser.userName ?? restoreDialogUser.name ?? restoreDialogUser.fullName ?? ''} を表示状態に戻しますか？`
                                 : ''}
                         </DialogDescription>
                     </DialogHeader>
@@ -1093,15 +888,7 @@ function UserList() {
                         </DialogTitle>
                         <DialogDescription className="text-xs">
                             {deleteTargetUser
-                                ? `${
-                                    deleteTargetUser.userName ??
-                                    deleteTargetUser.name ??
-                                    ''
-                                } を${
-                                    deleteTargetUser.hidden
-                                        ? '復元します。'
-                                        : '削除します。'
-                                }`
+                                ? `${deleteTargetUser.userName ?? deleteTargetUser.name ?? ''} を${deleteTargetUser.hidden ? '復元します。' : '削除します。'}`
                                 : ''}
                         </DialogDescription>
                     </DialogHeader>
@@ -1124,16 +911,10 @@ function UserList() {
                             キャンセル
                         </Button>
                         <Button
-                            variant={
-                                deleteTargetUser?.hidden
-                                    ? 'default'
-                                    : 'destructive'
-                            }
+                            variant={deleteTargetUser?.hidden ? 'default' : 'destructive'}
                             className="text-xs"
                             onClick={performHideToggle}
-                            disabled={
-                                hideToggleLoading || !deleteTargetUser
-                            }
+                            disabled={hideToggleLoading || !deleteTargetUser}
                         >
                             {hideToggleLoading
                                 ? '処理中…'
@@ -1200,7 +981,7 @@ function UserList() {
                             </button>
                         )}
                     </div>
-                    {/* ★ 所属絞り込みフィルタ */}
+                    {/* 所属絞り込みフィルタ */}
                     <div className="w-[180px]">
                         <Select
                             value={groupFilter}
@@ -1224,16 +1005,13 @@ function UserList() {
                         </Select>
                     </div>
 
-                    {/* ★ 手動更新ボタン */}
+                    {/* ★ 手動更新ボタン (テキスト付き) */}
                     <Button
                         type="button"
                         variant="outline"
-                        size="icon"
                         onClick={handleManualRefresh}
-                        title="リストを最新の情報に更新"
-                        className="bg-white"
-                    >
-                        <RotateCw className={`w-4 h-4 text-slate-600 ${loading ? 'animate-spin' : ''}`} />
+                        className="bg-white h-9 px-3 text-xs"
+                    ><RotateCw className={`w-3.5 h-3.5 mr-2 text-slate-600 ${loading ? 'animate-spin' : ''}`}/>
                     </Button>
                 </div>
             </form>
@@ -1384,7 +1162,7 @@ function UserList() {
                             </div>
                         </div>
 
-                        {/* ★ 所属一覧・削除ダイアログを起動するボタン */}
+                        {/* ★ 所属一覧・削除ダイアログ */}
                         <Dialog open={openGroupManager} onOpenChange={setOpenGroupManager}>
                             <DialogTrigger asChild>
                                 <Button variant="outline" className="mt-6">
@@ -1424,8 +1202,7 @@ function UserList() {
                                                         >
                                                             <Trash2 className="w-4 h-4" />
                                                             <span className="sr-only">削除</span>
-                                                        </Button>
-                                                    </td>
+                                                        </Button></td>
                                                 </tr>
                                             ))}
                                             </tbody>
@@ -1471,9 +1248,7 @@ function UserList() {
                             <DialogHeader>
                                 <DialogTitle>
                                     非表示ユーザー
-                                    {hiddenUsers
-                                        ? `（${hiddenUsers.length}人）`
-                                        : ''}
+                                    {hiddenUsers ? `（${hiddenUsers.length}人）` : ''}
                                 </DialogTitle>
                                 <DialogDescription className="text-xs">
                                     復元したいユーザーを選択してください。
@@ -1560,14 +1335,14 @@ function UserList() {
                                                                         ''}
                                                                 </td>
                                                                 <td className="py-2 px-3 align-top">
-                                                                    <span className="whitespace-nowrap flex items-center gap-2">
-                                                                      <RoleIconSmall
-                                                                          role={u?.role}
-                                                                      />
-                                                                        {roleLabel(
-                                                                            u?.role,
-                                                                        )}
-                                                                    </span>
+                                                                        <span className="whitespace-nowrap flex items-center gap-2">
+                                                                            <RoleIconSmall
+                                                                                role={u?.role}
+                                                                            />
+                                                                            {roleLabel(
+                                                                                u?.role,
+                                                                            )}
+                                                                        </span>
                                                                 </td>
                                                                 <td className="py-2 px-3 align-top">
                                                                     {created
