@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition.js";
 import { sendStamp } from "../api/StampSendApi.js";
 import { ArrowLeft } from "lucide-react";
@@ -470,36 +471,40 @@ export function RoomDetail({ userId, role }) {
                                 </p>
 
                                 <div className="mt-4">
-                                    <h3 className="text-sm font-medium text-slate-700 mb-2">送信履歴（あなた）</h3>
+                                    <h3 className="text-sm font-medium text-slate-700 mb-2">あなたが送信したスタンプ</h3>
 
                                     {historyLoading ? (
                                         <p className="text-xs text-slate-500">履歴を読み込み中...</p>
                                     ) : historyError ? (
-                                        <p className="text-xs text-red-500">履歴を取得できませんでした: {historyError}</p>
+                                        <p className="text-xs text-red-500">
+                                            履歴を取得できませんでした: {historyError}
+                                        </p>
                                     ) : history.length === 0 ? (
-                                        <p className="text-xs text-slate-500">まだ送信したスタンプはありません。</p>
+                                        <p className="text-xs text-slate-500">
+                                            まだ送信したスタンプはありません。
+                                        </p>
                                     ) : (
-                                        <div className="grid grid-cols-6 gap-3 gap-y-3 sm:grid-cols-8">
+                                        <div className="*:data-[slot=avatar]:ring-background flex -space-x-2 *:data-[slot=avatar]:ring-2">
                                             {history.map((h, idx) => {
                                                 const color = getStampColorByCode(h.stampColor);
                                                 const { Icon } = getStampIconByCode(h.stampIcon);
 
                                                 return (
-                                                    <div
+                                                    <Avatar
                                                         key={`${h.stampId}-${idx}-${h.sentAt}`}
-                                                        className="flex items-center justify-center"
-                                                        aria-hidden="true"
+                                                        className="h-10 w-10"
                                                     >
-                                                        <div
-                                                            className="h-10 w-10 rounded-full flex items-center justify-center"
+                                                        <AvatarFallback
+                                                            className="flex items-center justify-center"
+                                                            aria-label={h.stampName}
                                                             style={{
                                                                 backgroundColor: color.bg,
                                                                 color: color.icon,
                                                             }}
                                                         >
-                                                            <Icon className="h-4 w-4" />
-                                                        </div>
-                                                    </div>
+                                                            <Icon className="h-5 w-5" />
+                                                        </AvatarFallback>
+                                                    </Avatar>
                                                 );
                                             })}
                                         </div>
