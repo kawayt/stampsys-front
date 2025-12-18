@@ -138,7 +138,7 @@ export function RoomDetail({ userId, role }) {
                 throw new Error(`履歴の取得に失敗しました: ${res.status}`);
             }
             const data = await res.json();
-            setHistory((data || []).slice(0, 10));
+            setHistory(data || []);
         } catch (err) {
             console.error("fetchHistory error:", err);
             setHistoryError(err.message ?? "履歴取得時にエラーが発生しました");
@@ -483,32 +483,52 @@ export function RoomDetail({ userId, role }) {
                                         <p className="text-xs text-slate-500">
                                             まだ送信したスタンプはありません。
                                         </p>
-                                    ) : (
-                                        <div className="*:data-[slot=avatar]:ring-background flex -space-x-2 *:data-[slot=avatar]:ring-2">
-                                            {history.map((h, idx) => {
-                                                const color = getStampColorByCode(h.stampColor);
-                                                const { Icon } = getStampIconByCode(h.stampIcon);
+                                    ) : (() => {
+                                        const visibleHistory = history.slice(0, 10);
+                                        const extraCount = history.length - visibleHistory.length;
 
-                                                return (
-                                                    <Avatar
-                                                        key={`${h.stampId}-${idx}-${h.sentAt}`}
-                                                        className="h-10 w-10"
-                                                    >
-                                                        <AvatarFallback
-                                                            className="flex items-center justify-center"
-                                                            aria-label={h.stampName}
-                                                            style={{
-                                                                backgroundColor: color.bg,
-                                                                color: color.icon,
-                                                            }}
+                                        return (
+                                            <div className="*:data-[slot=avatar]:ring-background flex -space-x-2 *:data-[slot=avatar]:ring-2">
+                                                {visibleHistory.map((h, idx) => {
+                                                    const color = getStampColorByCode(h.stampColor);
+                                                    const { Icon } = getStampIconByCode(h.stampIcon);
+
+                                                    return (
+                                                        <Avatar
+                                                            key={`${h.stampId}-${idx}-${h.sentAt}`}
+                                                            className="h-10 w-10"
                                                         >
-                                                            <Icon className="h-5 w-5" />
+                                                            <AvatarFallback
+                                                                className="flex items-center justify-center"
+                                                                aria-label={h.stampName}
+                                                                style={{
+                                                                    backgroundColor: color.bg,
+                                                                    color: color.icon,
+                                                                }}
+                                                            >
+                                                                <Icon className="h-5 w-5" />
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                    );
+                                                })}
+
+                                                {extraCount > 0 && (
+                                                    <Avatar className="h-10 w-10">
+                                                        <AvatarFallback
+                                                            className="flex items-center justify-center text-xs font-semibold"
+                                                            style={{
+                                                                backgroundColor: "#e5e7eb",
+                                                                color: "#111827",
+                                                            }}
+                                                            aria-label={`他 ${extraCount} 件`}
+                                                        >
+                                                            +{extraCount}
                                                         </AvatarFallback>
                                                     </Avatar>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             </>
                         )}
