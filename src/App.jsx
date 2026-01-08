@@ -44,6 +44,8 @@ import {
     Database,
 } from "lucide-react";
 
+import logo from "./assets/onestamp1.png";
+
 function App() {
     const [loading, setLoading] = useState(true);
     const [appData, setAppData] = useState(null); // { attributes, users, user } を想定
@@ -165,14 +167,7 @@ function Dashboard({ appData, onLogout }) {
                 <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
                     {/* 左側: ワークスペース名エリア */}
                     <div className="flex items-center gap-2">
-                        <div className="flex size-8 items-center justify-center rounded-md bg-slate-900 text-white">
-                            <span className="text-xs font-semibold">SS</span>
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-sm font-semibold text-slate-900">
-                                Stamp System
-                            </span>
-                        </div>
+                        <img src={logo} alt="OneStamp" className="h-7.5 w-auto" />
                     </div>
 
                     {/* 右側: ユーザードロップダウン */}
