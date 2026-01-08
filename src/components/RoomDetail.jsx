@@ -399,13 +399,7 @@ export function RoomDetail({ userId, role }) {
 
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-lg font-semibold text-slate-800">
-                        ルーム詳細 - ルーム{roomId}
-                    </h2>
-                    {/* ここに room_name を表示 */}
-                    {roomName && (
-                        <p className="mt-1 text-lg font-semibold text-slate-800">{roomName}</p>
-                    )}
+                    <h2 className="text-xl font-bold">ルーム詳細 - {roomName && <span>{roomName}</span>}</h2>
                 </div>
             </div>
 

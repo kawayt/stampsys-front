@@ -362,6 +362,7 @@ function RoomHistory() {
                     tension: 0.3, // smooth curves
                     pointRadius: 3,
                     fill: false,
+                    borderWidth: 2,
                 });
             });
         }
@@ -377,6 +378,7 @@ function RoomHistory() {
                 tension: 0.3,
                 pointRadius: 3,
                 fill: false,
+                borderWidth: 2,
             });
         }
 
@@ -561,8 +563,7 @@ function RoomHistory() {
 
             <div className="flex items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-xl font-bold">スタンプ履歴 - ルーム{roomId}</h2>
-                    {roomName && <p className="mt-1 text-xl font-bold">{roomName}</p>}
+                    <h2 className="text-xl font-bold">スタンプ履歴 - {roomName && <span>{roomName}</span>}</h2>
                 </div>
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
                     <TabsList className="grid grid-cols-2">
