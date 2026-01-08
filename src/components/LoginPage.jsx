@@ -7,6 +7,7 @@ import {
     CardDescription,
     CardContent,
 } from "./ui/card";
+import logo from "../assets/onestamp1.png";
 
 function LoginPage({ onLogin, error }) {
     return (
@@ -14,9 +15,7 @@ function LoginPage({ onLogin, error }) {
             <div className="w-full max-w-md">
                 <Card className="border-slate-200/80 shadow-sm bg-white/90 backdrop-blur">
                     <CardHeader className="space-y-3">
-                        <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-white">
-                            <span className="text-lg font-semibold">SS</span>
-                        </div>
+                        <img src={logo} alt="OneStamp" className="h-12 w-auto" />
                         <CardTitle className="text-2xl font-semibold tracking-tight text-slate-900">
                             授業スタンプシステム
                         </CardTitle>
