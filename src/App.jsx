@@ -323,7 +323,7 @@ function NavButton({ active, onClick, icon: Icon, label }) {
             className={[
                 "relative flex items-center gap-1 border-b-2 py-3 font-medium transition-colors",
                 active
-                    ? "border-blue-500 text-slate-900"
+                    ? "border-sky-500 text-slate-900"
                     : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300",
             ].join(" ")}
         >
