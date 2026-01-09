@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition.js";
 import { sendStamp } from "../api/StampSendApi.js";
 import { ArrowLeft } from "lucide-react";
@@ -546,137 +545,119 @@ export function RoomDetail({ userId, role }) {
                 <p className="text-sm text-slate-500">
                     このルームに紐づくスタンプは登録されていません。
                 </p>
-            ) : (
-                <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
-                    <CardContent>
-                        {!isTeacherView && (
-                            <>
-                                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                                    {stamps.map((s) => {
-                                        const color = getStampColorByCode(s.stampColor);
-                                        const { Icon } = getStampIconByCode(s.stampIcon);
-                                        const isThisSending = sendingStampId === s.stampId;
+            ) : !isTeacherView ? (
+                // --- 学生（一般ユーザー）向けレイアウト ---
+                <div className="flex-1 flex flex-col min-h-[60vh]">
+                    {/* スタンプボタン一覧: 画面中央に配置 */}
+                    <div className="flex-1 flex flex-col items-center justify-center p-4">
+                        <div className="grid grid-cols-2 gap-6 w-full max-w-4xl sm:grid-cols-3 md:grid-cols-4">
+                            {stamps.map((s) => {
+                                const color = getStampColorByCode(s.stampColor);
+                                const { Icon } = getStampIconByCode(s.stampIcon);
+
+                                return (
+                                    <button
+                                        type="button"
+                                        key={s.stampId ?? `${s.stampName}-${s.stampColor}-${s.stampIcon}`}
+                                        className="
+                                                aspect-square flex flex-col items-center justify-center rounded-2xl
+                                                border border-slate-100
+                                                shadow-sm
+                                                hover:shadow-md hover:scale-105 active:scale-95
+                                                transition-all relative
+                                                disabled:opacity-50 disabled:cursor-not-allowed
+                                            "
+                                        style={{
+                                            backgroundColor: color.bg,
+                                            color: color.icon,
+                                        }}
+                                        onClick={() => handleStampClick(s.stampId)}
+                                        disabled={sendingStampId !== null || !userId}
+                                    >
+                                        <div className="mb-2 h-12 w-12 flex items-center justify-center">
+                                            <Icon className="h-12 w-12" />
+                                        </div>
+                                        <span className="text-sm font-bold">
+                                            {s.stampName}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {message && !sendSuccess && (
+                            <div className="mt-8 rounded-full px-6 py-2 text-sm font-bold bg-white/80 backdrop-blur text-red-600 shadow-lg border border-red-100 animate-in slide-in-from-bottom-2">
+                                {message}
+                            </div>
+                        )}
+                        
+                        <p className="mt-8 text-xs text-slate-400 opacity-70">
+                            ※スタンプはタップですぐに送信されます
+                        </p>
+                    </div>
+
+                    {/* 送信履歴: 画面下部にフローティング */}
+                    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 w-auto max-w-[90vw]">
+                         <div className="bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-2xl rounded-full px-6 py-3 flex items-center gap-4">
+                            <span className="text-xs font-bold text-slate-400 hidden sm:block whitespace-nowrap">あなたの履歴</span>
+                            
+                            {historyLoading ? (
+                                <p className="text-xs text-slate-500">...</p>
+                            ) : historyError ? (
+                                <span className="text-xs text-red-400">×</span>
+                            ) : history.length === 0 ? (
+                                <span className="text-xs text-slate-400">まだ履歴がありません</span>
+                            ) : (
+                                <div className="flex -space-x-3 sm:hover:space-x-2 transition-all duration-500 ease-out pl-2">
+                                    {history.slice(0, 8).map((h, idx) => {
+                                        const color = getStampColorByCode(h.stampColor);
+                                        const { Icon } = getStampIconByCode(h.stampIcon);
 
                                         return (
-                                            <button
-                                                type="button"
-                                                key={s.stampId ?? `${s.stampName}-${s.stampColor}-${s.stampIcon}`}
-                                                className="
-                                                        flex h-28 flex-col items-center justify-center rounded-2xl
-                                                        border border-slate-100
-                                                        text-slate-700 shadow-sm
-                                                        hover:shadow-md hover:scale-105 active:scale-95
-                                                        transition-all relative
-                                                        disabled:opacity-50 disabled:cursor-not-allowed
-                                                    "
+                                            <div
+                                                key={`${h.stampId}-${idx}-${h.sentAt}`}
+                                                className="relative h-10 w-10 rounded-full border-2 border-white shadow-sm flex items-center justify-center transition-all duration-300 hover:scale-110 sm:hover:scale-110 hover:z-20"
                                                 style={{
                                                     backgroundColor: color.bg,
                                                     color: color.icon,
+                                                    zIndex: 20 - idx,
                                                 }}
-                                                onClick={() => handleStampClick(s.stampId)}
-                                                disabled={sendingStampId !== null || !userId}
+                                                title={h.stampName}
                                             >
-                                                <div className="mb-1.5 h-10 w-10 flex items-center justify-center">
-                                                    <Icon className="h-10 w-10" />
-                                                </div>
-                                                <span className="text-sm font-medium">
-                                                    {s.stampName}
-                                                </span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-
-                                {message && !sendSuccess && (
-                                    <div
-                                        className="mt-4 rounded-xl px-3 py-2 text-xs font-medium bg-red-50 text-red-700 border border-red-100"
-                                    >
-                                        {message}
-                                    </div>
-                                )}
-
-                                <p className="mt-3 text-[11px] text-slate-400">
-                                    スタンプは即時に送信されます。連打しすぎないように注意してください。
-                                </p>
-
-                                <div className="mt-4">
-                                    <h3 className="text-sm font-medium text-slate-700 mb-2">あなたが送信したスタンプ</h3>
-
-                                    {historyLoading ? (
-                                        <p className="text-xs text-slate-500">履歴を読み込み中...</p>
-                                    ) : historyError ? (
-                                        <p className="text-xs text-red-500">
-                                            履歴を取得できませんでした: {historyError}
-                                        </p>
-                                    ) : history.length === 0 ? (
-                                        <p className="text-xs text-slate-500">
-                                            まだ送信したスタンプはありません。
-                                        </p>
-                                    ) : (() => {
-                                        const visibleHistory = history.slice(0, 10);
-                                        const extraCount = history.length - visibleHistory.length;
-
-                                        return (
-                                            <div className="*:data-[slot=avatar]:ring-background flex -space-x-2 *:data-[slot=avatar]:ring-2">
-                                                {visibleHistory.map((h, idx) => {
-                                                    const color = getStampColorByCode(h.stampColor);
-                                                    const { Icon } = getStampIconByCode(h.stampIcon);
-
-                                                    return (
-                                                        <Avatar
-                                                            key={`${h.stampId}-${idx}-${h.sentAt}`}
-                                                            className="h-10 w-10"
-                                                        >
-                                                            <AvatarFallback
-                                                                className="flex items-center justify-center"
-                                                                aria-label={h.stampName}
-                                                                style={{
-                                                                    backgroundColor: color.bg,
-                                                                    color: color.icon,
-                                                                }}
-                                                            >
-                                                                <Icon className="h-5 w-5" />
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                    );
-                                                })}
-
-                                                {extraCount > 0 && (
-                                                    <Avatar className="h-10 w-10">
-                                                        <AvatarFallback
-                                                            className="flex items-center justify-center text-xs font-semibold"
-                                                            style={{
-                                                                backgroundColor: "#e5e7eb",
-                                                                color: "#111827",
-                                                            }}
-                                                            aria-label={`他 ${extraCount} 件`}
-                                                        >
-                                                            +{extraCount}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                )}
+                                                <Icon className="h-5 w-5" />
                                             </div>
                                         );
-                                    })()}
+                                    })}
+                                    {history.length > 8 && (
+                                        <div 
+                                            className="relative h-10 w-10 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 transition-all duration-300 hover:scale-110 hover:z-20"
+                                            style={{ zIndex: 0 }}
+                                        >
+                                            +{history.length - 8}
+                                        </div>
+                                    )}
                                 </div>
-                            </>
+                            )}
+                         </div>
+                    </div>
+                    {/* フローティング要素の分の余白 */}
+                    <div className="h-24"></div>
+                </div>
+            ) : (
+                // --- 教員（管理者）向けレイアウト（既存維持） ---
+                <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
+                    <CardContent>
+                        {summaryLoading && (
+                            <p className="mt-2 text-xs text-slate-500">集計を読み込み中...</p>
                         )}
-
-                        {isTeacherView && (
-                            <>
-                                {summaryLoading && (
-                                    <p className="mt-2 text-xs text-slate-500">集計を読み込み中...</p>
-                                )}
-                                {summaryError && (
-                                    <p className="mt-2 text-xs text-red-500">集計を取得できませんでした: {summaryError}</p>
-                                )}
-                                {!summaryLoading && !summaryError && processedSummary && processedSummary.length > 0 && (
-                                    <div>
-                                        <h3 className="text-lg font-medium">スタンプ送信状況（最新）</h3>
-                                        <SimpleBarChart data={processedSummary} />
-                                    </div>
-                                )}
-                            </>
+                        {summaryError && (
+                            <p className="mt-2 text-xs text-red-500">集計を取得できませんでした: {summaryError}</p>
+                        )}
+                        {!summaryLoading && !summaryError && processedSummary && processedSummary.length > 0 && (
+                            <div>
+                                <h3 className="text-lg font-medium">スタンプ送信状況（最新）</h3>
+                                <SimpleBarChart data={processedSummary} />
+                            </div>
                         )}
                     </CardContent>
                 </Card>
