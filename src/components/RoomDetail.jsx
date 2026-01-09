@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,52 +10,125 @@ import NoteForm from "@/components/NoteForm";
 import NotesList from "@/components/NoteList";
 
 function SimpleBarChart({ data }) {
+    const prevCountsRef = useRef({});
+    const [flashingItems, setFlashingItems] = useState(new Set());
+
+    useEffect(() => {
+        if (!data) return;
+
+        const newFlashing = new Set();
+        let hasChange = false;
+
+        data.forEach((d) => {
+            const id = d.stampId ?? d.stampName;
+            const current = d.count || 0;
+            const prev = prevCountsRef.current[id];
+
+            // 初回 (undefined) は除外、値が増えた場合のみフラグを立てる
+            if (prev !== undefined && current > prev) {
+                newFlashing.add(id);
+                hasChange = true;
+            }
+            prevCountsRef.current[id] = current;
+        });
+
+        if (hasChange) {
+            setFlashingItems((prev) => {
+                const next = new Set(prev);
+                newFlashing.forEach((id) => next.add(id));
+                return next;
+            });
+
+            // 0.5秒後にフラッシュを解除
+            const timer = setTimeout(() => {
+                setFlashingItems((prev) => {
+                    const next = new Set(prev);
+                    newFlashing.forEach((id) => next.delete(id));
+                    return next;
+                });
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [data]);
+
     if (!data || data.length === 0) return null;
 
-    const maxCount = Math.max(...data.map((d) => d.count || 0)) || 1;
-
     return (
-        <div className="mt-4 space-y-2">
-            {data.map((d) => {
-                const ratio = (d.count || 0) / maxCount;
-                const widthPercent = `${ratio * 100}%`;
-                const barColor = d.color?.icon ?? d.color?.bg ?? "#fb923c";
-                const textColor = d.color?.icon ?? d.color?.fg ?? d.color?.text ?? "inherit";
+        <div className="mt-4 rounded-2xl overflow-hidden border border-slate-100">
+            {data.map((d, i) => {
+                const id = d.stampId ?? d.stampName;
+                const isNotJoined = d.stampName === "未参加";
+                const isFlashing = flashingItems.has(id);
 
-                const iconBg = d.color?.bg ?? "#fff";
+                // 割合に合わせた長さに設定
+                const widthPercent = `${d.percentage ?? 0}%`;
+
+                // 未参加の場合はグレー系に固定
+                const baseBgColor = isNotJoined ? "#f1f5f9" : (d.color?.bg ?? "#fff");
+
+                // バーの色
+                const barColor = isNotJoined
+                    ? "#cbd5e1" // slate-300
+                    : (d.color?.icon ?? "#fb923c");
+
+                const textColor = isNotJoined
+                    ? "#64748b" // slate-500
+                    : (d.color?.icon ?? d.color?.fg ?? d.color?.text ?? "inherit");
+
+                // アイコン: 背景色なし(透明)、色のみ適用
                 const iconColor = d.color?.icon ?? "#000";
 
                 const IconComponent = d.icon;
+                
+                // 点滅時のスタイル: フィルタで彩度と明度を操作して「濃く鮮やかに」する
+                const rowStyle = {
+                    backgroundColor: baseBgColor,
+                    filter: isFlashing ? "brightness(0.92) saturate(1.4)" : "none",
+                };
 
                 return (
-                    <div key={d.stampId ?? d.stampName} className="flex items-center gap-3">
-                        <div className="flex items-center gap-3 w-44">
-                            <div
-                                className="flex items-center justify-center h-10 w-10 rounded-full shrink-0"
-                                style={{ backgroundColor: iconBg, color: iconColor }}
-                            >
-                                {IconComponent && (
-                                    <IconComponent className="h-5 w-5" />
+                    <React.Fragment key={id}>
+                        {isNotJoined && i > 0 && (
+                            <div className="border-t-2 border-dashed border-slate-300" />
+                        )}
+                        <div
+                            className={`flex flex-wrap md:flex-nowrap items-center gap-x-3 gap-y-2 px-3 py-2 transition-all duration-200 ease-out ${isNotJoined ? "opacity-80" : ""}`}
+                            style={rowStyle}
+                        >
+                            <div className="flex items-center gap-3 flex-1 md:flex-none md:w-44 shrink-0 min-w-0">
+                                {isNotJoined ? (
+                                    // 未参加の場合はアイコンなし
+                                    <div className="h-8 w-8 md:h-10 md:w-10 shrink-0 flex items-center justify-center text-slate-300"></div>
+                                ) : (
+                                    <div
+                                        className="flex items-center justify-center h-8 md:h-10 w-8 md:w-10 shrink-0"
+                                        style={{ backgroundColor: "transparent", color: iconColor }}
+                                    >
+                                        {IconComponent && (
+                                            <IconComponent className="h-5 w-5 md:h-6 md:w-6" />
+                                        )}
+                                    </div>
                                 )}
+                                <span className="font-medium truncate text-sm md:text-base" style={{ color: textColor }}>
+                                    {d.stampName}
+                                </span>
                             </div>
-                            <span className="font-medium truncate" style={{ color: textColor }}>
-                                {d.stampName}
-                            </span>
-                        </div>
 
-                        <div className="flex-1">
-                            <div className="h-10 w-full rounded-full bg-slate-100 overflow-hidden">
-                                <div
-                                    className="h-full rounded-full"
-                                    style={{ width: widthPercent, backgroundColor: barColor }}
-                                />
+                            <div className="order-last md:order-none w-full md:flex-1 md:w-auto min-w-0">
+                                <div className="h-6 md:h-8 w-full rounded-full bg-white/60 overflow-hidden">
+                                    <div
+                                        className="h-full rounded-full transition-all duration-500 ease-in-out"
+                                        style={{ width: widthPercent, backgroundColor: barColor }}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="w-auto md:w-28 text-right text-slate-600 shrink-0">
+                                <span className="text-base md:text-lg font-semibold mr-1">{d.count}人</span>
+                                <span className="text-[10px] md:text-xs text-slate-400">/ {(d.percentage ?? 0).toFixed(1)}%</span>
                             </div>
                         </div>
-
-                        <div className="w-28 text-right text-slate-600">
-                            {d.count}回 / {(d.percentage ?? 0).toFixed(1)}%
-                        </div>
-                    </div>
+                    </React.Fragment>
                 );
             })}
         </div>
@@ -91,6 +164,48 @@ export function RoomDetail({ userId, role }) {
     const isTeacherView = role === "ADMIN" || role === "TEACHER";
 
     const sseRef = useRef(null);
+
+    // stamps エンドポイントは既存の配列を返す場合
+
+    const processedSummary = useMemo(() => {
+        if (!summary) return [];
+        const result = [...summary];
+
+        // 1. stamps の定義順序マップを作成
+        const stampOrder = new Map();
+        if (Array.isArray(stamps)) {
+            stamps.forEach((s, i) => stampOrder.set(String(s.stampId), i));
+        }
+
+        // 2. ソート (通常スタンプは定義順、NO_STAMPは最後)
+        result.sort((a, b) => {
+            const nameA = a.stampName ? String(a.stampName).trim() : "";
+            const nameB = b.stampName ? String(b.stampName).trim() : "";
+            
+            const isNoStampA = nameA === "NO_STAMP";
+            const isNoStampB = nameB === "NO_STAMP";
+
+            if (isNoStampA && !isNoStampB) return 1;
+            if (!isNoStampA && isNoStampB) return -1;
+            if (isNoStampA && isNoStampB) return 0;
+
+            const idA = String(a.stampId);
+            const idB = String(b.stampId);
+
+            const idxA = stampOrder.has(idA) ? stampOrder.get(idA) : 9999;
+            const idxB = stampOrder.has(idB) ? stampOrder.get(idB) : 9999;
+            return idxA - idxB;
+        });
+
+        // 3. NO_STAMP の名前変更
+        return result.map((d) => {
+            const name = d.stampName ? String(d.stampName).trim() : "";
+            if (name === "NO_STAMP") {
+                return { ...d, stampName: "未参加" };
+            }
+            return d;
+        });
+    }, [summary, stamps]);
 
     // stamps エンドポイントは既存の配列を返す場合と、{ roomName, stamps: [...] } のように
     // room 名を含めて返す場合の両方に対応するようにしています。
@@ -535,10 +650,10 @@ export function RoomDetail({ userId, role }) {
                                 {summaryError && (
                                     <p className="mt-2 text-xs text-red-500">集計を取得できませんでした: {summaryError}</p>
                                 )}
-                                {!summaryLoading && !summaryError && summary && summary.length > 0 && (
+                                {!summaryLoading && !summaryError && processedSummary && processedSummary.length > 0 && (
                                     <div>
                                         <h3 className="text-lg font-medium">スタンプ送信状況（最新）</h3>
-                                        <SimpleBarChart data={summary} />
+                                        <SimpleBarChart data={processedSummary} />
                                     </div>
                                 )}
                             </>
