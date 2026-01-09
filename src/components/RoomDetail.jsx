@@ -144,7 +144,8 @@ export function RoomDetail({ userId, role }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const [sending, setSending] = useState(false);
+    const [sendingStampId, setSendingStampId] = useState(null);
+    const [sendSuccess, setSendSuccess] = useState(false); // 送信成功状態
     const [message, setMessage] = useState("");
 
     const [history, setHistory] = useState([]);
@@ -165,7 +166,23 @@ export function RoomDetail({ userId, role }) {
 
     const sseRef = useRef(null);
 
-    // stamps エンドポイントは既存の配列を返す場合
+    // 送信中のスタンプ情報を取得
+    const sendingStamp = useMemo(() => {
+        return stamps.find((s) => s.stampId === sendingStampId);
+    }, [stamps, sendingStampId]);
+
+    // オーバーレイ表示用のデータを準備
+    const overlayData = useMemo(() => {
+        if (!sendingStamp) return null;
+        const color = getStampColorByCode(sendingStamp.stampColor);
+        const { Icon } = getStampIconByCode(sendingStamp.stampIcon);
+        return {
+            name: sendingStamp.stampName,
+            bg: color.bg,
+            fg: color.icon,
+            IconComponent: Icon
+        };
+    }, [sendingStamp]);
 
     const processedSummary = useMemo(() => {
         if (!summary) return [];
@@ -437,15 +454,27 @@ export function RoomDetail({ userId, role }) {
             return;
         }
 
-        setSending(true);
+        setSendingStampId(stampId);
+        setSendSuccess(false);
         setMessage("");
 
+        // アニメーションをしっかり見せるために最低1秒待機する
+        const minLoadingTime = new Promise((resolve) => setTimeout(resolve, 1000));
+
         try {
-            const result = await sendStamp(userId, stampId, Number(roomId));
+            const [result] = await Promise.all([
+                sendStamp(userId, stampId, Number(roomId)),
+                minLoadingTime
+            ]);
 
             if (result.success) {
-                setMessage("✓ スタンプを送信しました！");
-                setTimeout(() => setMessage(""), 3000);
+                // 送信成功時に成功フラグを立てる
+                setSendSuccess(true);
+
+                // 成功演出のために1.5秒ほど待機してからオーバーレイを閉じる
+                // メッセージ表示は行わず、オーバーレイ内の演出で完結させる
+                await new Promise((resolve) => setTimeout(resolve, 1500));
+                
                 if (!isTeacherView) {
                     fetchHistory().catch((e) => console.error("refresh history failed", e));
                 }
@@ -465,7 +494,8 @@ export function RoomDetail({ userId, role }) {
             const userMessage = serverMsg ? `× ${serverMsg}` : "× エラーが発生しました";
             setMessage(userMessage);
         } finally {
-            setSending(false);
+            setSendingStampId(null);
+            setSendSuccess(false);
         }
     };
 
@@ -531,6 +561,7 @@ export function RoomDetail({ userId, role }) {
                                     {stamps.map((s) => {
                                         const color = getStampColorByCode(s.stampColor);
                                         const { Icon } = getStampIconByCode(s.stampIcon);
+                                        const isThisSending = sendingStampId === s.stampId;
 
                                         return (
                                             <button
@@ -540,7 +571,7 @@ export function RoomDetail({ userId, role }) {
                                                         flex h-28 flex-col items-center justify-center rounded-2xl
                                                         border border-slate-100
                                                         text-slate-700 shadow-sm
-                                                        hover:shadow-md
+                                                        hover:shadow-md hover:scale-105 active:scale-95
                                                         transition-all relative
                                                         disabled:opacity-50 disabled:cursor-not-allowed
                                                     "
@@ -549,11 +580,11 @@ export function RoomDetail({ userId, role }) {
                                                     color: color.icon,
                                                 }}
                                                 onClick={() => handleStampClick(s.stampId)}
-                                                disabled={sending || !userId}
+                                                disabled={sendingStampId !== null || !userId}
                                             >
-                                                <span className="mb-1.5">
+                                                <div className="mb-1.5 h-10 w-10 flex items-center justify-center">
                                                     <Icon className="h-10 w-10" />
-                                                </span>
+                                                </div>
                                                 <span className="text-sm font-medium">
                                                     {s.stampName}
                                                 </span>
@@ -562,14 +593,9 @@ export function RoomDetail({ userId, role }) {
                                     })}
                                 </div>
 
-                                {message && (
+                                {message && !sendSuccess && (
                                     <div
-                                        className={[
-                                            "mt-4 rounded-xl px-3 py-2 text-xs font-medium",
-                                            isSuccess
-                                                ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                                                : "bg-red-50 text-red-700 border border-red-100",
-                                        ].join(" ")}
+                                        className="mt-4 rounded-xl px-3 py-2 text-xs font-medium bg-red-50 text-red-700 border border-red-100"
                                     >
                                         {message}
                                     </div>
@@ -683,6 +709,29 @@ export function RoomDetail({ userId, role }) {
                         <NotesList key={notesKey} roomId={Number(roomId)} />
                     </CardContent>
                 </Card>
+            )}
+            {/* 送信中のオーバーレイアニメーション */}
+            {overlayData && (
+                <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/70 backdrop-blur-[2px] animate-in fade-in duration-200">
+                    <div 
+                        className={`flex h-40 w-40 items-center justify-center rounded-full shadow-2xl transition-all duration-500 ${sendSuccess ? "scale-125" : "animate-in zoom-in-50 duration-300"}`}
+                        style={{
+                            backgroundColor: overlayData.bg,
+                            color: overlayData.fg,
+                            boxShadow: `0 0 60px ${overlayData.bg}`,
+                        }}
+                    >
+                        {overlayData.IconComponent && (
+                            <overlayData.IconComponent className={`h-20 w-20 transition-all duration-300 ${sendSuccess ? "" : "animate-bounce"}`} />
+                        )}
+                    </div>
+                    <div className="mt-8 text-white text-center animate-in slide-in-from-bottom-4 duration-300 delay-100 fill-mode-forwards">
+                        <p className="text-3xl font-bold drop-shadow-md">{overlayData.name}</p>
+                        <p className="mt-3 text-lg opacity-90 font-medium">
+                            {sendSuccess ? "送信しました！" : "送信中..."}
+                        </p>
+                    </div>
+                </div>
             )}
         </section>
     );
