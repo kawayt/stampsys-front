@@ -458,14 +458,8 @@ export function RoomDetail({ userId, role }) {
         setSendSuccess(false);
         setMessage("");
 
-        // アニメーションをしっかり見せるために最低1秒待機する
-        const minLoadingTime = new Promise((resolve) => setTimeout(resolve, 1000));
-
         try {
-            const [result] = await Promise.all([
-                sendStamp(userId, stampId, Number(roomId)),
-                minLoadingTime
-            ]);
+            const result = await sendStamp(userId, stampId, Number(roomId));
 
             if (result.success) {
                 // 送信成功時に成功フラグを立てる
@@ -710,11 +704,11 @@ export function RoomDetail({ userId, role }) {
                     </CardContent>
                 </Card>
             )}
-            {/* 送信中のオーバーレイアニメーション */}
-            {overlayData && (
+            {/* 送信成功時のオーバーレイアニメーション */}
+            {overlayData && sendSuccess && (
                 <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/70 backdrop-blur-[2px] animate-in fade-in duration-200">
                     <div 
-                        className={`flex h-40 w-40 items-center justify-center rounded-full shadow-2xl transition-all duration-500 ${sendSuccess ? "scale-125" : "animate-in zoom-in-50 duration-300"}`}
+                        className="flex h-40 w-40 items-center justify-center rounded-full shadow-2xl animate-in zoom-in duration-300"
                         style={{
                             backgroundColor: overlayData.bg,
                             color: overlayData.fg,
@@ -722,13 +716,13 @@ export function RoomDetail({ userId, role }) {
                         }}
                     >
                         {overlayData.IconComponent && (
-                            <overlayData.IconComponent className={`h-20 w-20 transition-all duration-300 ${sendSuccess ? "" : "animate-bounce"}`} />
+                            <overlayData.IconComponent className="h-20 w-20" />
                         )}
                     </div>
                     <div className="mt-8 text-white text-center animate-in slide-in-from-bottom-4 duration-300 delay-100 fill-mode-forwards">
                         <p className="text-3xl font-bold drop-shadow-md">{overlayData.name}</p>
                         <p className="mt-3 text-lg opacity-90 font-medium">
-                            {sendSuccess ? "送信しました！" : "送信中..."}
+                            送信しました！
                         </p>
                     </div>
                 </div>
