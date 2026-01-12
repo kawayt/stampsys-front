@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import {
     Select,
@@ -151,13 +152,6 @@ export function ClassUserManagement({ classId, open }) {
         }
     }, [open, classId]);
 
-    const renderUserLabel = (user) => {
-        const namePart = user.userName || `ユーザーID: ${user.userId}`;
-        const emailPart = user.email ? ` - ${user.email}` : "";
-        const groupPart = user.groupName ? ` [${user.groupName}]` : "";
-        return `${namePart}${groupPart}${emailPart}`;
-    };
-
     // ★修正: 検索クエリとグループフィルタの両方で判定する
     const matchesQuery = (user) => {
         // 1. テキスト検索 (名前 or メール)
@@ -236,30 +230,42 @@ export function ClassUserManagement({ classId, open }) {
                 </p>
             )}
 
-            {loading ? (
-                <div className="flex flex-col items-center justify-center gap-2 text-sm text-slate-600">
-                    <Spinner className="size-8" />
-                    <span>読み込み中</span>
-                </div>
-            ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                        <p className="mb-1 text-xs font-medium text-slate-600">
-                            参加中のユーザー ({filteredInClass.length}人)
-                        </p>
-                        {filteredInClass.length === 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 min-h-[260px]">
+                <div className="flex flex-col">
+                    <p className="mb-1 text-xs font-medium text-slate-600">
+                        参加中のユーザー ({filteredInClass.length}人)
+                    </p>
+                    <ScrollArea className="h-100 pr-1">
+                        {loading ? (
+                            <ul className="space-y-1">
+                                {Array.from({ length: 3 }).map((_, idx) => (
+                                    <Skeleton
+                                        key={`in-skeleton-${idx}`}
+                                        className="flex items-center justify-between rounded-lg px-2 py-2 h-14 bg-slate-100"
+                                    />
+                                ))}
+                            </ul>
+                        ) : filteredInClass.length === 0 ? (
                             <p className="text-xs text-slate-400">
                                 {query || groupFilter !== "ALL" ? "該当するユーザーがいません。" : "右列からユーザーを追加してください。"}
                             </p>
                         ) : (
-                            <ul className="space-y-1 max-h-[400px] overflow-auto pr-1">
+                            <ul className="space-y-1">
                                 {filteredInClass.map((u) => (
                                     <li
                                         key={u.userId}
-                                        className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-2"
+                                        className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-2 h-14"
                                     >
-                                        <div className="flex-1 pr-2 text-xs text-slate-800 truncate">
-                                            {renderUserLabel(u)}
+                                        <div className="flex flex-col justify-center overflow-hidden pr-2">
+                                            <div className="flex items-center text-xs font-medium text-slate-800 truncate">
+                                                <span>{u.userName || `ユーザーID: ${u.userId}`}</span>
+                                                {u.groupName && <span className="ml-2 text-[10px] text-slate-500 bg-slate-200 px-1.5 rounded-sm">{u.groupName}</span>}
+                                            </div>
+                                            {u.email && (
+                                                <span className="text-[10px] text-slate-500 truncate">
+                                                    {u.email}
+                                                </span>
+                                            )}
                                         </div>
                                         <button
                                             type="button"
@@ -273,25 +279,44 @@ export function ClassUserManagement({ classId, open }) {
                                 ))}
                             </ul>
                         )}
-                    </div>
+                    </ScrollArea>
+                </div>
 
-                    <div>
-                        <p className="mb-1 text-xs font-medium text-slate-600">
-                            追加できるユーザー ({filteredNotInClass.length}人)
-                        </p>
-                        {filteredNotInClass.length === 0 ? (
+                <div className="flex flex-col">
+                    <p className="mb-1 text-xs font-medium text-slate-600">
+                        追加できるユーザー ({filteredNotInClass.length}人)
+                    </p>
+                    <ScrollArea className="h-100 pr-1">
+                        {loading ? (
+                            <ul className="space-y-1">
+                                {Array.from({ length: 3 }).map((_, idx) => (
+                                    <Skeleton
+                                        key={`notin-skeleton-${idx}`}
+                                        className="flex items-center justify-between rounded-lg px-2 py-2 h-14 bg-slate-100"
+                                    />
+                                ))}
+                            </ul>
+                        ) : filteredNotInClass.length === 0 ? (
                             <p className="text-xs text-slate-400">
                                 {query || groupFilter !== "ALL" ? "該当するユーザーがいません。" : "ユーザーはありません。"}
                             </p>
                         ) : (
-                            <ul className="space-y-1 max-h-[400px] overflow-auto pr-1">
+                            <ul className="space-y-1">
                                 {filteredNotInClass.map((u) => (
                                     <li
                                         key={u.userId}
-                                        className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-2"
+                                        className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-2 h-14"
                                     >
-                                        <div className="flex-1 pr-2 text-xs text-slate-800 truncate">
-                                            {renderUserLabel(u)}
+                                        <div className="flex flex-col justify-center overflow-hidden pr-2">
+                                            <div className="flex items-center text-xs font-medium text-slate-800 truncate">
+                                                <span>{u.userName || `ユーザーID: ${u.userId}`}</span>
+                                                {u.groupName && <span className="ml-2 text-[10px] text-slate-500 bg-slate-200 px-1.5 rounded-sm">{u.groupName}</span>}
+                                            </div>
+                                            {u.email && (
+                                                <span className="text-[10px] text-slate-500 truncate">
+                                                    {u.email}
+                                                </span>
+                                            )}
                                         </div>
                                         <button
                                             type="button"
@@ -305,9 +330,9 @@ export function ClassUserManagement({ classId, open }) {
                                 ))}
                             </ul>
                         )}
-                    </div>
+                    </ScrollArea>
                 </div>
-            )}
+            </div>
         </div>
     );
 }

@@ -1003,9 +1003,7 @@ export function RoomList({ userId, role }) {
                     {/* ユーザー管理ダイアログ */}
                     <Dialog
                         open={openUserDialog}
-                        onOpenChange={(open) => {
-                            setOpenUserDialog(open);
-                        }}
+                        onOpenChange={(open) => {setOpenUserDialog(open);}}
                     >
                         <DialogTrigger asChild>
                             <Button
@@ -1017,7 +1015,7 @@ export function RoomList({ userId, role }) {
                             </Button>
                         </DialogTrigger>
 
-                        <DialogContent className="sm:max-w-3xl">
+                        <DialogContent className="sm:max-w-2xl">
                             <DialogHeader>
                                 <DialogTitle>
                                     クラスに参加するユーザーの管理

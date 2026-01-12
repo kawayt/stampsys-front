@@ -859,7 +859,7 @@ export function ClassList({ role }) {
                     }
                 }}
             >
-                <DialogContent className="sm:max-w-3xl">
+                <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>クラスに参加するユーザーの管理</DialogTitle>
                         <DialogDescription className="text-xs">

@@ -143,7 +143,7 @@ export function ClassStampManagement({ classId, open, userId }) {
     }, [classId, open]);
 
     const renderContent = () => (
-        <div className="grid gap-4 md:grid-cols-2 min-h-[260px]">
+        <div className="grid gap-4 md:grid-cols-2 min-h-65">
             {/* 使用中のスタンプ */}
             <div className="flex flex-col">
                 <p className="mb-1 text-xs font-medium text-slate-600">
