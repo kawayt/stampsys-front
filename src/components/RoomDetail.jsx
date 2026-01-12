@@ -2,6 +2,12 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition.js";
 import { sendStamp } from "../api/StampSendApi.js";
 import { ArrowLeft } from "lucide-react";
@@ -113,7 +119,7 @@ function SimpleBarChart({ data }) {
                                 </span>
                             </div>
 
-                            <div className="order-last md:order-none w-full md:flex-1 md:w-auto min-w-0">
+                            <div className="order-last md:order-0 w-full md:flex-1 md:w-auto min-w-0">
                                 <div className="h-6 md:h-8 w-full rounded-full bg-white/60 overflow-hidden">
                                     <div
                                         className="h-full rounded-full transition-all duration-500 ease-in-out"
@@ -592,7 +598,7 @@ export function RoomDetail({ userId, role }) {
                         )}
                         
                         <p className="mt-8 text-xs text-slate-400 opacity-70">
-                            ※スタンプはタップですぐに送信されます
+                            スタンプをクリックして送信
                         </p>
                     </div>
 
@@ -609,25 +615,32 @@ export function RoomDetail({ userId, role }) {
                                 <span className="text-xs text-slate-400">まだ履歴がありません</span>
                             ) : (
                                 <div className="flex -space-x-3 sm:hover:space-x-2 transition-all duration-500 ease-out pl-2">
-                                    {history.slice(0, 8).map((h, idx) => {
-                                        const color = getStampColorByCode(h.stampColor);
-                                        const { Icon } = getStampIconByCode(h.stampIcon);
+                                    <TooltipProvider delayDuration={0}>
+                                        {history.slice(0, 8).map((h, idx) => {
+                                            const color = getStampColorByCode(h.stampColor);
+                                            const { Icon } = getStampIconByCode(h.stampIcon);
 
-                                        return (
-                                            <div
-                                                key={`${h.stampId}-${idx}-${h.sentAt}`}
-                                                className="relative h-10 w-10 rounded-full border-2 border-white shadow-sm flex items-center justify-center transition-all duration-300 hover:scale-110 sm:hover:scale-110 hover:z-20"
-                                                style={{
-                                                    backgroundColor: color.bg,
-                                                    color: color.icon,
-                                                    zIndex: 20 - idx,
-                                                }}
-                                                title={h.stampName}
-                                            >
-                                                <Icon className="h-5 w-5" />
-                                            </div>
-                                        );
-                                    })}
+                                            return (
+                                                <Tooltip key={`${h.stampId}-${idx}-${h.sentAt}`}>
+                                                    <TooltipTrigger asChild>
+                                                        <div
+                                                            className="relative h-10 w-10 rounded-full border-2 border-white shadow-sm flex items-center justify-center transition-all duration-300 hover:scale-110 sm:hover:scale-110 hover:z-20"
+                                                            style={{
+                                                                backgroundColor: color.bg,
+                                                                color: color.icon,
+                                                                zIndex: 20 - idx,
+                                                            }}
+                                                        >
+                                                            <Icon className="h-5 w-5" />
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>{h.stampName}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            );
+                                        })}
+                                    </TooltipProvider>
                                     {history.length > 8 && (
                                         <div 
                                             className="relative h-10 w-10 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 transition-all duration-300 hover:scale-110 hover:z-20"

@@ -196,7 +196,7 @@ export function ClassUserManagement({ classId, open }) {
         <div>
             {/* ★修正: 検索窓の横にフィルタを追加 (Flexboxで横並び) */}
             <div className="flex items-center gap-2 mb-3">
-                <div className="relative relative w-1/2">
+                <div className="relative w-1/2">
                     <Search className="absolute left-2 top-1/2 w-4 h-4 text-slate-300 -translate-y-1/2 pointer-events-none" />
                     <Input
                         placeholder="名前またはメールアドレスで検索"

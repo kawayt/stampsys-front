@@ -15,6 +15,7 @@ import {
     Navigate,
     useLocation,
     useNavigate,
+    Link,
 } from "react-router-dom";
 import {
     fetchAppData,
@@ -165,12 +166,12 @@ function Dashboard({ appData, onLogout }) {
         <div className="min-h-screen bg-slate-50">
             <header className="border-b bg-white">
                 <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-                    {/* 左側: ワークスペース名エリア */}
-                    <div className="flex items-center gap-2">
+                    {/* ロゴ */}
+                    <Link to="/classes" className="flex items-center gap-2">
                         <img src={logo} alt="OneStamp" className="h-7.5 w-auto" />
-                    </div>
+                    </Link>
 
-                    {/* 右側: ユーザードロップダウン */}
+                    {/* ユーザードロップダウン */}
                     <div className="flex items-center gap-3">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
