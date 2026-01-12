@@ -200,7 +200,7 @@ export function ClassUserManagement({ classId, open }) {
                     />
                 </div>
 
-                <div className="w-[140px]">
+                <div className="w-35">
                     <Select
                         value={groupFilter}
                         onValueChange={(val) => setGroupFilter(val)}
@@ -230,7 +230,7 @@ export function ClassUserManagement({ classId, open }) {
                 </p>
             )}
 
-            <div className="grid gap-4 md:grid-cols-2 min-h-[260px]">
+            <div className="grid gap-4 md:grid-cols-2 min-h-65">
                 <div className="flex flex-col">
                     <p className="mb-1 text-xs font-medium text-slate-600">
                         参加中のユーザー ({filteredInClass.length}人)

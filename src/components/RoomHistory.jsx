@@ -304,7 +304,7 @@ function RoomHistory() {
     useEffect(() => {
         if (availableGroups.length > 0 && selectedGroups.length === 0) {
             setSelectedGroups(availableGroups);
-            setShowAllGroups(false);
+            setShowAllGroups(true);
         }
     }, [availableGroups]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -578,7 +578,7 @@ function RoomHistory() {
                 <div className="space-y-1">
                     <Label className="text-sm font-medium" htmlFor="int-sel">表示間隔</Label>
                     <Select value={interval} onValueChange={setInterval}>
-                        <SelectTrigger id="int-sel" className="border rounded px-2 py-1 text-sm w-35">
+                        <SelectTrigger id="int-sel" className="border bg-white rounded px-2 py-1 text-sm w-35">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -593,7 +593,7 @@ function RoomHistory() {
                     <Label className="text-sm font-medium">開始時刻 (任意)</Label>
                     <Input 
                         type="datetime-local" 
-                        className="w-55" 
+                        className="w-55 bg-white" 
                         value={start} 
                         onChange={e => setStart(e.target.value)} 
                     />
@@ -602,7 +602,7 @@ function RoomHistory() {
                     <Label className="text-sm font-medium">終了時刻 (任意)</Label>
                     <Input 
                         type="datetime-local" 
-                        className="w-55" 
+                        className="w-55 bg-white" 
                         value={end} 
                         onChange={e => setEnd(e.target.value)} 
                     />
@@ -625,7 +625,7 @@ function RoomHistory() {
                 <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4">
                     
                     {/* グラフエリア */}
-                    <Card className="w-full">
+                    <Card className="w-full border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
                         <CardHeader>
                             <CardTitle>スタンプ履歴グラフ</CardTitle>
                         </CardHeader>
@@ -644,7 +644,7 @@ function RoomHistory() {
                     </Card>
 
                     {/* 設定サイドパネル */}
-                    <Card>
+                    <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
                         <CardHeader><CardTitle>表示設定</CardTitle></CardHeader>
                         <CardContent className="space-y-2 text-sm">
                             <div className="flex items-center gap-2">
@@ -698,13 +698,13 @@ function RoomHistory() {
                     </Card>
 
                     {/* メモリスト */}
-                    <Card><CardHeader><CardTitle>このルームのメモ</CardTitle></CardHeader><CardContent><NotesList roomId={Number(roomId)} /></CardContent></Card>
+                    <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95"><CardHeader><CardTitle>このルームのメモ</CardTitle></CardHeader><CardContent><NotesList roomId={Number(roomId)} /></CardContent></Card>
                 </div>
             )}
 
             {/* ログタブ */}
             {activeTab === "logs" && (
-                <Card>
+                <Card className="w-full border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
                     <CardHeader>
                         <CardTitle>スタンプログ ({interval} ごとにまとめて表示)</CardTitle>
                     </CardHeader>
@@ -720,10 +720,14 @@ function RoomHistory() {
                                 {!showAllKinds && (
                                     <div className="flex flex-wrap gap-2 pl-6">
                                         {stampTypes.map(name => (
-                                            <label key={name} className="flex items-center gap-1 text-sm bg-slate-50 px-2 py-1 rounded cursor-pointer border">
-                                                <input type="checkbox" checked={selectedKinds.includes(name)} onChange={() => handleToggleKind(name)} />
-                                                <span>{name}</span>
-                                            </label>
+                                            <div key={name} className="flex items-center gap-1 text-sm bg-slate-50 px-2 py-1 rounded border">
+                                                <Checkbox
+                                                    id={`kind-${name}`}
+                                                    checked={selectedKinds.includes(name)}
+                                                    onCheckedChange={() => handleToggleKind(name)}
+                                                />
+                                                <Label htmlFor={`kind-${name}`} className="font-normal cursor-pointer">{name}</Label>
+                                            </div>
                                         ))}
                                     </div>
                                 )}
@@ -738,10 +742,14 @@ function RoomHistory() {
                                 {!showAllGroups && (
                                     <div className="flex flex-wrap gap-2 pl-6">
                                         {availableGroups.map(g => (
-                                            <label key={g} className="flex items-center gap-1 text-sm bg-slate-50 px-2 py-1 rounded cursor-pointer border">
-                                                <input type="checkbox" checked={selectedGroups.includes(g)} onChange={() => handleToggleGroup(g)} />
-                                                <span>{g}</span>
-                                            </label>
+                                            <div key={g} className="flex items-center gap-1 text-sm bg-slate-50 px-2 py-1 rounded border">
+                                                <Checkbox 
+                                                    id={`group-${g}`} 
+                                                    checked={selectedGroups.includes(g)} 
+                                                    onCheckedChange={() => handleToggleGroup(g)} 
+                                                />
+                                                <Label htmlFor={`group-${g}`} className="font-normal cursor-pointer">{g}</Label>
+                                            </div>
                                         ))}
                                     </div>
                                 )}

@@ -681,15 +681,17 @@ export function RoomDetail({ userId, role }) {
                     <CardContent>
                         <section>
                             <h3 className="text-lg font-medium">授業メモ</h3>
-                            <NoteForm roomId={Number(roomId)} onCreated={onNoteCreated} />
+                            <div className="mt-4">
+                                <NoteForm roomId={Number(roomId)} onCreated={onNoteCreated} />
+                            </div>
                         </section>
                     </CardContent>
                 </Card>
             )}
 
-            {/* RoomHistory と同様の見た目でメモ一覧を表示 */}
+            {/* メモ一覧 */}
             {isTeacherView && (
-                <Card>
+                <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
                     <CardHeader>
                         <CardTitle>このルームのメモ</CardTitle>
                     </CardHeader>
@@ -700,7 +702,7 @@ export function RoomDetail({ userId, role }) {
             )}
             {/* 送信成功時のオーバーレイアニメーション */}
             {overlayData && sendSuccess && (
-                <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/70 backdrop-blur-[2px] animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-100 flex flex-col items-center justify-center bg-black/70 backdrop-blur-[2px] animate-in fade-in duration-200">
                     <div 
                         className="flex h-40 w-40 items-center justify-center rounded-full shadow-2xl animate-in zoom-in duration-300"
                         style={{
