@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { Separator } from "@/components/ui/separator";
 import {
     ArrowLeft,
     Search,
@@ -1033,6 +1034,8 @@ export function RoomList({ userId, role }) {
                     </Dialog>
                 </div>
             </div>
+
+            <Separator className="mb-6" />
 
             {/* ルーム一覧タイトル＋Tabs＋検索＋ルーム作成 */}
             <div className="mb-6 flex items-center justify-between gap-4">

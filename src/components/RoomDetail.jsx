@@ -12,7 +12,6 @@ import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition.j
 import { sendStamp } from "../api/StampSendApi.js";
 import { ArrowLeft } from "lucide-react";
 import NoteForm from "@/components/NoteForm";
-import NotesList from "@/components/NoteList";
 
 function SimpleBarChart({ data }) {
     const prevCountsRef = useRef({});
@@ -163,9 +162,6 @@ export function RoomDetail({ userId, role }) {
 
     // 追加: ルーム名を保持するステート
     const [roomName, setRoomName] = useState("");
-
-    // メモ一覧再読み込み用 key
-    const [notesKey, setNotesKey] = useState(0);
 
     const isTeacherView = role === "ADMIN" || role === "TEACHER";
 
@@ -433,11 +429,6 @@ export function RoomDetail({ userId, role }) {
         };
     }, [roomId, isTeacherView]);
 
-    const onNoteCreated = (createdNote) => {
-        // 作成後に NotesList を再読み込み（key を変えて再マウント）
-        setNotesKey((k) => k + 1);
-    };
-
     function extractMessage(err) {
         if (!err) return null;
         if (typeof err === "string") return err;
@@ -682,21 +673,9 @@ export function RoomDetail({ userId, role }) {
                         <section>
                             <h3 className="text-lg font-medium">授業メモ</h3>
                             <div className="mt-4">
-                                <NoteForm roomId={Number(roomId)} onCreated={onNoteCreated} />
+                                <NoteForm roomId={Number(roomId)} />
                             </div>
                         </section>
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* メモ一覧 */}
-            {isTeacherView && (
-                <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
-                    <CardHeader>
-                        <CardTitle>このルームのメモ</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <NotesList key={notesKey} roomId={Number(roomId)} />
                     </CardContent>
                 </Card>
             )}

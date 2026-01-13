@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { fetchStampActivity } from "../api/StampActivity";
 import { fetchStampLogs } from "../api/stampLogs";
 import { getStampColorByCode, getStampIconByCode } from "../lib/StampDefinition";
-import NotesList from "@/components/NoteList";
+import NoteForm from "@/components/NoteForm";
 
 import {
     Chart as ChartJS,
@@ -680,8 +680,15 @@ function RoomHistory() {
                         </CardContent>
                     </Card>
 
-                    {/* メモリスト */}
-                    <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95"><CardHeader><CardTitle>このルームのメモ</CardTitle></CardHeader><CardContent><NotesList roomId={Number(roomId)} /></CardContent></Card>
+                    {/* メモ */}
+                    <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
+                        <CardHeader>
+                            <CardTitle>このルームのメモ</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <NoteForm roomId={Number(roomId)} />
+                        </CardContent>
+                    </Card>
                 </div>
             )}
 
@@ -689,7 +696,7 @@ function RoomHistory() {
             {activeTab === "logs" && (
                 <Card className="w-full border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
                     <CardHeader>
-                        <CardTitle>スタンプログ ({interval} ごとにまとめて表示)</CardTitle>
+                        <CardTitle>スタンプログ</CardTitle>
                     </CardHeader>
                     <CardContent>
                          {/* ログフィルタ */}
