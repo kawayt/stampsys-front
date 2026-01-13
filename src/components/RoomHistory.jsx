@@ -113,6 +113,10 @@ function RoomHistory() {
     const [activeTab, setActiveTab] = useState("graph"); // 'graph' | 'logs'
     const [start, setStart] = useState(""); // datetime-local 形式
     const [end, setEnd] = useState("");
+    
+    // 入力完了待ちの時刻
+    const [debouncedStart, setDebouncedStart] = useState("");
+    const [debouncedEnd, setDebouncedEnd] = useState("");
 
     // -- state: データ取得 --
     const [loading, setLoading] = useState(false);
@@ -143,6 +147,8 @@ function RoomHistory() {
         setActiveTab("graph");
         setStart("");
         setEnd("");
+        setDebouncedStart("");
+        setDebouncedEnd("");
         setShowAllKinds(true);
         setShowTotal(false);
         setSelectedKinds([]);
@@ -158,9 +164,18 @@ function RoomHistory() {
         setRoomName("");
     }, [roomId]);
 
-    // マウント時の初期取得
+    // デバウンス処理: 入力が終わってから debouncedStart/End を更新
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedStart(start);
+            setDebouncedEnd(end);
+        }, 800);
+        return () => clearTimeout(timer);
+    }, [start, end]);
+
+    // マウント時および条件変更時にデータを取得
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    useEffect(() => { handleFetch(); }, []);
+    useEffect(() => { handleFetch(); }, [roomId, interval, debouncedStart, debouncedEnd]);
 
     // activeTabが 'logs' の場合にログを読み込む
     useEffect(() => {
@@ -168,12 +183,16 @@ function RoomHistory() {
             loadLogs();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab, logsLimit, logsOffset, start, end, interval]);
+    }, [activeTab, logsLimit, logsOffset, debouncedStart, debouncedEnd, interval]);
 
     // -- ハンドラ --
 
     const handleFetch = async () => {
-        if (start && end && start > end) {
+        // 使用する値はデバウンス済みのもの
+        const currentStart = debouncedStart;
+        const currentEnd = debouncedEnd;
+
+        if (currentStart && currentEnd && currentStart > currentEnd) {
             setError("開始時刻は終了時刻より前にしてください。");
             return;
         }
@@ -185,8 +204,8 @@ function RoomHistory() {
             const resp = await fetchStampActivity({
                 roomId,
                 interval,
-                start: toIsoWithOffset(start),
-                end: toIsoWithOffset(end),
+                start: toIsoWithOffset(currentStart),
+                end: toIsoWithOffset(currentEnd),
             });
 
             setData(resp);
@@ -195,11 +214,13 @@ function RoomHistory() {
             setRoomName(name);
 
             // 範囲が設定されていない場合はデフォルト範囲を設定
-            if (!start && !end && resp && Array.isArray(resp.timeline) && resp.timeline.length > 0) {
+            if (!currentStart && !currentEnd && resp && Array.isArray(resp.timeline) && resp.timeline.length > 0) {
                 const first = resp.timeline[0];
                 const last = resp.timeline[resp.timeline.length - 1];
                 setStart(toDatetimeLocal(first));
                 setEnd(toDatetimeLocal(last));
+                // fetchに使った値も更新されないと不整合になる可能性があるが、
+                // 次のデバウンスサイクル・fetchで整合性が取れる
             }
 
             // 選択された種類を同期
@@ -214,35 +235,6 @@ function RoomHistory() {
             setError(e.message || "スタンプ履歴の取得に失敗しました。");
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleResetSelection = () => {
-        setInterval("5 minutes");
-        setActiveTab("graph");
-        setShowAllKinds(true);
-        setShowTotal(false);
-        
-        if (data?.series) {
-            const names = data.series
-                .filter((s) => s.stampName !== "NO_STAMP")
-                .map((s) => s.stampName);
-            setSelectedKinds(names);
-        } else {
-            setSelectedKinds([]);
-        }
-
-        setShowAllGroups(true);
-        setSelectedGroups([]);
-
-        if (data && Array.isArray(data.timeline) && data.timeline.length > 0) {
-            const first = data.timeline[0];
-            const last = data.timeline[data.timeline.length - 1];
-            setStart(toDatetimeLocal(first));
-            setEnd(toDatetimeLocal(last));
-        } else {
-            setStart("");
-            setEnd("");
         }
     };
 
@@ -265,8 +257,8 @@ function RoomHistory() {
         setLogsError("");
         try {
             const resp = await fetchStampLogs(roomId, {
-                start: toIsoWithOffset(start),
-                end: toIsoWithOffset(end),
+                start: toIsoWithOffset(debouncedStart),
+                end: toIsoWithOffset(debouncedEnd),
                 limit: logsLimit,
                 offset: logsOffset,
             });
@@ -606,15 +598,6 @@ function RoomHistory() {
                         value={end} 
                         onChange={e => setEnd(e.target.value)} 
                     />
-                </div>
-
-                <div className="flex gap-2">
-                    <Button onClick={handleFetch} disabled={loading} className="px-3 py-1 text-sm">
-                        {loading ? "取得中" : "取得"}
-                    </Button>
-                    <Button variant="outline" onClick={handleResetSelection} className="px-3 py-1 text-sm">
-                        リセット
-                    </Button>
                 </div>
             </div>
 
