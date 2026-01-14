@@ -9,6 +9,7 @@ import {
     SelectContent,
     SelectItem,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Trash2, Plus, Search, Filter } from "lucide-react";
 
 export function ClassUserManagement({ classId, open }) {
@@ -20,6 +21,8 @@ export function ClassUserManagement({ classId, open }) {
     const [error, setError] = useState(null);
 
     const [query, setQuery] = useState("");
+
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
     // ★追加: グループ関連のステート
     const [groupList, setGroupList] = useState([]);
@@ -145,6 +148,67 @@ export function ClassUserManagement({ classId, open }) {
         }
     };
 
+    const handleBulkAdd = async () => {
+        if (!classId || filteredNotInClass.length === 0) return;
+        // 確認ダイアログを削除
+
+        setProcessing(true);
+        setError(null);
+
+        try {
+            const promises = filteredNotInClass.map(u => 
+                fetch(`/api/classes/${encodeURIComponent(classId)}/users`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ userId: Number(u.userId) }),
+                }).then(async res => {
+                    await handleAuthRedirectIfNeeded(res);
+                    if (!res.ok) throw new Error("Bulk add failed");
+                 })
+            );
+            await Promise.all(promises);
+            await fetchUsers();
+        } catch (err) {
+            console.error(err);
+            setError("一括追加中にエラーが発生しました。");
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const handleBulkRemove = async () => {
+        if (!classId || filteredInClass.length === 0) return;
+        
+        if (!confirmDelete) {
+            setConfirmDelete(true);
+            return;
+        }
+
+        setProcessing(true);
+        setError(null);
+        setConfirmDelete(false); // リセット
+
+        try {
+             const promises = filteredInClass.map(u => 
+                fetch(`/api/classes/${encodeURIComponent(classId)}/users/${encodeURIComponent(u.userId)}`, {
+                    method: "DELETE",
+                    credentials: "include",
+                }).then(async res => {
+                    await handleAuthRedirectIfNeeded(res);
+                    if (!res.ok && res.status !== 204) throw new Error("Bulk remove failed");
+                 })
+            );
+            await Promise.all(promises);
+            await fetchUsers();
+        } catch (err) {
+            console.error(err);
+            setError("一括削除中にエラーが発生しました。");
+        } finally {
+            setProcessing(false);
+        }
+    };
+
     useEffect(() => {
         if (open) {
             fetchUsers();
@@ -224,6 +288,8 @@ export function ClassUserManagement({ classId, open }) {
                 </div>
             </div>
 
+            <Separator className="my-4" />
+
             {error && (
                 <p className="mb-2 text-xs text-red-600">
                     {error}
@@ -241,7 +307,7 @@ export function ClassUserManagement({ classId, open }) {
                                 {Array.from({ length: 3 }).map((_, idx) => (
                                     <Skeleton
                                         key={`in-skeleton-${idx}`}
-                                        className="flex items-center justify-between rounded-lg px-2 py-2 h-14 bg-slate-100"
+                                        className="flex items-center justify-between rounded-lg px-2 py-2 h-12 bg-slate-100"
                                     />
                                 ))}
                             </ul>
@@ -251,10 +317,22 @@ export function ClassUserManagement({ classId, open }) {
                             </p>
                         ) : (
                             <ul className="space-y-1">
+                                <li className={`rounded-lg transition-colors px-2 py-2 h-12 ${confirmDelete ? 'bg-red-600 hover:bg-red-700' : 'bg-red-50 hover:bg-red-100'}`}>
+                                    <button
+                                        type="button"
+                                        disabled={processing}
+                                        onClick={handleBulkRemove}
+                                        onBlur={() => setConfirmDelete(false)} // フォーカスが外れたらリセット
+                                        className={`w-full h-full flex items-center justify-center gap-2 text-xs font-bold disabled:opacity-50 ${confirmDelete ? 'text-white' : 'text-red-600'}`}
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        <span>{confirmDelete ? "もう一度クリックして削除を実行" : `${filteredInClass.length}人をまとめて削除`}</span>
+                                    </button>
+                                </li>
                                 {filteredInClass.map((u) => (
                                     <li
                                         key={u.userId}
-                                        className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-2 h-14"
+                                        className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-2 h-12"
                                     >
                                         <div className="flex flex-col justify-center overflow-hidden pr-2">
                                             <div className="flex items-center text-xs font-medium text-slate-800 truncate">
@@ -292,7 +370,7 @@ export function ClassUserManagement({ classId, open }) {
                                 {Array.from({ length: 3 }).map((_, idx) => (
                                     <Skeleton
                                         key={`notin-skeleton-${idx}`}
-                                        className="flex items-center justify-between rounded-lg px-2 py-2 h-14 bg-slate-100"
+                                        className="flex items-center justify-between rounded-lg px-2 py-2 h-12 bg-slate-100"
                                     />
                                 ))}
                             </ul>
@@ -302,10 +380,21 @@ export function ClassUserManagement({ classId, open }) {
                             </p>
                         ) : (
                             <ul className="space-y-1">
+                                <li className="rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors px-2 py-2 h-12">
+                                    <button
+                                        type="button"
+                                        disabled={processing}
+                                        onClick={handleBulkAdd}
+                                        className="w-full h-full flex items-center justify-center gap-2 text-xs font-bold text-slate-800 disabled:opacity-50"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        <span>{filteredNotInClass.length}人をまとめて追加</span>
+                                    </button>
+                                </li>
                                 {filteredNotInClass.map((u) => (
                                     <li
                                         key={u.userId}
-                                        className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-2 h-14"
+                                        className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-2 h-12"
                                     >
                                         <div className="flex flex-col justify-center overflow-hidden pr-2">
                                             <div className="flex items-center text-xs font-medium text-slate-800 truncate">
