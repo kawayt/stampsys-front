@@ -16,16 +16,33 @@ import LoginDisabled from "./components/LoginDisabled";
 import { Header } from "@/components/Header";
 
 function App() {
-    const [loading, setLoading] = useState(true);
-    const [appData, setAppData] = useState(null); // { attributes, users, user } を想定
+    // localStorage からキャッシュを読み込む
+    const [appData, setAppData] = useState(() => {
+        try {
+            const stored = localStorage.getItem("stampsys_auth_data");
+            return stored ? JSON.parse(stored) : null;
+        } catch {
+            return null;
+        }
+    });
+
+    // キャッシュがあれば初期ロードは完了していると見なす
+    const [loading, setLoading] = useState(!appData);
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        // マウント時にログイン状態をチェック
+        // マウント時にログイン状態をチェック (最新データの取得)
         (async () => {
             try {
                 const data = await fetchAppData();
-                setAppData(data); // 未ログイン時は null
+                if (data) {
+                    setAppData(data);
+                    localStorage.setItem("stampsys_auth_data", JSON.stringify(data));
+                } else {
+                    // 未ログインまたはセッション切れ
+                    setAppData(null);
+                    localStorage.removeItem("stampsys_auth_data");
+                }
             } catch (e) {
                 console.error(e);
                 setError("データ取得中にエラーが発生しました");
