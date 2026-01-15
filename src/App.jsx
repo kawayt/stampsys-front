@@ -30,10 +30,28 @@ function App() {
     const [loading, setLoading] = useState(!appData);
     const [error, setError] = useState(null);
 
+    // データ更新関数
+    const refreshAppData = async () => {
+        try {
+            const data = await fetchAppData();
+            if (data) {
+                setAppData(data);
+                localStorage.setItem("stampsys_auth_data", JSON.stringify(data));
+            } else {
+                setAppData(null);
+                localStorage.removeItem("stampsys_auth_data");
+            }
+        } catch (e) {
+            console.error(e);
+            // 必要ならエラー処理
+        }
+    };
+
     useEffect(() => {
         // マウント時にログイン状態をチェック (最新データの取得)
         (async () => {
             try {
+                // 初回は refreshAppData と同等の処理だが loading 制御などが入るためそのまま
                 const data = await fetchAppData();
                 if (data) {
                     setAppData(data);
@@ -101,7 +119,11 @@ function App() {
                     path="/*"
                     element={
                         appData ? (
-                            <Dashboard appData={appData} onLogout={handleLogout} />
+                            <Dashboard
+                                appData={appData}
+                                onLogout={handleLogout}
+                                onUserUpdate={refreshAppData}
+                            />
                         ) : (
                             <Navigate to="/login" replace />
                         )
@@ -115,7 +137,7 @@ function App() {
 /**
  * ログイン後ダッシュボード部分
  */
-function Dashboard({ appData, onLogout }) {
+function Dashboard({ appData, onLogout, onUserUpdate }) {
     return (
         <div className="min-h-screen bg-slate-50">
             <Header appData={appData} onLogout={onLogout} />
@@ -131,7 +153,15 @@ function Dashboard({ appData, onLogout }) {
                         />
 
                         {/* ユーザー一覧ページ */}
-                        <Route path="/users" element={<UserList />} />
+                        <Route
+                            path="/users"
+                            element={
+                                <UserList
+                                    initialCurrentUserRole={appData.user?.role}
+                                    onUserUpdate={onUserUpdate}
+                                />
+                            }
+                        />
 
                         {/* スタンプ一覧ページ */}
                         <Route path="/stamps" element={<StampList userId={appData.user?.userId} role={appData.user?.role} />} />

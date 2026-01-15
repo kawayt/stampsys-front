@@ -131,7 +131,7 @@ function renderPageButtons(currentPage, totalPages, goToPage) {
     return buttons;
 }
 
-function UserList() {
+function UserList({ initialCurrentUserRole, onUserUpdate }) {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [, setError] = useState(null);
@@ -154,7 +154,8 @@ function UserList() {
     const [hiddenUsers, setHiddenUsers] = useState([]);
     const [hiddenError, setHiddenError] = useState(null);
     const [openHiddenDialog, setOpenHiddenDialog] = useState(false);
-    const [currentUserRole, setCurrentUserRole] = useState(null);
+    const [currentUserRole, setCurrentUserRole] = useState(initialCurrentUserRole || null);
+    const [currentUserId, setCurrentUserId] = useState(null);
     const cardRefs = useRef([]);
     const [restoringId, setRestoringId] = useState(null);
     const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
@@ -278,6 +279,16 @@ function UserList() {
         return undefined;
     }, [deleteDialogOpen, restoreDialogOpen, pendingSuccessMessage]);
 
+    // 自分の権限が変化した場合（初期ロードでの不整合検知や、操作による変化）に、
+    // 親コンポーネントへ通知してヘッダー等を更新させる
+    useEffect(() => {
+        // initialRoleと異なる、あるいはnullから値が入った等、変化があった場合に通知
+        if (onUserUpdate && currentUserRole && currentUserRole !== initialCurrentUserRole) {
+            onUserUpdate();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUserRole]);
+
     const focusCard = (index) => {
         const el = cardRefs.current && cardRefs.current[index];
         if (el && typeof el.focus === 'function') el.focus();
@@ -304,14 +315,18 @@ function UserList() {
             const res = await fetchWithCreds('/api/app');
             if (!res.ok) {
                 setCurrentUserRole(null);
+                setCurrentUserId(null);
                 return null;
             }
             const d = await res.json();
             const role = d?.user?.role ?? null;
+            const uid = d?.user?.userId ?? d?.user?.id ?? null;
             setCurrentUserRole(role || null);
+            setCurrentUserId(uid);
             return role;
         } catch {
             setCurrentUserRole(null);
+            setCurrentUserId(null);
             return null;
         }
     };
@@ -319,12 +334,20 @@ function UserList() {
     const fetchUsers = async (page = 0, size = pageSize, query = '') => {
         try {
             setLoading(true);
+
+            // ユーザー一覧取得と並行して、最新の権限状態も確認する（他者による権限変更を反映させるため）
+            const roleCheckPromise = fetchCurrentUserRole();
+
             let url = `/api/users?page=${page}&size=${size}`;
             if (query && query.trim() !== '') url += `&q=${encodeURIComponent(query)}`;
             if (roleFilter && roleFilter !== 'ALL') url += `&role=${encodeURIComponent(roleFilter)}`;
             if (groupFilter && groupFilter !== 'ALL') url += `&groupId=${encodeURIComponent(groupFilter)}`;
 
-            const res = await fetchWithCreds(url);
+            const [res] = await Promise.all([
+                fetchWithCreds(url),
+                roleCheckPromise
+            ]);
+
             if (!res.ok) await handleApiError(res);
             const data = await res.json();
 
@@ -398,6 +421,7 @@ function UserList() {
         }
 
         const previousUsers = [...users];
+        const previousRole = currentUserRole;
 
         setUsers((prevUsers) =>
             prevUsers.map((u) => {
@@ -408,6 +432,10 @@ function UserList() {
                 return u;
             })
         );
+
+        if (userId === currentUserId) {
+            setCurrentUserRole(newRole);
+        }
 
         try {
             const res = await fetchWithCreds(`/api/users/${userId}/role`, {
@@ -424,6 +452,9 @@ function UserList() {
             await fetchGroupCounts();
         } catch (err) {
             setUsers(previousUsers);
+            if (userId === currentUserId) {
+                setCurrentUserRole(previousRole);
+            }
             notifyError(err.message || err);
         }
     };
