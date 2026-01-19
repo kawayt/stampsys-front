@@ -161,7 +161,7 @@ const dbAdminConfig = {
         },
         readonly: ["user_id", "provider_user_id", "created_at"],
         lookups: {
-            group_id: { table: "group", label: "group_name" },
+            group_id: { table: "groups", label: "group_name" },
         },
     },
 
