@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
 import { restoreHiddenUser } from '@/api/user.js';
-import { Search, Shield, GraduationCap, User, Plus, Filter, Building, Trash2, RotateCw } from 'lucide-react';
+import { Search, Shield, GraduationCap, User, Plus, Filter, Trash2 } from 'lucide-react';
 import {
     useReactTable,
     getCoreRowModel,
@@ -36,7 +36,6 @@ import {
 } from '@tanstack/react-table';
 import { notifySuccess, notifyError } from "@/utils/notify";
 
-const ROLE_ORDER = ['ADMIN', 'TEACHER', 'STUDENT'];
 const CARD_ROLES = ['ADMIN', 'TEACHER', 'STUDENT'];
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -55,33 +54,6 @@ function RoleIconSmall({ role, className = 'h-6 w-6' }) {
     if (r === 'ADMIN') return <Shield className={`${className} text-rose-600`} aria-hidden />;
     if (r === 'TEACHER') return <GraduationCap className={`${className} text-blue-600`} aria-hidden />;
     return <User className={`${className} text-emerald-600`} aria-hidden />;
-}
-
-function ToastSingle({ open, message, onClose, autoHideMs = 5000 }) {
-    useEffect(() => {
-        if (!open || !autoHideMs) return;
-        const t = setTimeout(() => onClose(), autoHideMs);
-        return () => clearTimeout(t);
-    }, [open, autoHideMs, onClose]);
-    if (!open) return null;
-    return (
-        <div
-            role="status"
-            aria-live="polite"
-            onClick={onClose}
-            style={{
-                position: 'fixed', right: 20, bottom: 24, zIndex: 9999,
-                background: 'rgba(17,24,39,0.95)', color: '#fff',
-                padding: '12px 16px', borderRadius: 8,
-                boxShadow: '0 6px 24px rgba(0,0,0,0.15)',
-                cursor: 'pointer', maxWidth: '360px', pointerEvents: 'auto',
-            }}
-        >
-            <div style={{ fontWeight: 600, marginBottom: 6 }}>操作が完了しました</div>
-            <div style={{ fontSize: 13, opacity: 0.95 }}>{message}</div>
-            <div style={{ fontSize: 11, opacity: 0.75, marginTop: 8 }}>クリックで閉じる</div>
-        </div>
-    );
 }
 
 function CountCard({ title, count, colorClass = 'bg-gray-50', icon, active = false, onClick, innerRef = null }) {
@@ -144,7 +116,6 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
     const [roleFilter, setRoleFilter] = useState('ALL');
     const [groupMap, setGroupMap] = useState({});
     const [groupList, setGroupList] = useState([]);
-    // ▼ 追加: グループごとの人数を保持するステート
     const [groupCounts, setGroupCounts] = useState({});
     const [groupFilter, setGroupFilter] = useState('ALL');
     const [newGroupName, setNewGroupName] = useState('');
@@ -165,11 +136,6 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
     const [deleteTargetUser, setDeleteTargetUser] = useState(null);
     const [hideToggleLoading, setHideToggleLoading] = useState(false);
     const [hideToggleError, setHideToggleError] = useState(null);
-    const [successDialogOpen, setSuccessDialogOpen] = useState(false);
-    const [successDialogMessage, setSuccessDialogMessage] = useState('');
-    const [pendingSuccessMessage, setPendingSuccessMessage] = useState('');
-    const [toastOpen, setToastOpen] = useState(false);
-    const [toastMessage, setToastMessage] = useState('');
 
     const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
     const fetchWithCreds = (url, options = {}) => {
@@ -214,13 +180,11 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
         }
     };
 
-    // ▼ 追加: グループごとの人数を取得する関数
     const fetchGroupCounts = async () => {
         try {
             const res = await fetchWithCreds('/api/users/counts/groups');
             if (res.ok) {
                 const data = await res.json();
-                // nullキー（未所属）の調整などが必要ならここで行う
                 setGroupCounts(data || {});
             }
         } catch (err) {
@@ -237,7 +201,6 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
                 setError(null);
                 return;
             }
-            // ▼ 変更: fetchGroupCounts も初期ロードに追加
             await Promise.all([
                 fetchUsers(0, pageSize),
                 fetchCounts(),
@@ -268,21 +231,6 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
     }, [searchQuery]);
 
     useEffect(() => {
-        if (!deleteDialogOpen && !restoreDialogOpen && pendingSuccessMessage) {
-            const t = setTimeout(() => {
-                setSuccessDialogMessage(pendingSuccessMessage);
-                setPendingSuccessMessage('');
-                setSuccessDialogOpen(true);
-            }, 180);
-            return () => clearTimeout(t);
-        }
-        return undefined;
-    }, [deleteDialogOpen, restoreDialogOpen, pendingSuccessMessage]);
-
-    // 自分の権限が変化した場合（初期ロードでの不整合検知や、操作による変化）に、
-    // 親コンポーネントへ通知してヘッダー等を更新させる
-    useEffect(() => {
-        // initialRoleと異なる、あるいはnullから値が入った等、変化があった場合に通知
         if (onUserUpdate && currentUserRole && currentUserRole !== initialCurrentUserRole) {
             onUserUpdate();
         }
@@ -335,7 +283,6 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
         try {
             setLoading(true);
 
-            // ユーザー一覧取得と並行して、最新の権限状態も確認する（他者による権限変更を反映させるため）
             const roleCheckPromise = fetchCurrentUserRole();
 
             let url = `/api/users?page=${page}&size=${size}`;
@@ -446,9 +393,8 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
             if (!res.ok) await handleApiError(res);
             await res.json().catch(() => null);
 
-            notifySuccess('ロールを変更しました');
+            notifySuccess('権限を変更しました');
             await fetchCounts();
-            // ロール変更も集計に影響しうる（所属は変わらないが念のため）
             await fetchGroupCounts();
         } catch (err) {
             setUsers(previousUsers);
@@ -488,7 +434,6 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
 
             notifySuccess('所属を変更しました');
             await fetchCounts();
-            // ▼ 追加: 所属が変わったのでグループ別人数も再取得
             await fetchGroupCounts();
 
         } catch (err) {
@@ -497,12 +442,14 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
         }
     };
 
-    const handleManualRefresh = () => {
-        fetchUsers(currentPage, pageSize, searchQuery);
-        fetchGroupCounts(); // 手動更新時も人数を更新
-        notifySuccess("リストを最新の状態に更新しました");
+    // 追加: 削除/復元ダイアログを開く関数
+    const openHideToggleDialog = (user) => {
+        setDeleteTargetUser(user);
+        setHideToggleError(null);
+        setDeleteDialogOpen(true);
     };
 
+    // 追加: 所属を追加する関数
     const handleAddGroup = async () => {
         if (!newGroupName.trim()) return;
         setIsAddingGroup(true);
@@ -516,7 +463,7 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
 
             setNewGroupName('');
             await fetchGroups();
-            await fetchGroupCounts(); // 追加時は人数0だが一応更新
+            await fetchGroupCounts();
             notifySuccess('新しい所属先を追加しました');
         } catch (err) {
             notifyError(err.message || '追加に失敗しました');
@@ -525,10 +472,20 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
         }
     };
 
-    const openHideToggleDialog = (user) => {
-        setDeleteTargetUser(user);
-        setHideToggleError(null);
-        setDeleteDialogOpen(true);
+    // 追加: 所属を削除する関数
+    const handleDeleteGroup = async (groupId) => {
+        if (!window.confirm("この所属を削除しますか？\n所属しているユーザーは「未所属」になります。")) return;
+        try {
+            const res = await fetchWithCreds(`/api/groups/${groupId}`, { method: 'DELETE' });
+            if (!res.ok) await handleApiError(res);
+
+            notifySuccess('所属を削除しました');
+            await fetchGroups();
+            await fetchUsers(currentPage, pageSize, searchQuery);
+            await fetchGroupCounts();
+        } catch (err) {
+            notifyError(err.message || '削除に失敗しました');
+        }
     };
 
     const performHideToggle = async () => {
@@ -566,33 +523,15 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
 
             await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
-            await fetchGroupCounts(); // 削除/復元で人数が変わるため
+            await fetchGroupCounts();
 
             const msg = willHide ? `${targetName} を削除しました` : `${targetName} を復元しました`;
             setDeleteDialogOpen(false);
-            setTimeout(() => {
-                setToastMessage(msg);
-                setToastOpen(true);
-            }, 180);
+            notifySuccess(msg);
         } catch (err) {
             setHideToggleError(err.message || String(err));
         } finally {
             setHideToggleLoading(false);
-        }
-    };
-
-    const handleDeleteGroup = async (groupId) => {
-        if (!window.confirm("この所属を削除しますか？\n所属しているユーザーは「未所属」になります。")) return;
-        try {
-            const res = await fetchWithCreds(`/api/groups/${groupId}`, { method: 'DELETE' });
-            if (!res.ok) await handleApiError(res);
-
-            notifySuccess('所属を削除しました');
-            await fetchGroups();
-            await fetchUsers(currentPage, pageSize, searchQuery);
-            await fetchGroupCounts(); // 削除で人数移動があるため
-        } catch (err) {
-            notifyError(err.message || '削除に失敗しました');
         }
     };
 
@@ -652,14 +591,11 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
             );
             await fetchUsers(currentPage, pageSize, searchQuery);
             await fetchCounts();
-            await fetchGroupCounts(); // 復元で人数が変わるため
+            await fetchGroupCounts();
 
             const msg = `${targetName} を復元しました`;
             setRestoreDialogOpen(false);
-            setTimeout(() => {
-                setToastMessage(msg);
-                setToastOpen(true);
-            }, 180);
+            notifySuccess(msg);
         } catch (err) {
             setRestoreError(err.message || String(err));
         } finally {
@@ -817,20 +753,16 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
                     <h1 className="mb-4 text-lg font-semibold">ユーザー一覧</h1>
                     <Alert variant="destructive">
                         <AlertTitle>エラー</AlertTitle>
-                        <AlertDescription>学生はこの機能を使用することはできません</AlertDescription>
+                        <AlertDescription>学生はこの機能を��用することはできません</AlertDescription>
                     </Alert>
                 </div>
             </div>
         );
     }
 
-    // nullキーは "null" という文字列キーで返ってくる場合と、Mapの仕様による場合がありますが、JSON.stringifyではキーは文字列になります。
-    // そのため、groupCounts['null'] か groupCounts[null] をケアしつつ、未所属(-1)は別途対応
     const getCountForGroup = (gid) => {
-        // BackendのMap<Integer, Long>はJSON化されるとキーが文字列になります "1": 10
         return groupCounts[gid] || 0;
     };
-    const unassignedCount = groupCounts['null'] || groupCounts[null] || 0;
 
     return (
         <div className="mx-auto space-y-4 py-4">
@@ -875,7 +807,7 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
                 </div>
             </div>
 
-            {/* 各種ダイアログ */}
+            {/* 削除/復元ダイアログ */}
             <Dialog
                 open={restoreDialogOpen}
                 onOpenChange={(v) => {
@@ -978,33 +910,7 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
                 </DialogContent>
             </Dialog>
 
-            <Dialog
-                open={successDialogOpen}
-                onOpenChange={(v) => {
-                    if (!v) {
-                        setSuccessDialogOpen(false);
-                        setSuccessDialogMessage('');
-                        setDeleteTargetUser(null);
-                        setRestoreDialogUser(null);
-                    }
-                }}
-            >
-                <DialogContent className="sm:max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle>操作が完了しました</DialogTitle>
-                        <DialogDescription>
-                            {successDialogMessage || '操作が完了しました'}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="flex justify-end gap-2 mt-4">
-                        <Button onClick={() => setSuccessDialogOpen(false)}>
-                            閉じる
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* フィルタ / 検索バー / 更新ボタン */}
+            {/* フィルタ / 検索バー */}
             <form
                 onSubmit={handleSearch}
                 className="flex flex-wrap items-center justify-between gap-3"
@@ -1047,34 +953,19 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="ALL">すべての所属</SelectItem>
-                                {/* ▼ 変更: 未所属のカウント表示 */}
-                                <SelectItem value="-1">未所属 ({unassignedCount})</SelectItem>
+                                <SelectItem value="-1">未所属</SelectItem>
                                 {groupList.map(g => (
-                                    /* ▼ 変更: 各グループのカウント表示 */
                                     <SelectItem key={g.groupId} value={String(g.groupId)}>
-                                        {g.groupName} ({getCountForGroup(g.groupId)})
+                                        {g.groupName}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                     </div>
-
-                    {/* ★ 手動更新ボタン (管理者のみ表示) */}
-                    {String(currentUserRole || '').toUpperCase() === 'ADMIN' && (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleManualRefresh}
-                            className="bg-white h-9 px-3 text-xs"
-                        >
-                            <RotateCw className={`w-3.5 h-3.5 mr-2 text-slate-600 ${loading ? 'animate-spin' : ''}`} />
-                            所属情報を更新
-                        </Button>
-                    )}
                 </div>
             </form>
 
-            {/* データテーブル本体 */}
+            {/* データテーブル */}
             <div
                 className="rounded-md border bg-background"
                 role="region"
@@ -1197,7 +1088,7 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
                 表示中: {processedUsers.length}人 / 合計: {totalElements}人
             </div>
 
-            {/* ★ 新規所属追加フォーム & 管理ボタン (管理者のみ表示) */}
+            {/* 所属追加 & 管理 */}
             {String(currentUserRole || '').toUpperCase() === 'ADMIN' && (
                 <div className="mt-8 pt-6 border-t">
                     <div className="flex items-center justify-between">
@@ -1220,7 +1111,6 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
                             </div>
                         </div>
 
-                        {/* ★ 所属一覧・削除ダイアログ */}
                         <Dialog open={openGroupManager} onOpenChange={setOpenGroupManager}>
                             <DialogTrigger asChild>
                                 <Button variant="outline" className="mt-6">
@@ -1253,7 +1143,6 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
                                                     <td className="py-2 px-4 text-slate-500">{g.groupId}</td>
                                                     <td className="py-2 px-4 font-medium">{g.groupName}</td>
                                                     <td className="py-2 px-4 text-center text-slate-600">
-                                                        {/* ▼ 追加: 管理画面での人数表示 */}
                                                         {getCountForGroup(g.groupId)}人
                                                     </td>
                                                     <td className="py-2 px-4 text-right">
@@ -1307,7 +1196,7 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
                             </Button>
                         </DialogTrigger>
 
-                        <DialogContent className="sm:max-w-3xl">
+                        <DialogContent className="sm-max-w-3xl">
                             <DialogHeader>
                                 <DialogTitle>
                                     非表示ユーザー
@@ -1345,108 +1234,49 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
                                                     <thead>
                                                     <tr className="text-left text-xs text-slate-600">
                                                         <th className="py-2 px-3">名前</th>
-                                                        <th className="py-2 px-3">
-                                                            メールアドレス
-                                                        </th>
-                                                        <th className="py-2 px-3">
-                                                            権限
-                                                        </th>
-                                                        <th className="py-2 px-3">
-                                                            登録日時
-                                                        </th>
-                                                        <th className="py-2 px-3">
-                                                            操作
-                                                        </th>
+                                                        <th className="py-2 px-3">メールアドレス</th>
+                                                        <th className="py-2 px-3">権限</th>
+                                                        <th className="py-2 px-3">登録日時</th>
+                                                        <th className="py-2 px-3">操作</th>
                                                     </tr>
                                                     </thead>
                                                     <tbody>
                                                     {hiddenUsers.map((u, idx) => {
-                                                        const uidRaw =
-                                                            u?.userId ??
-                                                            u?.id ??
-                                                            u?.user_id;
-                                                        const uid =
-                                                            uidRaw != null
-                                                                ? String(uidRaw)
-                                                                : `hidden-${idx}`;
-                                                        const name =
-                                                            u?.userName ??
-                                                            u?.name ??
-                                                            u?.fullName ??
-                                                            '';
-                                                        const created =
-                                                            u?.createdAt ??
-                                                            u?.created_at ??
-                                                            '';
-                                                        const isPlaceholder =
-                                                            /^hidden-\d+$/i.test(
-                                                                uid,
-                                                            );
+                                                        const uidRaw = u?.userId ?? u?.id ?? u?.user_id;
+                                                        const uid = uidRaw != null ? String(uidRaw) : `hidden-${idx}`;
+                                                        const name = u?.userName ?? u?.name ?? u?.fullName ?? '';
+                                                        const created = u?.createdAt ?? u?.created_at ?? '';
+                                                        const isPlaceholder = /^hidden-\d+$/i.test(uid);
                                                         return (
-                                                            <tr
-                                                                key={uid}
-                                                                className="border-t"
-                                                                tabIndex={0}
-                                                            >
+                                                            <tr key={uid} className="border-t" tabIndex={0}>
                                                                 <td className="py-2 px-3 align-top">
                                                                     <div className="flex items-center gap-3">
                                                                         <span>{name}</span>
                                                                     </div>
                                                                 </td>
+                                                                <td className="py-2 px-3 align-top">{u?.email ?? ''}</td>
                                                                 <td className="py-2 px-3 align-top">
-                                                                    {u?.email ??
-                                                                        ''}
+                                                                    <span className="whitespace-nowrap flex items-center gap-2">
+                                                                        <RoleIconSmall role={u?.role} />
+                                                                        {roleLabel(u?.role)}
+                                                                    </span>
                                                                 </td>
                                                                 <td className="py-2 px-3 align-top">
-                                                                        <span className="whitespace-nowrap flex items-center gap-2">
-                                                                            <RoleIconSmall
-                                                                                role={u?.role}
-                                                                            />
-                                                                            {roleLabel(
-                                                                                u?.role,
-                                                                            )}
-                                                                        </span>
-                                                                </td>
-                                                                <td className="py-2 px-3 align-top">
-                                                                    {created
-                                                                        ? new Date(
-                                                                            created,
-                                                                        ).toLocaleString(
-                                                                            'ja-JP',
-                                                                        )
-                                                                        : ''}
+                                                                    {created ? new Date(created).toLocaleString('ja-JP') : ''}
                                                                 </td>
                                                                 <td className="py-2 px-3 align-top">
                                                                     <Button
                                                                         size="sm"
                                                                         onClick={() => {
-                                                                            if (
-                                                                                isPlaceholder
-                                                                            )
-                                                                                return;
-                                                                            setRestoreDialogUser(
-                                                                                u,
-                                                                            );
-                                                                            setRestoreError(
-                                                                                null,
-                                                                            );
-                                                                            setRestoreDialogOpen(
-                                                                                true,
-                                                                            );
+                                                                            if (isPlaceholder) return;
+                                                                            setRestoreDialogUser(u);
+                                                                            setRestoreError(null);
+                                                                            setRestoreDialogOpen(true);
                                                                         }}
-                                                                        disabled={
-                                                                            restoringId ===
-                                                                            uid ||
-                                                                            isPlaceholder
-                                                                        }
+                                                                        disabled={restoringId === uid || isPlaceholder}
                                                                         aria-label={`ユーザー ${name} を復元`}
                                                                     >
-                                                                        {restoringId ===
-                                                                        uid
-                                                                            ? '復元中…'
-                                                                            : isPlaceholder
-                                                                                ? '復元不可'
-                                                                                : '復元'}
+                                                                        {restoringId === uid ? '復元中…' : isPlaceholder ? '復元不可' : '復元'}
                                                                     </Button>
                                                                 </td>
                                                             </tr>
@@ -1463,13 +1293,6 @@ function UserList({ initialCurrentUserRole, onUserUpdate }) {
                     </Dialog>
                 </div>
             )}
-
-            <ToastSingle
-                open={toastOpen}
-                message={toastMessage}
-                onClose={() => setToastOpen(false)}
-                autoHideMs={5000}
-            />
         </div>
     );
 }
