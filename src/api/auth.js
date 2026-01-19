@@ -43,6 +43,7 @@ export function loginWithMicrosoft() {
  *   （サーバー側が 302 で Microsoft にリダイレクトしても CORS エラーにならない）
  */
 export function logout() {
+    localStorage.removeItem("stampsys_auth_data");
     window.location.href = `${API_BASE_URL}/logout`;
 }
 

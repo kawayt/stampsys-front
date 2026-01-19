@@ -570,7 +570,7 @@ function RoomHistory() {
                 <div className="space-y-1">
                     <Label className="text-sm font-medium" htmlFor="int-sel">表示間隔</Label>
                     <Select value={interval} onValueChange={setInterval}>
-                        <SelectTrigger id="int-sel" className="border bg-white rounded px-2 py-1 text-sm w-35">
+                        <SelectTrigger id="int-sel" className="border bg-white px-2 py-1 text-sm w-35">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
