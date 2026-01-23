@@ -20,6 +20,18 @@ import {
     Pin,
     Star,
 } from "lucide-react";
+import {
+    TbCircleNumber0,
+    TbCircleNumber1,
+    TbCircleNumber2,
+    TbCircleNumber3,
+    TbCircleNumber4,
+    TbCircleNumber5,
+    TbCircleNumber6,
+    TbCircleNumber7,
+    TbCircleNumber8,
+    TbCircleNumber9,
+ } from "react-icons/tb";
 
 // スタンプカラーを定義
 const COLOR_MAP = {
@@ -59,6 +71,16 @@ const ICON_MAP = {
     18: { Icon: Lightbulb, label: "ひらめき" },
     19: { Icon: Pin, label: "ピン留め" },
     20: { Icon: Star, label: "スター" },
+    21: { Icon: TbCircleNumber0, label: "数字0" },
+    22: { Icon: TbCircleNumber1, label: "数字1" },
+    23: { Icon: TbCircleNumber2, label: "数字2" },
+    24: { Icon: TbCircleNumber3, label: "数字3" },
+    25: { Icon: TbCircleNumber4, label: "数字4" },
+    26: { Icon: TbCircleNumber5, label: "数字5" },
+    27: { Icon: TbCircleNumber6, label: "数字6" },
+    28: { Icon: TbCircleNumber7, label: "数字7" },
+    29: { Icon: TbCircleNumber8, label: "数字8" },
+    30: { Icon: TbCircleNumber9, label: "数字9" },
 };
 
 const DEFAULT_ICON = { Icon: Smile, label: "Default" };

@@ -282,7 +282,7 @@ function StampList({ userId, role }) {
 
     // カラーとアイコンの候補（コード値を配列化）
     const colorOptions = Array.from({ length: 10 }, (_, i) => i + 1);
-    const iconOptions = Array.from({ length: 20 }, (_, i) => i + 1);
+    const iconOptions = Array.from({ length: 30 }, (_, i) => i + 1);
 
     // スタンプ名検索フィルタ
     const filteredStamps = (stamps || []).filter((s) => {
