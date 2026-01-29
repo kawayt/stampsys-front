@@ -4,6 +4,8 @@ import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition";
 import { Trash2, Plus } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
 export function ClassStampManagement({ classId, open, userId }) {
     const [assignedStamps, setAssignedStamps] = useState([]);
     const [unassignedStamps, setUnassignedStamps] = useState([]);
@@ -28,10 +30,10 @@ export function ClassStampManagement({ classId, open, userId }) {
         setStampError(null);
         try {
             const [assignedRes, unassignedRes] = await Promise.all([
-                fetch(`/api/stamp-management/class/${encodeURIComponent(classId)}/assigned`, {
+                fetch(`${API_BASE_URL}/api/stamp-management/class/${encodeURIComponent(classId)}/assigned`, {
                     credentials: "include",
                 }),
-                fetch(`/api/stamp-management/class/${encodeURIComponent(classId)}/unassigned`, {
+                fetch(`${API_BASE_URL}/api/stamp-management/class/${encodeURIComponent(classId)}/unassigned`, {
                     credentials: "include",
                 }),
             ]);
@@ -63,7 +65,7 @@ export function ClassStampManagement({ classId, open, userId }) {
         setStampError(null);
 
         try {
-            const res = await fetch("/api/class-stamps", {
+            const res = await fetch(`${API_BASE_URL}/api/class-stamps`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -97,7 +99,7 @@ export function ClassStampManagement({ classId, open, userId }) {
         setStampError(null);
 
         try {
-            const res = await fetch("/api/class-stamps", {
+            const res = await fetch(`${API_BASE_URL}/api/class-stamps`, {
                 method: "DELETE",
                 headers: {
                     "Content-Type": "application/json",

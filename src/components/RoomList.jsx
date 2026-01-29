@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/select";
 import { notifySuccess, notifyError } from "@/utils/notify";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 const ROOM_TAB = {
     ACTIVE: "active", // hidden=false
@@ -134,7 +135,7 @@ export function RoomList({ userId, role }) {
         setError(null);
         try {
             const res = await fetch(
-                `/api/rooms/${encodeURIComponent(classId)}`,
+                `${API_BASE_URL}/api/rooms/${encodeURIComponent(classId)}`,
                 {
                     credentials: "include",
                 }
@@ -164,7 +165,7 @@ export function RoomList({ userId, role }) {
         setHiddenError(null);
         try {
             const res = await fetch(
-                `/api/rooms/${encodeURIComponent(classId)}?hidden=true`,
+                `${API_BASE_URL}/api/rooms/${encodeURIComponent(classId)}?hidden=true`,
                 {
                     credentials: "include",
                 }
@@ -194,7 +195,7 @@ export function RoomList({ userId, role }) {
         setCountsError(null);
         try {
             const res = await fetch(
-                `/api/classes/${encodeURIComponent(
+                `${API_BASE_URL}/api/classes/${encodeURIComponent(
                     classId
                 )}/rooms/stamp-counts`,
                 {
@@ -328,7 +329,7 @@ export function RoomList({ userId, role }) {
 
         setCreating(true);
         try {
-            const res = await fetch("/api/rooms", {
+            const res = await fetch(`${API_BASE_URL}/api/rooms`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -391,7 +392,7 @@ export function RoomList({ userId, role }) {
 
         try {
             const res = await fetch(
-                `/api/rooms/${encodeURIComponent(selectedRoom.roomId)}/close`,
+                `${API_BASE_URL}/api/rooms/${encodeURIComponent(selectedRoom.roomId)}/close`,
                 {
                     method: "PATCH",
                 }
@@ -470,7 +471,7 @@ export function RoomList({ userId, role }) {
 
         try {
             const res = await fetch(
-                `/api/rooms/${encodeURIComponent(hideSelectedRoom.roomId)}/delete`,
+                `${API_BASE_URL}/api/rooms/${encodeURIComponent(hideSelectedRoom.roomId)}/delete`,
                 {
                     method: "PATCH",
                     credentials: "include",
@@ -548,7 +549,7 @@ export function RoomList({ userId, role }) {
 
         try {
             const res = await fetch(
-                `/api/rooms/${encodeURIComponent(room.roomId)}/restore`,
+                `${API_BASE_URL}/api/rooms/${encodeURIComponent(room.roomId)}/restore`,
                 {
                     method: "PATCH",
                     credentials: "include",

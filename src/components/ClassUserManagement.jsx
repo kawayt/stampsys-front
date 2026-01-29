@@ -12,6 +12,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Trash2, Plus, Search, Filter } from "lucide-react";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
 export function ClassUserManagement({ classId, open }) {
     const [usersInClass, setUsersInClass] = useState([]);
     const [usersNotInClass, setUsersNotInClass] = useState([]);
@@ -39,7 +41,7 @@ export function ClassUserManagement({ classId, open }) {
     // ★追加: グループ一覧を取得する関数
     const fetchGroups = async () => {
         try {
-            const res = await fetch("/api/groups", { credentials: "include" });
+            const res = await fetch(`${API_BASE_URL}/api/groups`, { credentials: "include" });
             if (res.ok) {
                 const data = await res.json();
                 setGroupList(data || []);
@@ -56,10 +58,10 @@ export function ClassUserManagement({ classId, open }) {
 
         try {
             const [inRes, notInRes] = await Promise.all([
-                fetch(`/api/classes/${encodeURIComponent(classId)}/users/in`, {
+                fetch(`${API_BASE_URL}/api/classes/${encodeURIComponent(classId)}/users/in`, {
                     credentials: "include",
                 }),
-                fetch(`/api/classes/${encodeURIComponent(classId)}/users/not-in`, {
+                fetch(`${API_BASE_URL}/api/classes/${encodeURIComponent(classId)}/users/not-in`, {
                     credentials: "include",
                 }),
             ]);
@@ -91,7 +93,7 @@ export function ClassUserManagement({ classId, open }) {
 
         try {
             const res = await fetch(
-                `/api/classes/${encodeURIComponent(classId)}/users`,
+                `${API_BASE_URL}/api/classes/${encodeURIComponent(classId)}/users`,
                 {
                     method: "POST",
                     headers: {
@@ -125,7 +127,7 @@ export function ClassUserManagement({ classId, open }) {
 
         try {
             const res = await fetch(
-                `/api/classes/${encodeURIComponent(classId)}/users/${encodeURIComponent(userId)}`,
+                `${API_BASE_URL}/api/classes/${encodeURIComponent(classId)}/users/${encodeURIComponent(userId)}`,
                 {
                     method: "DELETE",
                     credentials: "include",
@@ -157,7 +159,7 @@ export function ClassUserManagement({ classId, open }) {
 
         try {
             const promises = filteredNotInClass.map(u => 
-                fetch(`/api/classes/${encodeURIComponent(classId)}/users`, {
+                fetch(`${API_BASE_URL}/api/classes/${encodeURIComponent(classId)}/users`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     credentials: "include",
@@ -191,7 +193,7 @@ export function ClassUserManagement({ classId, open }) {
 
         try {
              const promises = filteredInClass.map(u => 
-                fetch(`/api/classes/${encodeURIComponent(classId)}/users/${encodeURIComponent(u.userId)}`, {
+                fetch(`${API_BASE_URL}/api/classes/${encodeURIComponent(classId)}/users/${encodeURIComponent(u.userId)}`, {
                     method: "DELETE",
                     credentials: "include",
                 }).then(async res => {
