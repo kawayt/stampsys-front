@@ -42,6 +42,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
 const CLASS_TAB = {
     ACTIVE: "active", // hidden=false
     HIDDEN: "hidden", // hidden=true
@@ -104,7 +106,7 @@ export function ClassList({ role }) {
     // サーバから現在のユーザー role / userId を取得
     const fetchCurrentUserInfo = async () => {
         try {
-            const res = await fetch("/api/app", { credentials: "include" });
+            const res = await fetch(`${API_BASE_URL}/api/app`, { credentials: "include" });
             if (!res.ok) {
                 console.warn("failed to fetch app info:", res.status);
                 return { role: null, userId: null };
@@ -136,11 +138,11 @@ export function ClassList({ role }) {
                 userIdToUse = info.userId;
             }
 
-            let url = "/api/classes/list";
+            let url = `${API_BASE_URL}/api/classes/list`;
 
             // STUDENT の場合のみ、自分に紐づくクラスを取得
             if (roleToUse === "STUDENT" && userIdToUse != null) {
-                url = `/api/users/${userIdToUse}/classes`;
+                url = `${API_BASE_URL}/api/users/${userIdToUse}/classes`;
             }
 
             const res = await fetch(url, { credentials: "include" });
@@ -163,7 +165,7 @@ export function ClassList({ role }) {
         setHiddenLoading(true);
         setHiddenError(null);
         try {
-            const res = await fetch("/api/classes/deleted-list", {
+            const res = await fetch(`${API_BASE_URL}/api/classes/deleted-list`, {
                 credentials: "include",
             });
             if (!res.ok) {
@@ -210,7 +212,7 @@ export function ClassList({ role }) {
         // STUDENT（または role 不明 -> デフォルト student 扱い）
         setJoinLoading(true);
         try {
-            const res = await fetch(`/api/classes/${classId}/active-room`, {
+            const res = await fetch(`${API_BASE_URL}/api/classes/${classId}/active-room`, {
                 method: "GET",
                 credentials: "include",
             });
@@ -258,7 +260,7 @@ export function ClassList({ role }) {
 
         setCreateLoading(true);
         try {
-            const res = await fetch("/api/classes", {
+            const res = await fetch(`${API_BASE_URL}/api/classes`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -308,7 +310,7 @@ export function ClassList({ role }) {
 
         try {
             const res = await fetch(
-                `/api/classes/${deleteTargetClass.classId}`,
+                `${API_BASE_URL}/api/classes/${deleteTargetClass.classId}`,
                 {
                     method: "DELETE",
                     credentials: "include",
@@ -364,7 +366,7 @@ export function ClassList({ role }) {
 
         try {
             const res = await fetch(
-                `/api/classes/${encodeURIComponent(cls.classId)}/restore`,
+                `${API_BASE_URL}/api/classes/${encodeURIComponent(cls.classId)}/restore`,
                 {
                     method: "PATCH",
                     credentials: "include",
