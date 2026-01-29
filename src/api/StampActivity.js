@@ -5,7 +5,8 @@ export async function fetchStampActivity({ roomId, interval, start, end }) {
     if (start) params.set("start", start);
     if (end) params.set("end", end);
 
-    const res = await fetch(`/api/rooms/${roomId}/stamp-activity?` + params.toString());
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+    const res = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/stamp-activity?` + params.toString());
 
     if (!res.ok) {
         throw new Error("スタンプ履歴の取得に失敗しました");

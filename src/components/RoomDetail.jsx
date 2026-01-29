@@ -13,6 +13,8 @@ import { sendStamp } from "../api/StampSendApi.js";
 import { ArrowLeft } from "lucide-react";
 import NoteForm from "@/components/NoteForm";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
 function SimpleBarChart({ data }) {
     const prevCountsRef = useRef({});
     const [flashingItems, setFlashingItems] = useState(new Set());
@@ -231,7 +233,7 @@ export function RoomDetail({ userId, role }) {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(`/api/rooms/${encodeURIComponent(roomId)}/stamps`);
+            const res = await fetch(`${API_BASE_URL}/api/rooms/${encodeURIComponent(roomId)}/stamps`);
             if (!res.ok) {
                 throw new Error(`スタンプ一覧の取得に失敗しました: ${res.status}`);
             }
@@ -265,7 +267,7 @@ export function RoomDetail({ userId, role }) {
         setHistoryLoading(true);
         setHistoryError(null);
         try {
-            const url = `/api/rooms/${encodeURIComponent(roomId)}/users/${encodeURIComponent(userId)}/stamp-logs`;
+            const url = `${API_BASE_URL}/api/rooms/${encodeURIComponent(roomId)}/users/${encodeURIComponent(userId)}/stamp-logs`;
             const res = await fetch(url);
             if (!res.ok) {
                 throw new Error(`履歴の取得に失敗しました: ${res.status}`);
@@ -289,7 +291,7 @@ export function RoomDetail({ userId, role }) {
         setSummaryLoading(true);
         setSummaryError(null);
         try {
-            const url = `/api/rooms/${encodeURIComponent(roomId)}/stamp-summary`;
+            const url = `${API_BASE_URL}/api/rooms/${encodeURIComponent(roomId)}/stamp-summary`;
             console.log("fetchStampSummary URL:", url);
             const res = await fetch(url);
             console.log("fetchStampSummary status:", res.status);
@@ -326,7 +328,7 @@ export function RoomDetail({ userId, role }) {
     // ルーム名だけを取得する汎用的なヘルパー（/api/rooms/:id がある場合に使う）
     const fetchRoomInfo = async () => {
         try {
-            const res = await fetch(`/api/rooms/${encodeURIComponent(roomId)}`);
+            const res = await fetch(`${API_BASE_URL}/api/rooms/${encodeURIComponent(roomId)}`);
             if (!res.ok) {
                 // 404 等は想定されるためエラーで止めずに無視（スタンプ取得時に roomName が含まれる可能性がある）
                 console.debug("fetchRoomInfo returned non-ok:", res.status);
@@ -357,7 +359,7 @@ export function RoomDetail({ userId, role }) {
     useEffect(() => {
         if (!isTeacherView) return;
 
-        const url = `/api/rooms/${encodeURIComponent(roomId)}/stamp-summary/stream`;
+        const url = `${API_BASE_URL}/api/rooms/${encodeURIComponent(roomId)}/stamp-summary/stream`;
         // close previous if exists
         if (sseRef.current) {
             try { sseRef.current.close(); } catch (e) { /* ignore */ }

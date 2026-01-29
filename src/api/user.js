@@ -1,7 +1,8 @@
 // getHiddenUsers を次のように変更（相対パスを使う）
 export async function getHiddenUsers(query = '') {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
     const q = query ? `?q=${encodeURIComponent(query)}` : '';
-    const res = await fetch(`/api/users/hidden${q}`, {
+    const res = await fetch(`${API_BASE_URL}/api/users/hidden${q}`, {
         credentials: 'include',
         headers: { 'Accept': 'application/json' }
     });
@@ -14,7 +15,8 @@ export async function getHiddenUsers(query = '') {
 
 // restoreHiddenUser も相対パスへ
 export async function restoreHiddenUser(userId) {
-    const res = await fetch(`/api/users/${userId}/hidden`, {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+    const res = await fetch(`${API_BASE_URL}/api/users/${userId}/hidden`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
