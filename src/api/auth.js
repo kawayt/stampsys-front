@@ -12,6 +12,7 @@ export async function fetchAppData() {
     const res = await fetch(APP_API_URL, {
         credentials: "include",
         redirect: "manual",
+        cache: "no-store",
     });
 
     if (res.type === "opaqueredirect" || res.status === 0) {
