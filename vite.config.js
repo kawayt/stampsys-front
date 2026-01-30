@@ -16,8 +16,11 @@ export default defineConfig(({ mode }) => {
         devOptions: { enabled: true },
         manifest: {
             name: 'OneStamp',
-            short_name: 'OneStamp', 
-            description: 'スタンプ送受信アプリ',
+            short_name: 'OneStamp',
+            description: '授業理解度把握システム',
+            start_url: '/',
+            display: 'standalone',
+            background_color: '#ffffff',
             theme_color: '#ffffff',
             icons: [
             {
