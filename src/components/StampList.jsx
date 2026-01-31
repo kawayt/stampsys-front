@@ -59,6 +59,8 @@ function StampList({ userId, role }) {
 
     const isAdmin = role === "ADMIN";
 
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
+
     // 初回ロードで一覧取得
     useEffect(() => {
         fetchStamps("all");
@@ -77,7 +79,7 @@ function StampList({ userId, role }) {
         setError(null);
 
         try {
-            let url = "/api/stamp-management";
+            let url = `${baseUrl}/api/stamp-management`;
 
             if (mode === "mine") {
                 if (!userId) {
@@ -88,7 +90,7 @@ function StampList({ userId, role }) {
                     setLoading(false);
                     return;
                 }
-                url = `/api/stamp-management/mine?userId=${encodeURIComponent(userId)}`;
+                url = `${baseUrl}/api/stamp-management/mine?userId=${encodeURIComponent(userId)}`;
             } else if (mode === "deleted") {
                 // ADMIN 以外は削除済み一覧を取得させない
                 if (!isAdmin) {
@@ -98,7 +100,7 @@ function StampList({ userId, role }) {
                     setLoading(false);
                     return;
                 }
-                url = "/api/stamp-management/deleted";
+                url = `${baseUrl}/api/stamp-management/deleted`;
             }
 
             const response = await fetch(url);
@@ -152,7 +154,7 @@ function StampList({ userId, role }) {
 
         setAddLoading(true);
         try {
-            const response = await fetch("/api/stamp-management", {
+            const response = await fetch(`${baseUrl}/api/stamp-management`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -200,7 +202,7 @@ function StampList({ userId, role }) {
         setDeleteLoading(true);
 
         try {
-            const response = await fetch(`/api/stamp-management/${stampId}`, {
+            const response = await fetch(`${baseUrl}/api/stamp-management/${stampId}`, {
                 method: "DELETE",
             });
 
@@ -244,7 +246,7 @@ function StampList({ userId, role }) {
         setRestoreLoading(true);
 
         try {
-            const response = await fetch(`/api/stamp-management/restore/${stampId}`, {
+            const response = await fetch(`${baseUrl}/api/stamp-management/restore/${stampId}`, {
                 method: "POST",
             });
 
