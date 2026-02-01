@@ -18,6 +18,7 @@ import {
     User,
     LogOut,
     Database,
+    RotateCw,
 } from "lucide-react";
 
 import logo from "@/assets/onestamp1.png";
@@ -99,16 +100,16 @@ export function Header({ appData, onLogout }) {
                             </DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {isAdmin && (
-                                <DropdownMenuItem
-                                    onClick={() => navigate("/admin/db")}
-                                >
+                                <DropdownMenuItem onClick={() => navigate("/admin/db")}>
                                     <Database />
                                     データベース管理
                                 </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem
-                                onClick={onLogout}
-                            >
+                            <DropdownMenuItem onClick={() => window.location.reload()}>
+                                <RotateCw />
+                                再読み込み
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={onLogout}>
                                 <LogOut />
                                 ログアウト
                             </DropdownMenuItem>
