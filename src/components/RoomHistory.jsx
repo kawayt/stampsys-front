@@ -19,9 +19,6 @@ import { Line } from 'react-chartjs-2';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
     Select,
     SelectTrigger,
@@ -30,7 +27,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Check, Calendar, Stamp, ChevronLeft, ChevronRight } from "lucide-react";
 
 // Chart.js Registration
 ChartJS.register(
@@ -50,7 +47,7 @@ const INTERVAL_OPTIONS = [
     { value: "5 minutes", label: "5分" },
     { value: "15 minutes", label: "15分" },
     { value: "30 minutes", label: "30分" },
-    { value: "1 hour", label: "1時間" },
+    { value: "1 hour", label: "60分" },
 ];
 
 function parseIntervalToMs(interval) {
@@ -99,7 +96,15 @@ function formatDateTime(iso) {
     if (!iso) return "";
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return String(iso);
-    return d.toLocaleString();
+    
+    const pad = (n) => String(n).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    const MM = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const mm = pad(d.getMinutes());
+    
+    return `${yyyy}/${MM}/${dd} ${hh}:${mm}`;
 }
 
 // --- メインコンポーネント ---
@@ -110,14 +115,8 @@ function RoomHistory() {
 
     // -- state: フィルタ --
     const [interval, setInterval] = useState("5 minutes");
-    const [activeTab, setActiveTab] = useState("graph"); // 'graph' | 'logs'
-    const [start, setStart] = useState(""); // datetime-local 形式
-    const [end, setEnd] = useState("");
+    // activeTab removed
     
-    // 入力完了待ちの時刻
-    const [debouncedStart, setDebouncedStart] = useState("");
-    const [debouncedEnd, setDebouncedEnd] = useState("");
-
     // -- state: データ取得 --
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -136,7 +135,6 @@ function RoomHistory() {
     const [logsLimit, setLogsLimit] = useState(100);
     const [logsOffset, setLogsOffset] = useState(0);
 
-    const [showAllGroups, setShowAllGroups] = useState(true);
     const [selectedGroups, setSelectedGroups] = useState([]);
 
     // -- 副作用 (Effects) --
@@ -144,11 +142,7 @@ function RoomHistory() {
     useEffect(() => {
         // roomId変更時に状態をリセット
         setInterval("5 minutes");
-        setActiveTab("graph");
-        setStart("");
-        setEnd("");
-        setDebouncedStart("");
-        setDebouncedEnd("");
+        // setActiveTab removed
         setShowAllKinds(true);
         setShowTotal(false);
         setSelectedKinds([]);
@@ -159,44 +153,23 @@ function RoomHistory() {
         setLogsLoading(false);
         setLogsLimit(100);
         setLogsOffset(0);
-        setShowAllGroups(true);
         setSelectedGroups([]);
         setRoomName("");
     }, [roomId]);
 
-    // デバウンス処理: 入力が終わってから debouncedStart/End を更新
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedStart(start);
-            setDebouncedEnd(end);
-        }, 800);
-        return () => clearTimeout(timer);
-    }, [start, end]);
-
     // マウント時および条件変更時にデータを取得
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    useEffect(() => { handleFetch(); }, [roomId, interval, debouncedStart, debouncedEnd]);
+    useEffect(() => { handleFetch(); }, [roomId, interval]);
 
-    // activeTabが 'logs' の場合にログを読み込む
+    // ログを読み込む (activeTab依存を削除)
     useEffect(() => {
-        if (activeTab === "logs") {
-            loadLogs();
-        }
+        loadLogs();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab, logsLimit, logsOffset, debouncedStart, debouncedEnd, interval]);
+    }, [logsLimit, logsOffset, interval]);
 
     // -- ハンドラ --
 
     const handleFetch = async () => {
-        // 使用する値はデバウンス済みのもの
-        const currentStart = debouncedStart;
-        const currentEnd = debouncedEnd;
-
-        if (currentStart && currentEnd && currentStart > currentEnd) {
-            setError("開始時刻は終了時刻より前にしてください。");
-            return;
-        }
-
         setLoading(true);
         setError("");
 
@@ -204,24 +177,12 @@ function RoomHistory() {
             const resp = await fetchStampActivity({
                 roomId,
                 interval,
-                start: toIsoWithOffset(currentStart),
-                end: toIsoWithOffset(currentEnd),
             });
 
             setData(resp);
 
             const name = resp?.roomName ?? resp?.room_name ?? resp?.name ?? "";
-            setRoomName(name);
-
-            // 範囲が設定されていない場合はデフォルト範囲を設定
-            if (!currentStart && !currentEnd && resp && Array.isArray(resp.timeline) && resp.timeline.length > 0) {
-                const first = resp.timeline[0];
-                const last = resp.timeline[resp.timeline.length - 1];
-                setStart(toDatetimeLocal(first));
-                setEnd(toDatetimeLocal(last));
-                // fetchに使った値も更新されないと不整合になる可能性があるが、
-                // 次のデバウンスサイクル・fetchで整合性が取れる
-            }
+                    setRoomName(name);
 
             // 選択された種類を同期
             if (resp && Array.isArray(resp.series)) {
@@ -257,8 +218,6 @@ function RoomHistory() {
         setLogsError("");
         try {
             const resp = await fetchStampLogs(roomId, {
-                start: toIsoWithOffset(debouncedStart),
-                end: toIsoWithOffset(debouncedEnd),
                 limit: logsLimit,
                 offset: logsOffset,
             });
@@ -296,7 +255,6 @@ function RoomHistory() {
     useEffect(() => {
         if (availableGroups.length > 0 && selectedGroups.length === 0) {
             setSelectedGroups(availableGroups);
-            setShowAllGroups(true);
         }
     }, [availableGroups]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -340,8 +298,8 @@ function RoomHistory() {
                 const name = s.stampName;
                 if (name === "NO_STAMP") return;
 
-                // Visibility check
-                const isVisible = showAllKinds || selectedKinds.includes(name);
+                // Visibility check (showAllKindsフラグを無視してselectedKindsのみで判定)
+                const isVisible = selectedKinds.includes(name);
                 if (!isVisible) return;
 
                 const color = stampDisplayMap[name]?.iconColor || '#6b7280';
@@ -428,6 +386,35 @@ function RoomHistory() {
         return result;
     }, [data]);
 
+    const stats = useMemo(() => {
+        if (!data?.timeline?.length) return null;
+
+        const first = data.timeline[0];
+        const last = data.timeline[data.timeline.length - 1];
+        if (!first || !last) return null;
+
+        const startTime = new Date(first);
+        const endTime = new Date(last);
+        const durationMs = endTime.getTime() - startTime.getTime();
+
+        const totalMinutes = Math.floor(durationMs / (1000 * 60));
+        const hours = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        
+        const durationStr = hours > 0 
+            ? `${hours}時間${mins}分` 
+            : `${mins}分`;
+
+        const totalCount = Object.values(totalPerKind).reduce((a, b) => a + b, 0);
+
+        return {
+            start: formatDateTime(first),
+            end: formatDateTime(last),
+            duration: durationStr,
+            total: totalCount
+        };
+    }, [data, totalPerKind]);
+
     // -- ログ用ヘルパー --
 
     const renderStampPill = (e) => {
@@ -481,14 +468,13 @@ function RoomHistory() {
         const intervalMs = parseIntervalToMs(interval);
         
         const filtered = logs.filter(row => {
-            if (!showAllGroups) {
-                const g = row.groupName;
-                if (!g || !selectedGroups.includes(g)) return false;
-            }
-            if (!showAllKinds) {
-                 const s = row.stampName;
-                 if (!s || !selectedKinds.includes(s)) return false;
-            }
+            const g = row.groupName;
+            if (g && !selectedGroups.includes(g)) return false;
+            
+            // 常に選択された種類でフィルタリング
+            const s = row.stampName;
+            if (s && !selectedKinds.includes(s)) return false;
+            
             return true;
         });
 
@@ -535,7 +521,7 @@ function RoomHistory() {
                 entries: Array.from(g.entries.values())
             }));
 
-    }, [logs, interval, showAllGroups, selectedGroups, showAllKinds, selectedKinds]);
+    }, [logs, interval, selectedGroups, selectedKinds]);
 
 
     return (
@@ -553,255 +539,202 @@ function RoomHistory() {
                 </Button>
             </div>
 
-            <div className="flex items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-xl font-bold">スタンプ履歴 - {roomName && <span>{roomName}</span>}</h2>
-                </div>
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
-                    <TabsList className="grid grid-cols-2">
-                        <TabsTrigger value="graph" className="px-3 py-1 text-sm">グラフ</TabsTrigger>
-                        <TabsTrigger value="logs" className="px-3 py-1 text-sm">ログ</TabsTrigger>
-                    </TabsList>
-                </Tabs>
-            </div>
-
-            {/* コントロール */}
-            <div className="flex flex-wrap gap-4 items-end">
-                <div className="space-y-1">
-                    <Label className="text-sm font-medium" htmlFor="int-sel">表示間隔</Label>
-                    <Select value={interval} onValueChange={setInterval}>
-                        <SelectTrigger id="int-sel" className="border bg-white px-2 py-1 text-sm w-35">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {INTERVAL_OPTIONS.map(o => (
-                                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                <div className="space-y-1">
-                    <Label className="text-sm font-medium">開始時刻 (任意)</Label>
-                    <Input 
-                        type="datetime-local" 
-                        className="w-55 bg-white" 
-                        value={start} 
-                        onChange={e => setStart(e.target.value)} 
-                    />
-                </div>
-                <div className="space-y-1">
-                    <Label className="text-sm font-medium">終了時刻 (任意)</Label>
-                    <Input 
-                        type="datetime-local" 
-                        className="w-55 bg-white" 
-                        value={end} 
-                        onChange={e => setEnd(e.target.value)} 
-                    />
+            <div className="flex flex-col gap-1">
+                <h2 className="text-xl font-bold">{roomName}</h2>
+                
+                {/* 統計情報 */}
+                <div className="flex items-center gap-6 text-sm text-slate-600">
+                    {stats && (
+                        <>
+                            <div className="flex items-center gap-1.5" title="データ期間">
+                                <Calendar className="h-4 w-4 text-slate-400" />
+                                <span className="font-medium">{stats.start} ～ {stats.end}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5" title="総スタンプ数">
+                                <Stamp className="h-4 w-4 text-slate-400" />
+                                <span className="font-medium">{stats.total.toLocaleString()}</span>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
             {error && <div className="text-red-600 text-sm">{error}</div>}
 
-            {/* グラフタブ */}
-            {activeTab === "graph" && (
-                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4">
+            {/* 表示間隔 */}
+            <div className="flex">
+                <Tabs value={interval} onValueChange={setInterval} className="w-auto">
+                    <TabsList className="bg-slate-100">
+                        {INTERVAL_OPTIONS.map(o => (
+                            <TabsTrigger key={o.value} value={o.value} className="px-3 py-1">
+                                {o.label}
+                            </TabsTrigger>
+                        ))}
+                    </TabsList>
+                </Tabs>
+            </div>
+
+            {/* スタンプ表示設定 */}
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 my-6">
+                {stampTypes.map(name => {
+                    const display = stampDisplayMap[name];
+                    const IconC = display?.icon;
+                    const count = totalPerKind[name] || 0;
+                    const isSelected = selectedKinds.includes(name);
                     
-                    {/* グラフエリア */}
-                    <Card className="w-full border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
-                        <CardHeader>
-                            <CardTitle>スタンプ履歴グラフ</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {(!chartJsData.labels || chartJsData.labels.length === 0) ? (
-                                <div className="text-sm text-muted-foreground">
-                                    データがありません。条件を指定して「取得」を押してください。
-                                </div>
-                            ) : (
-                                <div className="h-80 w-full" style={{ minHeight: 240 }}>
-                                    {/* React Chartjs 2 Line Chart */}
-                                    <Line options={chartOptions} data={chartJsData} />
+                    return (
+                        <div 
+                            key={name} 
+                            onClick={() => handleToggleKind(name)}
+                            className={`
+                                relative flex flex-col items-center justify-center p-3 gap-2
+                                rounded-2xl border transition-all cursor-pointer select-none
+                                h-24
+                                ${isSelected ? 'shadow-sm ring-2 ring-offset-1 ring-slate-400' : 'opacity-60 grayscale bg-slate-50 border-slate-200'}
+                            `}
+                            style={isSelected ? { 
+                                backgroundColor: display?.bg || "#f9fafb",
+                                color: display?.iconColor || "#4b5563",
+                                borderColor: "transparent"
+                            } : {}}
+                        >
+                            {IconC && <IconC className="h-8 w-8" />}
+                            <span className="text-xs font-bold text-center leading-tight truncate w-full px-1">{name}</span>
+                            
+                            <span className="absolute top-1 left-2 text-xs font-bold opacity-80 bg-white/50 px-1.5 rounded-full">
+                                {count}
+                            </span>
+                            
+                            {isSelected && (
+                                <div className="absolute -top-1.5 -right-1.5 bg-indigo-600 text-white rounded-full p-0.5 shadow-sm border border-white">
+                                    <Check className="h-3 w-3" strokeWidth={3} />
                                 </div>
                             )}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    );
+                })}
+            </div>
 
-                    {/* 設定サイドパネル */}
-                    <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
-                        <CardHeader><CardTitle>表示設定</CardTitle></CardHeader>
-                        <CardContent className="space-y-2 text-sm">
-                            <div className="flex items-center gap-2">
-                                <Checkbox 
-                                    id="sa-k" 
-                                    checked={showAllKinds} 
-                                    onCheckedChange={v => setShowAllKinds(!!v)} 
-                                />
-                                <Label htmlFor="sa-k" className="font-normal">すべてのスタンプを表示</Label>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Checkbox 
-                                    id="st-t" 
-                                    checked={showTotal} 
-                                    onCheckedChange={v => setShowTotal(!!v)} 
-                                />
-                                <Label htmlFor="st-t" className="font-normal">合計スタンプ数を表示</Label>
-                            </div>
-
-                            <div className="border-t pt-2 space-y-1">
-                                {stampTypes.map(name => {
-                                    const display = stampDisplayMap[name];
-                                    const IconC = display?.icon;
-                                    const count = totalPerKind[name] || 0;
-                                    
-                                    return (
-                                        <div key={name} className="flex items-center justify-between gap-2">
-                                            <div className="flex items-center gap-2">
-                                                <Checkbox 
-                                                    checked={showAllKinds || selectedKinds.includes(name)}
-                                                    disabled={showAllKinds}
-                                                    onCheckedChange={() => handleToggleKind(name)}
-                                                />
-                                                <div 
-                                                    className="inline-flex items-center gap-1 rounded-xl pl-1 pr-2 py-1 border border-slate-100 shadow-sm text-slate-700"
-                                                    style={{ 
-                                                        backgroundColor: display?.bg || "#f9fafb",
-                                                        color: display?.iconColor || "#4b5563"
-                                                    }}
-                                                >
-                                                    {IconC && <IconC className="h-4 w-4" />}
-                                                    <span className="text-xs font-medium">{name}</span>
-                                                </div>
-                                            </div>
-                                            <span className="text-xs text-muted-foreground">{count}</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* メモ */}
-                    <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
-                        <CardHeader>
-                            <CardTitle>このルームのメモ</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <NoteForm roomId={Number(roomId)} />
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
-
-            {/* ログタブ */}
-            {activeTab === "logs" && (
+            <div className="flex flex-col gap-6">
+                
+                {/* グラフエリア */}
                 <Card className="w-full border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
                     <CardHeader>
-                        <CardTitle>スタンプログ</CardTitle>
+                        <CardTitle>グラフ</CardTitle>
                     </CardHeader>
                     <CardContent>
-                         {/* ログフィルタ */}
-                         <div className="mb-4 space-y-4 border-b pb-4">
-                            {/* 種類フィルタ */}
-                            <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Checkbox checked={showAllKinds} onCheckedChange={v => setShowAllKinds(!!v)} />
-                                    <Label>すべてのスタンプを表示</Label>
-                                </div>
-                                {!showAllKinds && (
-                                    <div className="flex flex-wrap gap-2 pl-6">
-                                        {stampTypes.map(name => (
-                                            <div key={name} className="flex items-center gap-1 text-sm bg-slate-50 px-2 py-1 rounded border">
-                                                <Checkbox
-                                                    id={`kind-${name}`}
-                                                    checked={selectedKinds.includes(name)}
-                                                    onCheckedChange={() => handleToggleKind(name)}
-                                                />
-                                                <Label htmlFor={`kind-${name}`} className="font-normal cursor-pointer">{name}</Label>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                        {(!chartJsData.labels || chartJsData.labels.length === 0) ? (
+                            <div className="text-sm text-muted-foreground">
+                                データがありません。
                             </div>
-
-                            {/* グループフィルタ */}
-                            <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Checkbox checked={showAllGroups} onCheckedChange={v => setShowAllGroups(!!v)} />
-                                    <Label>すべてのグループを表示</Label>
-                                </div>
-                                {!showAllGroups && (
-                                    <div className="flex flex-wrap gap-2 pl-6">
-                                        {availableGroups.map(g => (
-                                            <div key={g} className="flex items-center gap-1 text-sm bg-slate-50 px-2 py-1 rounded border">
-                                                <Checkbox 
-                                                    id={`group-${g}`} 
-                                                    checked={selectedGroups.includes(g)} 
-                                                    onCheckedChange={() => handleToggleGroup(g)} 
-                                                />
-                                                <Label htmlFor={`group-${g}`} className="font-normal cursor-pointer">{g}</Label>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                        ) : (
+                            <div className="h-96 w-full" style={{ minHeight: 400 }}>
+                                {/* React Chartjs 2 Line Chart */}
+                                <Line options={chartOptions} data={chartJsData} />
                             </div>
-                        </div>
+                        )}
+                    </CardContent>
+                </Card>
 
-                        {/* ページネーションコントロール */}
-                        <div className="flex items-center gap-3 mb-2 text-sm justify-end">
-                            <label>
-                                Limit: <input type="number" value={logsLimit} onChange={e => setLogsLimit(Number(e.target.value))} className="border rounded w-16 px-1" />
-                            </label>
-                            <label>
-                                Offset: <input type="number" value={logsOffset} onChange={e => setLogsOffset(Number(e.target.value))} className="border rounded w-16 px-1" />
-                            </label>
-                            <Button size="sm" onClick={loadLogs}>更新</Button>
+                {/* ログ一覧 */}
+                <Card className="w-full border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
+                    <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <CardTitle>ログ</CardTitle>
+                        
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                            {/* グループフィルタ (ログセクションに移動) */}
+                            {availableGroups.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {availableGroups.map(g => {
+                                        const isSelected = selectedGroups.includes(g);
+                                        return (
+                                            <div 
+                                                key={g} 
+                                                onClick={() => handleToggleGroup(g)}
+                                                className={`
+                                                    relative flex items-center justify-center px-3 py-1 gap-1
+                                                    rounded-lg border transition-all cursor-pointer select-none
+                                                    text-xs
+                                                    ${isSelected ? 'shadow-sm ring-1 ring-slate-400 bg-white border-transparent' : 'opacity-60 bg-slate-50 border-slate-200 text-slate-500'}
+                                                `}
+                                            >
+                                                <span className="font-bold truncate max-w-24">{g}</span>
+                                                {isSelected && <Check className="h-3 w-3" />}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
-
-                        {logsLoading && <div>Loading...</div>}
+                    </CardHeader>
+                    <CardContent>
+                        {logsLoading && <div>読み込み中...</div>}
                         {logsError && <div className="text-red-600">{logsError}</div>}
 
-                        {/* テーブル */}
-                        <div className="overflow-x-auto border rounded-md">
-                            <table className="min-w-full text-xs bg-white">
-                                <thead className="bg-slate-100">
-                                    <tr>
-                                        <th className="px-3 py-2 text-left w-40">時刻帯</th>
-                                        <th className="px-3 py-2 text-left">スタンプ</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {groupedLogs.length === 0 && !logsLoading && (
-                                        <tr><td colSpan={2} className="p-4 text-center text-slate-500">条件に一致するログがありません</td></tr>
-                                    )}
-                                    {groupedLogs.map(g => (
-                                        <tr key={g.bucketStartMs} className="border-t">
-                                            <td className="px-3 py-2 align-top text-slate-600 font-medium whitespace-nowrap">
-                                                {formatDateTime(new Date(g.bucketStartMs).toISOString())}
-                                            </td>
-                                            <td className="px-3 py-2 align-top">
-                                                <div className="flex flex-wrap gap-2">
-                                                    {g.entries.map(e => (
-                                                        <div key={e.key}>{renderStampPill(e)}</div>
-                                                    ))}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        {/* リスト (flex) */}
+                        <div className="flex flex-col text-xs bg-white">
+                            {groupedLogs.length === 0 && !logsLoading && (
+                                <div className="p-4 text-center text-slate-500">条件に一致するログがありません</div>
+                            )}
+                            {groupedLogs.map(g => (
+                                <div key={g.bucketStartMs} className="flex flex-col md:flex-row border-t py-2 px-3 gap-1 md:gap-4 md:items-start transition-colors hover:bg-slate-50/50">
+                                    <div className="text-slate-600 font-medium whitespace-nowrap shrink-0 md:min-w-35">
+                                        {formatDateTime(new Date(g.bucketStartMs).toISOString())}
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 grow">
+                                        {g.entries.map(e => (
+                                            <div key={e.key}>{renderStampPill(e)}</div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
 
-                        <div className="flex justify-end gap-2 mt-2">
-                            <Button size="sm" variant="outline" onClick={() => setLogsOffset(Math.max(0, logsOffset - logsLimit))} disabled={logsOffset === 0}>
-                                Prev
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => setLogsOffset(logsOffset + logsLimit)}>
-                                Next
-                            </Button>
+                        <div className="flex items-center justify-end gap-2 mt-4">
+                            <Select value={String(logsLimit)} onValueChange={(v) => setLogsLimit(Number(v))}>
+                                <SelectTrigger className="w-24 bg-white">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="50">50件</SelectItem>
+                                    <SelectItem value="100">100件</SelectItem>
+                                    <SelectItem value="200">200件</SelectItem>
+                                    <SelectItem value="300">300件</SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            <div className="flex gap-1">
+                                <Button
+                                    size="icon"
+                                    variant="outline"
+                                    onClick={() => setLogsOffset(Math.max(0, logsOffset - logsLimit))}
+                                    disabled={logsOffset === 0}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    size="icon"
+                                    variant="outline"
+                                    onClick={() => setLogsOffset(logsOffset + logsLimit)}
+                                    disabled={logs.length < logsLimit}
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
-            )}
+
+                {/* メモ */}
+                <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
+                    <CardHeader>
+                        <CardTitle>このルームのメモ</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <NoteForm roomId={Number(roomId)} />
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }
