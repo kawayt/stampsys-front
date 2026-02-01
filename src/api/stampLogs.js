@@ -9,7 +9,8 @@ export async function fetchStampLogs(roomId, { start, end, limit, offset } = {})
     if (limit != null) params.append('limit', String(limit));
     if (offset != null) params.append('offset', String(offset));
     const qs = params.toString();
-    const url = `/api/rooms/${encodeURIComponent(roomId)}/stamp-logs${qs ? `?${qs}` : ''}`;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+    const url = `${baseUrl}/api/rooms/${encodeURIComponent(roomId)}/stamp-logs${qs ? `?${qs}` : ''}`;
 
     const headers = { Accept: 'application/json' };
     // トークンの取得方法はプロジェクトに合わせてください
