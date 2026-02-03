@@ -28,7 +28,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Check, Calendar, Stamp, ChevronLeft, ChevronRight, SquarePen } from "lucide-react";
+import { ArrowLeft, Check, Calendar, Stamp, ChevronLeft, ChevronRight, SquarePen, StickyNote } from "lucide-react";
 
 // Chart.js Registration
 ChartJS.register(
@@ -797,14 +797,9 @@ function RoomHistory() {
                 </Card>
 
                 {/* メモ */}
-                <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
-                    <CardHeader>
-                        <CardTitle>このルームのメモ</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <NoteForm roomId={Number(roomId)} />
-                    </CardContent>
-                </Card>
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 w-auto max-w-[90vw]">
+                    <NoteForm roomId={Number(roomId)} />
+                </div>
             </div>
         </div>
     );

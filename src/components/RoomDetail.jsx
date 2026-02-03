@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/tooltip";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition.js";
 import { sendStamp } from "../api/StampSendApi.js";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, StickyNote } from "lucide-react";
 import NoteForm from "@/components/NoteForm";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
@@ -670,16 +670,9 @@ export function RoomDetail({ userId, role }) {
             )}
 
             {isTeacherView && (
-                <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
-                    <CardContent>
-                        <section>
-                            <h3 className="text-lg font-medium">授業メモ</h3>
-                            <div className="mt-4">
-                                <NoteForm roomId={Number(roomId)} />
-                            </div>
-                        </section>
-                    </CardContent>
-                </Card>
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 w-auto max-w-[90vw]">
+                     <NoteForm roomId={Number(roomId)} />
+                </div>
             )}
             {/* 送信成功時のオーバーレイアニメーション */}
             {overlayData && sendSuccess && (
