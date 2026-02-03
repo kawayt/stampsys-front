@@ -2,13 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { createNote, fetchNotes, setHidden } from "../api/notes";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { EyeOff, Loader2, ArrowUp, StickyNote, ListCollapse } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import { Trash2, Loader2, ArrowUp, StickyNote, List, Check } from "lucide-react";
 
 /**
  * Props:
@@ -21,30 +19,26 @@ export default function NoteForm({ roomId, onCreated, autoRefreshIntervalMs = 0,
     // --- Form State ---
     const [text, setText] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const [isSuccess, setIsSuccess] = useState(false);
     const [showList, setShowList] = useState(false);
 
     // UI State for floating form expanding
     const [isFocused, setIsFocused] = useState(false);
-    const isExpanded = isFocused || text.length > 0;
+    const textareaRef = useRef(null);
+    const isExpanded = isFocused || text.length > 0 || isSuccess;
 
     // --- List State ---
     const [notes, setNotes] = useState([]);
     const [loadingNotes, setLoadingNotes] = useState(false);
-    const [includeHidden, setIncludeHidden] = useState(false);
     const [listError, setListError] = useState(null);
-
-    const scrollBottomRef = useRef(null);
 
     // --- List Logic ---
     const loadNotes = async () => {
         if (!roomId) return;
-        // Don't set loading on auto-refresh to avoid flickering, or handle gracefully
-        // For now, simple loading state
-        // If we want silent refresh, we might need another flag or check if notes is empty
         if (notes.length === 0) setLoadingNotes(true); 
         setListError(null);
         try {
-            const data = await fetchNotes(roomId, includeHidden);
+            const data = await fetchNotes(roomId);
             setNotes(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error(err);
@@ -58,26 +52,33 @@ export default function NoteForm({ roomId, onCreated, autoRefreshIntervalMs = 0,
         if (showList) {
             loadNotes();
         }
-    }, [showList, roomId, includeHidden]);
+    }, [showList, roomId]);
 
-    // Auto refresh while list is open
+    // リストが開いている間は自動更新
     useEffect(() => {
         let timer;
         if (showList && autoRefreshIntervalMs > 0) {
             timer = setInterval(loadNotes, autoRefreshIntervalMs);
         }
         return () => clearInterval(timer);
-    }, [showList, autoRefreshIntervalMs, roomId, includeHidden]);
+    }, [showList, autoRefreshIntervalMs, roomId]);
+
+    // Input展開時はリストを閉じる
+    useEffect(() => {
+        if (isExpanded) {
+            setShowList(false);
+        }
+    }, [isExpanded]);
 
     const hideNote = async (noteId) => {
-        if (!window.confirm("このメモを非表示にしますか？")) return;
+        if (!window.confirm("このメモを削除しますか？")) return;
         try {
             await setHidden(noteId, true);
-            // Remove from local state immediately
+            // 直ちにローカルステートから削除
             setNotes((prev) => prev.filter((n) => n.noteId !== noteId));
         } catch (err) {
             console.error(err);
-            alert("非表示にできませんでした");
+            alert("削除できませんでした");
         }
     };
 
@@ -93,9 +94,18 @@ export default function NoteForm({ roomId, onCreated, autoRefreshIntervalMs = 0,
         try {
             const created = await createNote(text.trim(), roomId);
             setText("");
+            setIsSuccess(true);
             if (onCreated) onCreated(created);
-            // If list is open, refresh it
+            // リストが開いている場合は更新
             if (showList) loadNotes();
+
+            // 1秒待ってから折りたたむ
+            setTimeout(() => {
+                setIsSuccess(false);
+                if (textareaRef.current) {
+                    textareaRef.current.blur();
+                }
+            }, 1000);
         } catch (err) {
             console.error(err);
             alert("メモの作成に失敗しました");
@@ -105,31 +115,36 @@ export default function NoteForm({ roomId, onCreated, autoRefreshIntervalMs = 0,
     };
 
     return (
-        <>
-            <Dialog open={showList} onOpenChange={setShowList}>
-                <DialogContent className="max-w-md h-[80vh] flex flex-col p-0 gap-0 overflow-hidden bg-white">
-                     <div className="flex items-center justify-between px-4 py-3 border-b bg-white z-10">
+        <div 
+            className={`relative bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-2xl rounded-3xl p-2 flex items-end gap-2 transition-all duration-300 ${className}`}
+        >
+            <Popover open={showList && !isExpanded} onOpenChange={setShowList}>
+                {!isExpanded && (
+                    <PopoverTrigger asChild>
+                        <Button 
+                            type="button"
+                            variant="ghost" 
+                            size="icon"
+                            className="h-10 w-10 shrink-0 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100 mb-0.5"
+                            title="メモ一覧を表示"
+                        >
+                            <List className="h-5 w-5" />
+                        </Button>
+                    </PopoverTrigger>
+                )}
+                <PopoverContent 
+                    className="w-80 sm:w-96 p-0 overflow-hidden" 
+                    align="center" 
+                    sideOffset={16}
+                >
+                    <div className="flex items-center justify-between px-4 py-3 border-b bg-slate-50/50">
                         <div className="flex items-center gap-2">
                             <StickyNote className="h-4 w-4 text-slate-500" />
-                            <span className="text-sm font-bold text-slate-700">授業メモ一覧</span>
-                        </div>
-                        <div className="flex items-center gap-2 mr-6">
-                            <Checkbox
-                                id="include-hidden-notes"
-                                checked={includeHidden}
-                                onCheckedChange={(v) => setIncludeHidden(Boolean(v))}
-                                className="h-3.5 w-3.5"
-                            />
-                            <Label
-                                htmlFor="include-hidden-notes"
-                                className="text-xs text-slate-600 cursor-pointer select-none"
-                            >
-                                非表示分も
-                            </Label>
+                            <span className="text-sm font-bold text-slate-700">授業メモ</span>
                         </div>
                     </div>
 
-                    <ScrollArea className="flex-1 p-4 bg-slate-50/30">
+                    <ScrollArea className="h-[50vh] max-h-100">
                          {loadingNotes && notes.length === 0 && (
                             <div className="flex justify-center py-4 text-slate-400 gap-2 items-center">
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -138,7 +153,7 @@ export default function NoteForm({ roomId, onCreated, autoRefreshIntervalMs = 0,
                         )}
 
                         {listError && (
-                            <Alert variant="destructive" className="mb-4 text-xs">
+                            <Alert variant="destructive" className="m-4 text-xs w-auto">
                                 <AlertTitle>エラー</AlertTitle>
                                 <AlertDescription>{listError}</AlertDescription>
                             </Alert>
@@ -151,81 +166,65 @@ export default function NoteForm({ roomId, onCreated, autoRefreshIntervalMs = 0,
                             </div>
                         )}
 
-                        <ul className="space-y-3">
-                            {notes.map((n) => (
-                                <li
-                                    key={n.noteId}
-                                    className="group relative flex flex-col gap-1 rounded-2xl rounded-tl-sm bg-white border border-slate-100 px-4 py-3 shadow-sm transition-all"
-                                >
-                                    <div className="text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">
-                                        {n.noteText}
-                                    </div>
-
-                                    <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400">
-                                        <div className="flex items-center gap-2">
-                                            {n.createdAt && (
-                                                <span>
-                                                    {new Date(n.createdAt).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                                                </span>
-                                            )}
-                                            {n.hidden && (
-                                                <Badge
-                                                    variant="outline"
-                                                    className="border-amber-200 bg-amber-50 text-amber-600 px-1 py-0 text-[9px] h-4"
-                                                >
-                                                    非表示
-                                                </Badge>
-                                            )}
+                        <div className="flex flex-col">
+                            {notes.map((n, index) => (
+                                <React.Fragment key={n.noteId}>
+                                    <div className="group relative flex flex-col gap-1 px-4 py-3 hover:bg-slate-50 transition-colors">
+                                        <div className="text-sm leading-relaxed text-slate-800 whitespace-pre-wrap pr-6">
+                                            {n.noteText}
                                         </div>
 
-                                        {!n.hidden && (
+                                        <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400">
+                                            <span>
+                                                {n.createdAt && new Date(n.createdAt).toLocaleString([], { 
+                                                    year: 'numeric', 
+                                                    month: '2-digit', 
+                                                    day: '2-digit', 
+                                                    hour: '2-digit', 
+                                                    minute: '2-digit' 
+                                                })}
+                                            </span>
+
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600 hover:bg-red-50"
                                                 onClick={() => hideNote(n.noteId)}
-                                                title="非表示にする"
+                                                title="削除する"
                                             >
-                                                <EyeOff className="h-3 w-3" />
+                                                <Trash2 className="h-4 w-4" />
                                             </Button>
-                                        )}
+                                        </div>
                                     </div>
-                                </li>
+                                    {index < notes.length - 1 && <Separator />}
+                                </React.Fragment>
                             ))}
-                        </ul>
+                        </div>
                     </ScrollArea>
-                </DialogContent>
-            </Dialog>
+                </PopoverContent>
+            </Popover>
 
-            <div 
-                className={`bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-2xl rounded-3xl p-2 pl-3 flex items-end gap-2 transition-all duration-300 ${className}`}
+            <form 
+                className="flex items-end relative" 
+                onSubmit={submit}
             >
-                <Button 
-                    type="button"
-                    variant="ghost" 
-                    size="icon"
-                    className="h-10 w-10 shrink-0 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100 mb-0.5"
-                    onClick={() => setShowList(true)}
-                    title="メモ一覧を表示"
-                >
-                    <ListCollapse className="h-5 w-5" />
-                </Button>
-
-                <form 
-                    className="flex items-end gap-2" 
-                    onSubmit={submit}
-                >
+                <div className={`relative transition-all duration-500 ease-out ${
+                    isExpanded 
+                        ? "w-[70vw] sm:w-100" 
+                        : "w-30"
+                }`}>
                     <Textarea
+                        ref={textareaRef}
                         value={text}
                         onChange={(e) => setText(e.target.value)}
                         rows={1}
                         placeholder="メモを入力…"
                         onFocus={() => setIsFocused(true)}
                         onBlur={() => setIsFocused(false)}
-                        className={`py-3 px-4 resize-none rounded-2xl bg-slate-100/80 border-transparent focus:bg-white focus:border-slate-300 transition-all duration-500 ease-out text-sm min-h-[44px] max-h-[200px] overflow-hidden ${
+                        className={`py-3 px-4 w-full resize-none rounded-2xl bg-slate-100/80 border-transparent focus:bg-white focus:border-slate-300 transition-all duration-500 ease-out text-sm min-h-11 max-h-50 overflow-hidden ${
                             isExpanded 
-                                ? "w-[70vw] sm:w-[500px] field-sizing-content" 
-                                : "w-[120px] field-sizing-fixed h-[44px]"
+                                ? "field-sizing-content pr-12" 
+                                : "field-sizing-fixed h-11"
                         }`}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -233,20 +232,28 @@ export default function NoteForm({ roomId, onCreated, autoRefreshIntervalMs = 0,
                             }
                         }}
                     />
-                    <Button 
-                        type="submit" 
-                        disabled={submitting || !text.trim()}
-                        className="h-11 w-11 shrink-0 rounded-xl shadow-sm p-0 mb-[1px]"
-                        size="icon"
-                    >
-                        {submitting ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                            <ArrowUp className="h-6 w-6" />
-                        )}
-                    </Button>
-                </form>
-            </div>
-        </>
+                    <div className={`absolute bottom-1 right-1 transition-all duration-300 ${
+                        isExpanded 
+                            ? "opacity-100 scale-100" 
+                            : "opacity-0 scale-50 pointer-events-none"
+                    }`}>
+                        <Button 
+                            type="submit" 
+                            disabled={submitting || (!text.trim() && !isSuccess)}
+                            className={`h-9 w-9 shrink-0 rounded-xl shadow-sm p-0 transition-colors duration-300 ${isSuccess ? "bg-green-500 hover:bg-green-600" : ""}`}
+                            size="icon"
+                        >
+                            {submitting ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : isSuccess ? (
+                                <Check className="h-5 w-5 text-white" />
+                            ) : (
+                                <ArrowUp className="h-5 w-5" />
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            </form>
+        </div>
     );
 }
