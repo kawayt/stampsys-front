@@ -594,7 +594,7 @@ function RoomHistory() {
 
 
     return (
-        <div className="flex flex-col gap-4 py-4">
+        <div className="flex flex-col gap-4 pt-4 pb-25">
             {/* ヘッダー / ナビゲーション */}
             <div className="mb-2">
                 <Button

@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
     Tooltip,
@@ -10,7 +9,7 @@ import {
 } from "@/components/ui/tooltip";
 import { getStampColorByCode, getStampIconByCode } from "@/lib/StampDefinition.js";
 import { sendStamp } from "../api/StampSendApi.js";
-import { ArrowLeft, StickyNote } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import NoteForm from "@/components/NoteForm";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
@@ -60,7 +59,7 @@ function SimpleBarChart({ data }) {
     if (!data || data.length === 0) return null;
 
     return (
-        <div className="mt-4 rounded-2xl overflow-hidden border border-slate-100">
+        <div className="mt-4 rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
             {data.map((d, i) => {
                 const id = d.stampId ?? d.stampName;
                 const isNotJoined = d.stampName === "未参加";
@@ -86,7 +85,7 @@ function SimpleBarChart({ data }) {
 
                 const IconComponent = d.icon;
                 
-                // 点滅時のスタイル: フィルタで彩度と明度を操作して「濃く鮮やかに」する
+                // 点滅時のスタイル
                 const rowStyle = {
                     backgroundColor: baseBgColor,
                     filter: isFlashing ? "brightness(0.92) saturate(1.4)" : "none",
@@ -98,7 +97,7 @@ function SimpleBarChart({ data }) {
                             <div className="border-t-2 border-dashed border-slate-300" />
                         )}
                         <div
-                            className={`flex flex-wrap md:flex-nowrap items-center gap-x-3 gap-y-2 px-3 py-2 transition-all duration-200 ease-out ${isNotJoined ? "opacity-80" : ""}`}
+                            className={`flex flex-wrap md:flex-nowrap items-center gap-x-3 gap-y-2 px-4 py-5 transition-all duration-200 ease-out ${isNotJoined ? "opacity-80" : ""}`}
                             style={rowStyle}
                         >
                             <div className="flex items-center gap-3 flex-1 md:flex-none md:w-44 shrink-0 min-w-0">
@@ -111,17 +110,17 @@ function SimpleBarChart({ data }) {
                                         style={{ backgroundColor: "transparent", color: iconColor }}
                                     >
                                         {IconComponent && (
-                                            <IconComponent className="h-5 w-5 md:h-6 md:w-6" />
+                                            <IconComponent className="h-6 w-6 md:h-7 md:w-7" />
                                         )}
                                     </div>
                                 )}
-                                <span className="font-medium truncate text-sm md:text-base" style={{ color: textColor }}>
+                                <span className="font-medium truncate text-base" style={{ color: textColor }}>
                                     {d.stampName}
                                 </span>
                             </div>
 
                             <div className="order-last md:order-0 w-full md:flex-1 md:w-auto min-w-0">
-                                <div className="h-6 md:h-8 w-full rounded-full bg-white/60 overflow-hidden">
+                                <div className="h-8 md:h-10 w-full rounded-full bg-white/60 overflow-hidden">
                                     <div
                                         className="h-full rounded-full transition-all duration-500 ease-in-out"
                                         style={{ width: widthPercent, backgroundColor: barColor }}
@@ -130,8 +129,8 @@ function SimpleBarChart({ data }) {
                             </div>
 
                             <div className="w-auto md:w-28 text-right text-slate-600 shrink-0">
-                                <span className="text-base md:text-lg font-semibold mr-1">{d.count}人</span>
-                                <span className="text-[10px] md:text-xs text-slate-400">/ {(d.percentage ?? 0).toFixed(1)}%</span>
+                                <span className="text-lg font-semibold mr-1">{d.count}人</span>
+                                <span className="text-xs text-slate-400">/ {(d.percentage ?? 0).toFixed(1)}%</span>
                             </div>
                         </div>
                     </React.Fragment>
@@ -545,9 +544,9 @@ export function RoomDetail({ userId, role }) {
                     このルームに紐づくスタンプは登録されていません。
                 </p>
             ) : !isTeacherView ? (
-                // --- 学生（一般ユーザー）向けレイアウト ---
+                // --- 学生向けレイアウト ---
                 <div className="flex-1 flex flex-col min-h-[60vh]">
-                    {/* スタンプボタン一覧: 画面中央に配置 */}
+                    {/* スタンプボタン一覧 */}
                     <div className="flex-1 flex flex-col items-center justify-center p-4">
                         <div className="grid grid-cols-2 gap-6 w-full max-w-4xl sm:grid-cols-3 md:grid-cols-4">
                             {stamps.map((s) => {
@@ -650,23 +649,18 @@ export function RoomDetail({ userId, role }) {
                     <div className="h-24"></div>
                 </div>
             ) : (
-                // --- 教員（管理者）向けレイアウト（既存維持） ---
-                <Card className="border-0 shadow-[0_18px_45px_rgba(15,23,42,0.08)] rounded-3xl bg-white/95">
-                    <CardContent>
-                        {summaryLoading && (
-                            <p className="mt-2 text-xs text-slate-500">集計を読み込み中...</p>
-                        )}
-                        {summaryError && (
-                            <p className="mt-2 text-xs text-red-500">集計を取得できませんでした: {summaryError}</p>
-                        )}
-                        {!summaryLoading && !summaryError && processedSummary && processedSummary.length > 0 && (
-                            <div>
-                                <h3 className="text-lg font-medium">スタンプ送信状況（最新）</h3>
-                                <SimpleBarChart data={processedSummary} />
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                // --- 教員・管理者向けレイアウト ---
+                <>
+                    {summaryLoading && (
+                        <p className="mt-2 text-xs text-slate-500">集計を読み込み中...</p>
+                    )}
+                    {summaryError && (
+                        <p className="mt-2 text-xs text-red-500">集計を取得できませんでした: {summaryError}</p>
+                    )}
+                    {!summaryLoading && !summaryError && processedSummary && processedSummary.length > 0 && (
+                        <SimpleBarChart data={processedSummary} />
+                    )}
+                </>
             )}
 
             {isTeacherView && (
