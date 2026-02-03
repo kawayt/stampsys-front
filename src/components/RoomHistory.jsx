@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchStampActivity } from "../api/StampActivity";
 import { fetchStampLogs } from "../api/stampLogs";
+import { fetchNotes } from "../api/notes";
 import { getStampColorByCode, getStampIconByCode } from "../lib/StampDefinition";
 import NoteForm from "@/components/NoteForm";
 
@@ -27,7 +28,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Check, Calendar, Stamp, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Check, Calendar, Stamp, ChevronLeft, ChevronRight, SquarePen } from "lucide-react";
 
 // Chart.js Registration
 ChartJS.register(
@@ -134,6 +135,7 @@ function RoomHistory() {
     const [logsError, setLogsError] = useState("");
     const [logsLimit, setLogsLimit] = useState(100);
     const [logsOffset, setLogsOffset] = useState(0);
+    const [notes, setNotes] = useState([]);
 
     const [selectedGroups, setSelectedGroups] = useState([]);
 
@@ -217,10 +219,13 @@ function RoomHistory() {
         setLogsLoading(true);
         setLogsError("");
         try {
-            const resp = await fetchStampLogs(roomId, {
-                limit: logsLimit,
-                offset: logsOffset,
-            });
+            const [resp, notesList] = await Promise.all([
+                fetchStampLogs(roomId, {
+                    limit: logsLimit,
+                    offset: logsOffset,
+                }),
+                fetchNotes(roomId, true)
+            ]);
             
             const list = Array.isArray(resp) ? resp.map(r => ({
                 id: r.stampLogId ?? r.stamp_log_id ?? r.id,
@@ -235,6 +240,7 @@ function RoomHistory() {
             })) : [];
             
             setLogs(list);
+            setNotes(Array.isArray(notesList) ? notesList : []);
         } catch (e) {
             console.error(e);
             setLogsError(e.message || "ログの取得に失敗しました");
@@ -418,6 +424,20 @@ function RoomHistory() {
     // -- ログ用ヘルパー --
 
     const renderStampPill = (e) => {
+        if (e.type === 'note') {
+             return (
+                 <div 
+                    key={e.key || `note-${Math.random()}`}
+                    className="inline-flex items-center gap-2 rounded-xl px-3 py-2 border border-slate-200 bg-slate-50 shadow-sm text-slate-800 max-w-full sm:max-w-md md:max-w-lg"
+                 >
+                    <SquarePen className="h-4 w-4 shrink-0 text-slate-500" />
+                    <div className="flex flex-col min-w-0">
+                         <span className="text-sm leading-snug whitespace-pre-wrap break-words">{e.content}</span>
+                    </div>
+                 </div>
+             );
+        }
+
         const stampKey = e.stampName || `stamp-${e.stampId}`;
         let bg = "#f9fafb";
         let iconColor = "#4b5563";
@@ -464,25 +484,63 @@ function RoomHistory() {
     };
 
     const groupedLogs = useMemo(() => {
-        if (!logs || logs.length === 0) return [];
+        let allItems = [];
+        
+        // 1. Logs
+        if (logs && logs.length > 0) {
+            allItems = logs.map(r => ({ ...r, type: 'stamp', ts: new Date(r.sentAt).getTime() }));
+        }
+        
+        // 2. Notes
+        if (notes && notes.length > 0) {
+             let rangeStart = 0;
+             let rangeEnd = Infinity;
+
+             if (allItems.length > 0) {
+                 let min = allItems[0].ts;
+                 let max = allItems[0].ts;
+                 for (const item of allItems) {
+                     if (item.ts < min) min = item.ts;
+                     if (item.ts > max) max = item.ts;
+                 }
+                 rangeStart = min;
+                 rangeEnd = max;
+             }
+
+             const validNotes = notes
+                .map(n => ({
+                    type: 'note',
+                    id: n.noteId,
+                    ts: new Date(n.createdAt).getTime(),
+                    content: n.noteText, // noteText is the property name in notes.js
+                    createdAt: n.createdAt
+                }))
+                .filter(n => n.ts >= rangeStart && n.ts <= rangeEnd);
+             
+             allItems = [...allItems, ...validNotes];
+        }
+
+        if (allItems.length === 0) return [];
+
         const intervalMs = parseIntervalToMs(interval);
         
-        const filtered = logs.filter(row => {
-            const g = row.groupName;
-            if (g && !selectedGroups.includes(g)) return false;
-            
-            // 常に選択された種類でフィルタリング
-            const s = row.stampName;
-            if (s && !selectedKinds.includes(s)) return false;
-            
+        const filtered = allItems.filter(row => {
+            if (row.type === 'stamp') {
+                const g = row.groupName;
+                if (g && !selectedGroups.includes(g)) return false;
+                
+                // 常に選択された種類でフィルタリング
+                const s = row.stampName;
+                if (s && !selectedKinds.includes(s)) return false;
+            }
             return true;
         });
 
-        filtered.sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
+        filtered.sort((a, b) => a.ts - b.ts);
 
         const groups = new Map();
         for (const row of filtered) {
-            const ts = new Date(row.sentAt).getTime();
+            const ts = row.ts;
             if (isNaN(ts)) continue;
             
             const bucket = Math.floor(ts / intervalMs) * intervalMs;
@@ -495,22 +553,33 @@ function RoomHistory() {
             }
             const g = groups.get(bucket);
             
-            const stampKey = row.stampName || `id:${row.stampId}`;
-            const userKey = row.senderName || `uid:${row.userId}`;
-            const entryKey = `${stampKey}|${userKey}`;
-            
-            if (g.entries.has(entryKey)) {
-                g.entries.get(entryKey).count++;
-            } else {
+            if (row.type === 'note') {
+                const entryKey = `note-${row.id}`;
                 g.entries.set(entryKey, {
-                    key: entryKey,
-                    stampName: row.stampName,
-                    stampId: row.stampId,
-                    senderName: row.senderName,
-                    color: row.stampColor,
-                    icon: row.stampIcon,
-                    count: 1
+                     key: entryKey,
+                     type: 'note',
+                     content: row.content,
+                     sentAt: row.createdAt
                 });
+            } else {
+                const stampKey = row.stampName || `id:${row.stampId}`;
+                const userKey = row.senderName || `uid:${row.userId}`;
+                const entryKey = `${stampKey}|${userKey}`;
+                
+                if (g.entries.has(entryKey)) {
+                    g.entries.get(entryKey).count++;
+                } else {
+                    g.entries.set(entryKey, {
+                        key: entryKey,
+                        type: 'stamp',
+                        stampName: row.stampName,
+                        stampId: row.stampId,
+                        senderName: row.senderName,
+                        color: row.stampColor,
+                        icon: row.stampIcon,
+                        count: 1
+                    });
+                }
             }
         }
 
@@ -521,7 +590,7 @@ function RoomHistory() {
                 entries: Array.from(g.entries.values())
             }));
 
-    }, [logs, interval, selectedGroups, selectedKinds]);
+    }, [logs, notes, interval, selectedGroups, selectedKinds]);
 
 
     return (
@@ -683,7 +752,9 @@ function RoomHistory() {
                                     </div>
                                     <div className="flex flex-wrap gap-2 grow">
                                         {g.entries.map(e => (
-                                            <div key={e.key}>{renderStampPill(e)}</div>
+                                            <div key={e.key} className={e.type === 'note' ? "w-full my-1" : ""}>
+                                                {renderStampPill(e)}
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
