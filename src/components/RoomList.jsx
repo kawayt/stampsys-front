@@ -1252,7 +1252,7 @@ export function RoomList({ userId, role }) {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>ルームを終了しますか？</DialogTitle>
-                        <DialogDescription className="text-xs">
+                        <DialogDescription className="text-xs break-all">
                             {selectedRoom
                                 ? `「${selectedRoom.roomName}」を終了します。よろしいですか？`
                                 : "終了するルームを確認してください。"}
@@ -1306,7 +1306,7 @@ export function RoomList({ userId, role }) {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>このルームを削除しますか？</DialogTitle>
-                        <DialogDescription className="text-xs">
+                        <DialogDescription className="text-xs break-all">
                             {hideSelectedRoom
                                 ? `「${hideSelectedRoom.roomName}」を削除します。この操作は取り消せません。`
                                 : "削除するルームを確認してください。"}

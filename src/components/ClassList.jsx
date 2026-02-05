@@ -471,7 +471,7 @@ export function ClassList({ role }) {
             >
                 <CardContent className="flex h-32 items-center justify-between px-8">
                     <div className="flex flex-col min-w-0 flex-1 mr-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                             <p
                                 className={`text-sm font-medium text-slate-800 line-clamp-3 break-all ${
                                     isHiddenTab
@@ -814,7 +814,7 @@ export function ClassList({ role }) {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>このクラスを削除しますか？</DialogTitle>
-                        <DialogDescription className="text-xs">
+                        <DialogDescription className="text-xs break-all">
                             「{deleteTargetClass?.className}」を削除します。この操作は取り消せません。
                         </DialogDescription>
                     </DialogHeader>
