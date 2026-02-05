@@ -114,7 +114,7 @@ function SimpleBarChart({ data }) {
                                         )}
                                     </div>
                                 )}
-                                <span className="font-medium truncate text-base" style={{ color: textColor }}>
+                                <span className="font-medium text-base line-clamp-1 md:line-clamp-2 break-all leading-tight" style={{ color: textColor }}>
                                     {d.stampName}
                                 </span>
                             </div>
@@ -564,6 +564,7 @@ export function RoomDetail({ userId, role }) {
                                                 hover:shadow-md hover:scale-105 active:scale-95
                                                 transition-all relative
                                                 disabled:opacity-50 disabled:cursor-not-allowed
+                                                px-2
                                             "
                                         style={{
                                             backgroundColor: color.bg,
@@ -572,10 +573,10 @@ export function RoomDetail({ userId, role }) {
                                         onClick={() => handleStampClick(s.stampId)}
                                         disabled={sendingStampId !== null || !userId}
                                     >
-                                        <div className="mb-2 h-12 w-12 flex items-center justify-center">
+                                        <div className="mb-2 h-12 w-12 flex items-center justify-center shrink-0">
                                             <Icon className="h-12 w-12" />
                                         </div>
-                                        <span className="text-sm font-bold">
+                                        <span className="text-sm font-bold line-clamp-2 break-all text-center leading-tight">
                                             {s.stampName}
                                         </span>
                                     </button>
@@ -627,7 +628,9 @@ export function RoomDetail({ userId, role }) {
                                                         </div>
                                                     </TooltipTrigger>
                                                     <TooltipContent>
-                                                        <p>{h.stampName}</p>
+                                                        <p className="max-w-[150px] line-clamp-2 break-all leading-tight text-center">
+                                                            {h.stampName}
+                                                        </p>
                                                     </TooltipContent>
                                                 </Tooltip>
                                             );
@@ -683,8 +686,10 @@ export function RoomDetail({ userId, role }) {
                             <overlayData.IconComponent className="h-20 w-20" />
                         )}
                     </div>
-                    <div className="mt-8 text-white text-center animate-in slide-in-from-bottom-4 duration-300 delay-100 fill-mode-forwards">
-                        <p className="text-3xl font-bold drop-shadow-md">{overlayData.name}</p>
+                    <div className="mt-8 text-white text-center animate-in slide-in-from-bottom-4 duration-300 delay-100 fill-mode-forwards max-w-[70vw] mx-auto px-4">
+                        <p className="text-3xl font-bold drop-shadow-md line-clamp-2 break-all leading-tight">
+                            {overlayData.name}
+                        </p>
                         <p className="mt-3 text-lg opacity-90 font-medium">
                             送信しました！
                         </p>

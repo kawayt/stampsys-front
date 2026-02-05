@@ -310,8 +310,11 @@ function RoomHistory() {
 
                 const color = stampDisplayMap[name]?.iconColor || '#6b7280';
 
+                // 長い名前を省略 (凡例・ツールチップ対策)
+                const dispName = name.length > 12 ? name.substring(0, 12) + "…" : name;
+
                 datasets.push({
-                    label: name,
+                    label: dispName,
                     data: s.values || [], // array of counts
                     borderColor: color,
                     backgroundColor: color,
@@ -465,17 +468,17 @@ function RoomHistory() {
         return (
             <div
                 key={e.key || Math.random()}
-                className="inline-flex items-center gap-2 rounded-xl px-3 py-1 border border-slate-100 shadow-sm text-slate-700"
+                className="inline-flex items-center gap-2 rounded-xl px-3 py-1 border border-slate-100 shadow-sm text-slate-700 max-w-[180px]"
                 style={{ backgroundColor: bg, color: iconColor }}
                 title={title}
             >
-                {IconComponent && <IconComponent className="h-4 w-4" />}
-                <div className="flex flex-col">
-                    <span className="text-sm font-medium leading-tight">{title}</span>
-                    <span className="text-xs text-slate-600">{e.senderName}</span>
+                {IconComponent && <IconComponent className="h-4 w-4 shrink-0" />}
+                <div className="flex flex-col min-w-0">
+                    <span className="text-sm font-medium leading-tight line-clamp-1 break-all">{title}</span>
+                    <span className="text-xs text-slate-600 line-clamp-1 break-all">{e.senderName}</span>
                 </div>
                 {e.count > 1 && (
-                    <span className="ml-2 text-xs bg-white/40 text-slate-700 px-1 rounded">
+                    <span className="ml-2 text-xs bg-white/40 text-slate-700 px-1 rounded shrink-0">
                         {e.count}
                     </span>
                 )}
@@ -667,8 +670,8 @@ function RoomHistory() {
                                 borderColor: "transparent"
                             } : {}}
                         >
-                            {IconC && <IconC className="h-8 w-8" />}
-                            <span className="text-xs font-bold text-center leading-tight truncate w-full px-1">{name}</span>
+                            {IconC && <IconC className="h-8 w-8 shrink-0" />}
+                            <span className="text-xs font-bold text-center leading-tight line-clamp-1 break-all w-full px-1">{name}</span>
                             
                             <span className="absolute top-1 left-2 text-xs font-bold opacity-80 bg-white/50 px-1.5 rounded-full">
                                 {count}

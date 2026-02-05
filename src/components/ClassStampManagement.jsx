@@ -181,12 +181,12 @@ export function ClassStampManagement({ classId, open, userId }) {
                                             color: color.icon,
                                         }}
                                     >
-                                        <div className="flex items-center gap-2">
-                                            <span className="inline-flex ml-0.5 items-center justify-center">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <span className="inline-flex ml-0.5 items-center justify-center shrink-0">
                                                 <Icon className="h-5 w-5" />
                                             </span>
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-medium text-slate-800">
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-xs font-medium text-slate-800 line-clamp-2 break-all leading-tight">
                                                   {stamp.stampName}
                                                 </span>
                                             </div>
@@ -242,12 +242,12 @@ export function ClassStampManagement({ classId, open, userId }) {
                                             color: color.icon,
                                         }}
                                     >
-                                        <div className="flex items-center gap-2">
-                                            <span className="inline-flex ml-0.5 items-center justify-center">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <span className="inline-flex ml-0.5 items-center justify-center shrink-0">
                                                 <Icon className="h-5 w-5" />
                                             </span>
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-medium text-slate-800">
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-xs font-medium text-slate-800 line-clamp-2 break-all leading-tight">
                                                   {stamp.stampName}
                                                 </span>
                                             </div>

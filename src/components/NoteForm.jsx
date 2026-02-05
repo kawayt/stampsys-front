@@ -170,7 +170,7 @@ export default function NoteForm({ roomId, onCreated, autoRefreshIntervalMs = 0,
                             {notes.map((n, index) => (
                                 <React.Fragment key={n.noteId}>
                                     <div className="group relative flex flex-col gap-1 px-4 py-3 hover:bg-slate-50 transition-colors">
-                                        <div className="text-sm leading-relaxed text-slate-800 whitespace-pre-wrap pr-6">
+                                        <div className="text-sm leading-relaxed text-slate-800 whitespace-pre-wrap break-all pr-6">
                                             {n.noteText}
                                         </div>
 

@@ -561,7 +561,7 @@ function StampList({ userId, role }) {
                                 </span>
 
                                 {/* ラベル */}
-                                <span className="text-sm font-medium">
+                                <span className="text-sm font-medium line-clamp-2 text-center px-2.5 break-all">
                                     {stamp.stampName}
                                 </span>
                             </div>
@@ -583,7 +583,7 @@ function StampList({ userId, role }) {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>このスタンプを削除しますか？</DialogTitle>
-                        <DialogDescription className="text-xs">
+                        <DialogDescription className="text-xs break-all">
                             {deleteTargetStamp && (
                                 <>
                                     「{deleteTargetStamp.stampName}」を削除します。
@@ -636,7 +636,7 @@ function StampList({ userId, role }) {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>このスタンプを復元しますか？</DialogTitle>
-                        <DialogDescription className="text-xs">
+                        <DialogDescription className="text-xs break-all">
                             {restoreTargetStamp && (
                                 <>
                                     「{restoreTargetStamp.stampName}」を復元します。
