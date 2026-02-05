@@ -611,8 +611,8 @@ function RoomHistory() {
                 </Button>
             </div>
 
-            <div className="flex flex-col gap-1">
-                <h2 className="text-xl font-bold">{roomName}</h2>
+            <div className="flex flex-col gap-1 min-w-0">
+                <h2 className="text-xl font-bold break-all">{roomName}</h2>
                 
                 {/* 統計情報 */}
                 <div className="flex items-center gap-6 text-sm text-slate-600">

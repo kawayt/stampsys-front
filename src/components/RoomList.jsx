@@ -696,13 +696,13 @@ export function RoomList({ userId, role }) {
                     }
                 }}
             >
-                <CardContent className="flex h-32 flex-col justify-between px-8 py-5">
+                <CardContent className="flex h-32 flex-col justify-center px-8 py-5">
                     {/* 上段：ルーム名とステータス */}
                     <div className="flex items-start justify-between gap-4">
-                        <div className="text-left">
-                            <div className="flex items-center gap-2">
+                        <div className="text-left min-w-0 flex-1 flex flex-col justify-center">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                                 <p
-                                    className={`text-sm font-medium text-slate-800 ${
+                                    className={`text-sm font-medium text-slate-800 line-clamp-3 break-all ${
                                         isHiddenTab
                                             ? "line-through decoration-red-300"
                                             : ""
@@ -711,14 +711,14 @@ export function RoomList({ userId, role }) {
                                     {room.roomName}
                                 </p>
 
-                                {/* ステータスバッジ */}
+                                {/* ステータスバッジ (名前が短いときは横、長いときは折り返して下になる) */}
                                 {!isHiddenTab && !isActive && (
-                                    <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-500 border border-red-100">
+                                    <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-500 border border-red-100 shrink-0">
                                         終了
                                     </span>
                                 )}
                                 {isHiddenTab && (
-                                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 border border-slate-200">
+                                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 border border-slate-200 shrink-0">
                                         削除済み
                                     </span>
                                 )}
@@ -736,7 +736,7 @@ export function RoomList({ userId, role }) {
 
                         {/* 右上：ドロップダウンメニュー（カードクリックと分離） */}
                         <div
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 shrink-0 self-center"
                             onClick={(e) => e.stopPropagation()}
                             onKeyDown={(e) => e.stopPropagation()}
                         >
@@ -963,12 +963,12 @@ export function RoomList({ userId, role }) {
 
             {/* クラス名の見出し＋スタンプ/ユーザー管理ボタン */}
             <div className="mb-12 flex items-center justify-between gap-4">
-                <h1 className="text-3xl font-bold text-slate-900">
+                <h1 className="text-3xl font-bold text-slate-900 flex-1 min-w-0 break-all mr-4">
                     {classInfo?.className ?? "-"}
                 </h1>
 
                 {/* スタンプ管理 / ユーザー管理 ボタングループ */}
-                <div className="inline-flex items-center rounded-md border bg-background text-sm shadow-sm overflow-hidden">
+                <div className="inline-flex items-center rounded-md border bg-background text-sm shadow-sm overflow-hidden shrink-0">
                     {/* スタンプ管理ダイアログ */}
                     <Dialog
                         open={openStampDialog}

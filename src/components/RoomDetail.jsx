@@ -534,8 +534,8 @@ export function RoomDetail({ userId, role }) {
             </div>
 
             <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-xl font-bold">ルーム詳細 - {roomName && <span>{roomName}</span>}</h2>
+                <div className="min-w-0 flex-1">
+                    <h2 className="text-xl font-bold break-all">ルーム詳細 - {roomName && <span>{roomName}</span>}</h2>
                 </div>
             </div>
 

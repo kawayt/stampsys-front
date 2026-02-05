@@ -470,10 +470,10 @@ export function ClassList({ role }) {
                 }}
             >
                 <CardContent className="flex h-32 items-center justify-between px-8">
-                    <div className="flex flex-col">
+                    <div className="flex flex-col min-w-0 flex-1 mr-4">
                         <div className="flex items-center gap-2">
                             <p
-                                className={`text-sm font-medium text-slate-800 ${
+                                className={`text-sm font-medium text-slate-800 line-clamp-3 break-all ${
                                     isHiddenTab
                                         ? "line-through decoration-red-300"
                                         : ""
@@ -501,7 +501,7 @@ export function ClassList({ role }) {
                     </div>
 
                     <div
-                        className="flex flex-col items-end gap-2"
+                        className="flex flex-col items-end gap-2 shrink-0"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* 3点ドットメニュー */}
